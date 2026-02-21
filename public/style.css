@@ -1,0 +1,67 @@
+/* =========================================
+   📱 MOBILE INTERFACE (Phones & Small Tablets)
+   ========================================= */
+@media screen and (max-width: 768px) {
+    
+    /* 1. Make buttons and inputs thumb-friendly */
+    input, select, button, .btn {
+        width: 100% !important;
+        box-sizing: border-box;
+        padding: 14px 10px !important;
+        font-size: 16px !important; /* Prevents iPhone from auto-zooming */
+        margin-bottom: 10px;
+    }
+
+    /* 2. Turn Tables into Mobile "Cards" */
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    /* Hide the top header row of the table */
+    thead tr {
+        display: none;
+    }
+
+    /* Style each row to look like a floating card */
+    tr {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        padding: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    /* Align text to the right and make room for labels on the left */
+    td {
+        border: none;
+        border-bottom: 1px solid #eee;
+        position: relative;
+        padding-left: 50% !important;
+        text-align: right !important;
+        min-height: 30px;
+    }
+
+    /* Remove the line under the last item in the card */
+    td:last-child {
+        border-bottom: none;
+    }
+
+    /* Create the Left-Side Labels automatically */
+    td::before {
+        content: attr(data-label); /* Pulls the name from HTML */
+        position: absolute;
+        left: 10px;
+        width: 45%;
+        padding-right: 10px;
+        text-align: left;
+        font-weight: bold;
+        color: #555;
+    }
+    
+    /* Center the action buttons inside the card */
+    td form {
+        display: flex;
+        flex-direction: column;
+    }
+}
