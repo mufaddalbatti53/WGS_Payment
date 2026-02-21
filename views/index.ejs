@@ -204,6 +204,14 @@
             margin-bottom: 3px;
         }
         @media screen and (max-width: 768px) {
+            /* Force long emails, phone numbers, and activity logs to wrap inside the screen */
+td, p, span, div {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word; /* Breaks long strings like emails to the next line */
+    white-space: normal !important; 
+    max-width: 100%; /* Ensures nothing stretches beyond the screen */
+}
     /* Make buttons huge for thumbs */
     input, select, button, .btn { width: 100% !important; margin-bottom: 10px; padding: 12px !important; font-size: 16px !important; }
     

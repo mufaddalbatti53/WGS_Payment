@@ -51,6 +51,22 @@
         tr:hover {
             background: #f9f9f9;
         }
+        @media screen and (max-width: 768px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    thead tr { display: none; } /* Hide the top header row */
+
+    tr { background: #fff; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px; padding: 15px; }
+
+    /* The padding-left creates space for the label */
+    td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 35% !important; text-align: left !important; }
+
+    /* Add labels on the left side of the mobile card */
+    td::before { 
+        content: attr(data-label); 
+        position: absolute; left: 0; width: 30%; 
+        text-align: left; font-weight: bold; color: #555; 
+    }
+}
     </style>
 </head>
 
@@ -74,16 +90,16 @@
             <tbody>
                 <% activities.forEach(act=> { %>
                     <tr>
-                        <td>
+                        <td data-label="Date:">
                             <%= act.date.toLocaleString() %>
                         </td>
-                        <td><strong>
+                        <td data-label="User:"><strong>
                                 <%= act.username %>
                             </strong></td>
-                        <td>
+                        <td data-label="Action:">
                             <%= act.action %>
                         </td>
-                        <td>
+                        <td data-label="Details:">
                             <%= act.details %>
                         </td>
                     </tr>
