@@ -4,8 +4,8 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
 
-const Customer = require('./models/customer');
-const User = require('./models/user');
+const Customer = require('./models/Customer');
+const User = require('./models/User');
 const Activity = require('./models/Activity');
 
 const app = express();
@@ -226,4 +226,5 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
 
 // --- START SERVER ---
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
