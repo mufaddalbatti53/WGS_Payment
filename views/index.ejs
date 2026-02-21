@@ -275,7 +275,7 @@
                                 const isDueForReminder=now>= nextDate;
                                 %>
                                 <tr>
-                                    <td data-label="Company">
+                                    <td>
                                         <strong>
                                             <%= customer.companyName %>
                                         </strong><br>
@@ -283,7 +283,7 @@
                                             <%= customer.contactPerson %>
                                         </span>
                                     </td>
-                                    <td data-label="Company">
+                                    <td>
                                         📞 <a href="tel:+<%= customer.phone %>"
                                             style="text-decoration:none; color:black;">+<%= customer.phone %></a><br>
 
@@ -316,7 +316,7 @@
                                                                             Email Saved)</span>
                                                                         <% } %>
                                     </td>
-                                    <td data-label="Company">
+                                    <td>
                                         Total: ₹<%= customer.totalAmount %><br>
                                             Paid: ₹<%= customer.paidAmount %><br>
                                                 <% if (due> 0) { %>
@@ -326,14 +326,14 @@
                                                         <% } %>
                                     </td>
 
-                                    <td data-label="Company">
+                                    <td>
                                         <%= nextDate.toDateString() %>
                                             <% if (due> 0 && isDueForReminder) { %>
                                                 <br><span style="color:red; font-weight:bold;">(Action Required)</span>
                                                 <% } %>
                                     </td>
 
-                                    <td data-label="Company">
+                                    <td>
                                         <% if (role==='admin' || role==='staff' ) { %>
                                             <button class="btn btn-blue transaction-btn" data-id="<%= customer._id %>"
                                                 data-company="<%= customer.companyName %>" style="margin-bottom: 5px;">
