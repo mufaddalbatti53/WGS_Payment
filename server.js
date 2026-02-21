@@ -4,6 +4,11 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
 
+// Add this near the top of server.js
+const xlsx = require('xlsx');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() }); // Stores uploaded files in RAM safely
+
 const Customer = require('./models/Customer');
 const User = require('./models/User');
 const Activity = require('./models/Activity');
@@ -157,6 +162,83 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
     const staff = await User.findByIdAndDelete(req.params.id);
     if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
     res.redirect('/staff');
+});
+
+// --- EXPORT TO EXCEL ROUTE ---
+app.get('/export', async (req, res) => {
+    try {
+        const customers = await Customer.find().lean();
+
+        // Map database fields to exact Excel column names
+        const excelData = customers.map(c => ({
+            'COMPANY NAME': c.companyName || '',
+            'CONTACT PERSON': c.contactPerson || '',
+            'EMAIL ADDRESS': c.email || '',
+            'PRIMARY CALLING NUMBER': c.phone || '',
+            'WHATSAPP NUMBER': c.whatsappNumber || '',
+            'OTHER NUMBERS': c.otherNumbers || '',
+            'TOTAL AMOUNT': c.totalAmount || 0,
+            'PAID': c.paidAmount || 0,
+            'NEXT ACTION DATE': c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : ''
+        }));
+
+        const worksheet = xlsx.utils.json_to_sheet(excelData);
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Customers');
+
+        const buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+        res.setHeader('Content-Disposition', 'attachment; filename="Customer_Data.xlsx"');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Failed to export Excel file.");
+    }
+});
+
+
+// --- IMPORT FROM EXCEL ROUTE (WITH SMART UPDATE) ---
+app.post('/import', upload.single('excelFile'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).send('Please upload an Excel file.');
+
+        // cellDates: true ensures dates format correctly from Excel
+        const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        for (let row of data) {
+            if (row['COMPANY NAME']) {
+
+                // Map the Excel columns back to your database fields
+                const updateData = {
+                    companyName: row['COMPANY NAME'],
+                    contactPerson: row['CONTACT PERSON'] || '',
+                    email: row['EMAIL ADDRESS'] || '',
+                    phone: row['PRIMARY CALLING NUMBER'] || '',
+                    whatsappNumber: row['WHATSAPP NUMBER'] || '',
+                    otherNumbers: row['OTHER NUMBERS'] || '',
+                    totalAmount: row['TOTAL AMOUNT'] || 0,
+                    paidAmount: row['PAID'] || 0,
+                    nextActionDate: row['NEXT ACTION DATE'] || null
+                };
+
+                // SMART UPDATE LOGIC:
+                // Find by Company Name. If found -> update details. If NOT found -> insert as new.
+                await Customer.findOneAndUpdate(
+                    { companyName: row['COMPANY NAME'] },
+                    { $set: updateData },
+                    { new: true, upsert: true }
+                );
+            }
+        }
+
+        res.redirect('/');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Failed to import Excel file.");
+    }
 });
 
 // 5. CUSTOMER ACTIONS

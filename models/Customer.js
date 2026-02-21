@@ -1,17 +1,15 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
-    companyName: String,
-    contactPerson: String,
-    phone: String,           // Primary Calling Number
-    otherNumbers: String,    // NEW: Extra numbers (Comma separated)
-    whatsapp: String,        // Primary WhatsApp
-    email: String,
-
-    totalAmount: Number,
+    companyName: { type: String, required: true },
+    contactPerson: { type: String },
+    email: { type: String },
+    phone: { type: String }, // Used as Primary Calling Number
+    whatsappNumber: { type: String },
+    otherNumbers: { type: String },
+    totalAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
-
-    nextReminderDate: { type: Date, default: Date.now }
+    nextActionDate: { type: Date }
 });
 
 module.exports = mongoose.model('Customer', customerSchema);

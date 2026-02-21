@@ -242,6 +242,29 @@
                 <a href="/activity" class="menu-btn btn-menu-purple">📜 Activity Log</a>
             </div>
 
+            <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3>Excel Data Management</h3>
+            
+                <a href="/export"
+                    style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-bottom: 10px;">
+                    📥 Download All to Excel
+                </a>
+            
+                <hr style="border-top: 1px solid #ccc;">
+            
+                <form action="/import" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
+                    <label for="excelFile"><strong>Upload Excel File:</strong></label>
+                    <input type="file" name="excelFile" accept=".xlsx, .xls" required style="margin-right: 10px;">
+                    <button type="submit"
+                        style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer;">
+                        📤 Import Data
+                    </button>
+                    <br>
+                    <small style="color: #666;">Note: Columns must match: "Company Name", "Contact Person", "Phone Number", "Total
+                        Due", "Paid Amount"</small>
+                </form>
+            </div>
+
             <div style="background: #eee; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
                 <h3>Add New Party</h3>
                 <form action="/customers" method="POST">

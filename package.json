@@ -18,6 +18,8 @@
     "express-session": "^1.19.0",
     "method-override": "^3.0.0",
     "mongoose": "^9.2.1",
-    "nodemon": "^3.1.11"
+    "multer": "^2.0.2",
+    "nodemon": "^3.1.11",
+    "xlsx": "^0.18.5"
   }
 }
