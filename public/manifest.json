@@ -1,6 +1,6 @@
 {
-    "name": "Payment Manager",
-    "short_name": "PayApp",
+    "name": "WGS Payment Manager",
+    "short_name": "WGS Payment Manager",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
@@ -14,5 +14,6 @@
     ]
 
 }
+
 
 
