@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#27ae60">
+    <link rel="apple-touch-icon" href="/images/logo.png">
+    <meta charset="UTF-8">
+    <title>Login Portal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background: white;
+            width: 350px;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            cursor: pointer;
+            padding: 10px;
+            width: 50%;
+            color: #777;
+            font-weight: bold;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #27ae60;
+            color: #2c3e50;
+        }
+
+        .form-box {
+            display: none;
+        }
+
+        .form-box.active {
+            display: block;
+        }
+
+        .input-group {
+            margin: 10px 0;
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* The Eye Icon Style */
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 18px;
+            color: #777;
+            user-select: none;
+            /* Prevents highlighting the icon */
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #219150;
+        }
+
+        .alert {
+            color: red;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .link {
+            display: block;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #3498db;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-container">
+        <h2>Login Portal</h2>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('staff')">Admin / Staff</div>
+            <div class="tab" onclick="switchTab('customer')">Customer</div>
+        </div>
+
+        <% if (error) { %>
+            <p class="alert">
+                <%= error %>
+            </p>
+            <% } %>
+
+                <div id="staff" class="form-box active">
+                    <form action="/login" method="POST">
+                        <input type="hidden" name="type" value="staff">
+
+                        <div class="input-group">
+                            <input type="text" name="username" placeholder="Username" required>
+                        </div>
+
+                        <div class="input-group">
+                            <input type="password" name="password" id="passwordInput" placeholder="Password" required>
+                            <span class="toggle-password" onclick="togglePassword()">👁️</span>
+                        </div>
+
+                        <button type="submit">Login</button>
+                        <a href="/forgot-password" style="font-size: 11px; float: right; margin-top: 5px; color: #777;">Forgot Password?</a>
+                    </form>
+                    <a href="/register" class="link">Admin? Create Account</a>
+                </div>
+
+                <div id="customer" class="form-box">
+                    <form action="/login" method="POST">
+                        <input type="hidden" name="type" value="customer">
+                        <div class="input-group">
+                            <input type="text" name="phone" placeholder="Enter Phone Number (e.g. 9198...)" required>
+                        </div>
+                        <button type="submit" style="background: #3498db;">Track My Payment</button>
+                    </form>
+                    <p style="font-size: 11px; color: #777; margin-top: 10px;">
+                        *Enter number exactly as given to owner.
+                    </p>
+                </div>
+
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.form-box').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // TOGGLE PASSWORD VISIBILITY
+        function togglePassword() {
+            const passwordInput = document.getElementById('passwordInput');
+            const icon = document.querySelector('.toggle-password');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text'; // Show Password
+                icon.innerText = '🔒'; // Change icon to Lock (or use '🙈')
+            } else {
+                passwordInput.type = 'password'; // Hide Password
+                icon.innerText = '👁️'; // Change icon back to Eye
+            }
+        }
+    </script>
+
+</body>
+
+</html>

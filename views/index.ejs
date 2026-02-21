@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#27ae60">
+    <link rel="apple-touch-icon" href="/images/logo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Manager</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#27ae60">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            background: #f4f4f9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .badge-due {
+            background: #ffdddd;
+            color: #d00;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .badge-paid {
+            background: #ddffdd;
+            color: #008000;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 12px;
+        }
+
+        .btn-green {
+            background: #25D366;
+            color: white;
+            border: none;
+        }
+
+        .btn-blue {
+            background: #3498db;
+            color: white;
+            border: none;
+        }
+
+        .btn-orange {
+            background: #e67e22;
+            color: white;
+            border: none;
+        }
+
+        .btn-red {
+            background: #e74c3c;
+            color: white;
+            border: none;
+        }
+
+        .btn-yellow {
+            background: #f1c40f;
+            color: #333;
+            border: none;
+        }
+
+        /* New Edit Button Style */
+
+        .role-nav {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #333;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 4px;
+        }
+
+        .role-nav a {
+            color: white;
+            text-decoration: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .admin-menu {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .menu-btn {
+            padding: 10px 20px;
+            text-decoration: none;
+            color: white;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .btn-menu-blue {
+            background: #3498db;
+        }
+
+        .btn-menu-purple {
+            background: #9b59b6;
+        }
+
+        .input-style {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 5px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .trans-group {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+        }
+
+        .trans-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="role-nav">
+        <span>Logged in as: <strong>
+                <%= role.toUpperCase() %>
+            </strong></span>
+        <a href="/logout" style="background: red; padding: 5px 10px; border-radius: 4px;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h1>Payment Dashboard</h1>
+
+        <% if (role==='admin' ) { %>
+            <div class="admin-menu">
+                <a href="/staff" class="menu-btn btn-menu-blue">👤 Manage Staff</a>
+                <a href="/activity" class="menu-btn btn-menu-purple">📜 Activity Log</a>
+            </div>
+
+            <div style="background: #eee; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <h3>Add New Party</h3>
+                <form action="/customers" method="POST">
+                    <div class="form-row">
+                        <input type="text" name="companyName" placeholder="Company Name" required class="input-style">
+                        <input type="text" name="contactPerson" placeholder="Contact Person" required
+                            class="input-style">
+                    </div>
+                    <div class="form-row">
+                        <input type="email" name="email" placeholder="Email Address" class="input-style">
+                        <input type="number" name="totalAmount" placeholder="Total Amount (₹)" required
+                            class="input-style">
+                    </div>
+                    <div class="form-row">
+                        <select name="countryCode" id="countryCode" class="input-style" style="width: 80px;">
+                            <option value="91" selected>+91</option>
+                            <option value="1">+1</option>
+                            <option value="971">+971</option>
+                        </select>
+                        <input type="text" name="localPhone" placeholder="Primary Calling Number" required
+                            class="input-style">
+                        <input type="text" name="whatsapp" placeholder="WhatsApp Number" required class="input-style">
+                    </div>
+
+                    <div class="form-row">
+                        <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
+                            class="input-style">
+                    </div>
+
+                    <button type="submit" class="btn" style="background:#333; color:white; padding: 10px 20px;">Add
+                        Party</button>
+                </form>
+            </div>
+            <% } %>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Company / Contact</th>
+                            <th>Contact Info</th>
+                            <th>Financials</th>
+                            <th>Next Action Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% customers.forEach(customer=> { %>
+                            <% const due=customer.totalAmount - customer.paidAmount; const now=new Date(); const
+                                nextDate=customer.nextReminderDate ? new Date(customer.nextReminderDate) : new Date();
+                                const isDueForReminder=now>= nextDate;
+                                %>
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            <%= customer.companyName %>
+                                        </strong><br>
+                                        <span style="color:#555; font-size:12px;">
+                                            <%= customer.contactPerson %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        📞 <a href="tel:+<%= customer.phone %>"
+                                            style="text-decoration:none; color:black;">+<%= customer.phone %></a><br>
+
+                                        <% if (customer.otherNumbers) { %>
+                                            <% customer.otherNumbers.split(',').forEach(num=> { %>
+                                                <% if(num.trim() !=="" ) { %>
+                                                    📞 <a href="tel:<%= num.trim() %>"
+                                                        style="text-decoration:none; color:#555; font-size:12px;">
+                                                        <%= num.trim() %>
+                                                    </a><br>
+                                                    <% } %>
+                                                        <% }) %>
+                                                            <% } %>
+
+                                                                💬 <a href="https://wa.me/<%= customer.whatsapp %>"
+                                                                    target="_blank"
+                                                                    style="text-decoration:none; color:green;">+<%=
+                                                                        customer.whatsapp %></a><br>
+
+                                                                <% if (customer.email && customer.email.trim() !=="" ) {
+                                                                    %>
+                                                                    📧 <a
+                                                                        href="https://mail.google.com/mail/?view=cm&fs=1&to=<%= customer.email %>"
+                                                                        target="_blank"
+                                                                        style="color:blue; text-decoration:underline;">
+                                                                        <%= customer.email %>
+                                                                    </a>
+                                                                    <% } else { %>
+                                                                        <span style="color:#999; font-size:12px;">(No
+                                                                            Email Saved)</span>
+                                                                        <% } %>
+                                    </td>
+                                    <td>
+                                        Total: ₹<%= customer.totalAmount %><br>
+                                            Paid: ₹<%= customer.paidAmount %><br>
+                                                <% if (due> 0) { %>
+                                                    <span class="badge-due">Due: ₹<%= due %></span>
+                                                    <% } else { %>
+                                                        <span class="badge-paid">Paid</span>
+                                                        <% } %>
+                                    </td>
+
+                                    <td>
+                                        <%= nextDate.toDateString() %>
+                                            <% if (due> 0 && isDueForReminder) { %>
+                                                <br><span style="color:red; font-weight:bold;">(Action Required)</span>
+                                                <% } %>
+                                    </td>
+
+                                    <td>
+                                        <% if (role==='admin' || role==='staff' ) { %>
+                                            <button class="btn btn-blue transaction-btn" data-id="<%= customer._id %>"
+                                                data-company="<%= customer.companyName %>" style="margin-bottom: 5px;">
+                                                Update Balance ✎
+                                            </button>
+                                            <br>
+                                            <button class="btn btn-orange reminder-btn" data-id="<%= customer._id %>"
+                                                data-whatsapp="<%= customer.whatsapp %>"
+                                                data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
+                                                data-due="<%= due %>" data-company="<%= customer.companyName %>">
+                                                Send Reminder 🔔
+                                            </button>
+                                            <% } %>
+
+                                                <% if (role==='admin' ) { %>
+                                                    <br>
+                                                    <button class="btn btn-yellow edit-btn" style="margin-top: 5px;"
+                                                        data-id="<%= customer._id %>"
+                                                        data-company="<%= customer.companyName %>"
+                                                        data-contact="<%= customer.contactPerson %>"
+                                                        data-email="<%= customer.email %>"
+                                                        data-phone="<%= customer.phone %>"
+                                                        data-whatsapp="<%= customer.whatsapp %>"
+                                                        data-other="<%= customer.otherNumbers %>">
+                                                        Edit Details ✎
+                                                    </button>
+
+                                                    <form action="/customers/<%= customer._id %>?_method=DELETE"
+                                                        method="POST" style="display:inline; margin-left:5px;">
+                                                        <button type="submit"
+                                                            style="color:red; background:none; border:none; cursor:pointer;">X</button>
+                                                    </form>
+                                                    <% } %>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                    </tbody>
+                </table>
+    </div>
+
+    <div id="transactionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTransactionModal()">&times;</span>
+            <h3>Update Balance</h3>
+            <p id="transCompanyName" style="font-weight:bold; color:#3498db;"></p>
+            <form id="transactionForm" method="POST">
+                <div class="trans-group">
+                    <label class="trans-label">➕ Add New Purchase (Increases Debt)</label>
+                    <input type="number" name="newPurchase" placeholder="Amount (₹)" class="input-style">
+                </div>
+                <div class="trans-group">
+                    <label class="trans-label" style="color: green;">➖ Add Payment Received (Reduces Debt)</label>
+                    <input type="number" name="payment" placeholder="Amount (₹)" class="input-style">
+                </div>
+                <button type="submit" class="btn btn-blue" style="width:100%; padding:10px;">Update Account</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="actionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeActionModal()">&times;</span>
+            <h3>Send Reminder</h3>
+            <p id="modalCompanyName" style="font-weight:bold;"></p>
+            <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                <a id="waLink" target="_blank" class="btn btn-green" style="flex:1; text-align:center;">WhatsApp</a>
+                <a id="smsLink" class="btn btn-blue" style="flex:1; text-align:center;">SMS</a>
+                <a id="emailLink" target="_blank" class="btn btn-red" style="flex:1; text-align:center;">Gmail</a>
+            </div>
+            <hr>
+            <p style="font-size:12px; margin-bottom:5px;">After sending, set the <strong>NEXT</strong> reminder date:
+            </p>
+            <form id="updateDateForm" method="POST">
+                <input type="date" name="nextDate" required class="input-style">
+                <button type="submit" class="btn btn-blue" style="width:100%; margin-top:10px;">Save Next Date</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h3>Edit Customer Details</h3>
+            <form id="editForm" method="POST">
+                <label class="trans-label">Company Name</label>
+                <input type="text" name="companyName" id="editCompany" required class="input-style">
+
+                <label class="trans-label">Contact Person</label>
+                <input type="text" name="contactPerson" id="editContact" required class="input-style">
+
+                <label class="trans-label">Email</label>
+                <input type="email" name="email" id="editEmail" class="input-style">
+
+                <div class="form-row">
+                    <div style="flex:1">
+                        <label class="trans-label">Full Phone (with Code)</label>
+                        <input type="text" name="phone" id="editPhone" required class="input-style">
+                    </div>
+                    <div style="flex:1">
+                        <label class="trans-label">Full WhatsApp (with Code)</label>
+                        <input type="text" name="whatsapp" id="editWhatsapp" required class="input-style">
+                    </div>
+                </div>
+
+                <label class="trans-label">Other Numbers</label>
+                <input type="text" name="otherNumbers" id="editOther" class="input-style">
+
+                <button type="submit" class="btn btn-yellow" style="width:100%; padding:10px; font-weight:bold;">Save
+                    Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Transaction Logic
+        document.querySelectorAll('.transaction-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                const company = this.getAttribute('data-company');
+                document.getElementById('transactionModal').style.display = "block";
+                document.getElementById('transCompanyName').innerText = company;
+                document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
+            });
+        });
+
+        // Reminder Logic
+        document.querySelectorAll('.reminder-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                const whatsapp = this.getAttribute('data-whatsapp');
+                const email = this.getAttribute('data-email');
+                const phone = this.getAttribute('data-phone');
+                const due = this.getAttribute('data-due');
+                const company = this.getAttribute('data-company');
+
+                document.getElementById('actionModal').style.display = "block";
+                document.getElementById('modalCompanyName').innerText = company;
+
+                const msg = `Hello, this is a reminder regarding ${company}. Your total due is ₹${due}. Please pay soon.`;
+                const encodedMsg = encodeURIComponent(msg);
+
+                document.getElementById('waLink').href = `https://wa.me/${whatsapp}?text=${encodedMsg}`;
+                document.getElementById('smsLink').href = `sms:+${phone}?body=${encodedMsg}`;
+
+                const emailBtn = document.getElementById('emailLink');
+                if (email && email.trim() !== "") {
+                    emailBtn.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=Payment Reminder: ${encodeURIComponent(company)}&body=${encodedMsg}`;
+                    emailBtn.style.opacity = "1";
+                    emailBtn.style.pointerEvents = "auto";
+                } else {
+                    emailBtn.href = "#";
+                    emailBtn.style.opacity = "0.4";
+                    emailBtn.style.pointerEvents = "none";
+                }
+
+                document.getElementById('updateDateForm').action = `/customers/${id}/update-reminder?_method=PUT`;
+            });
+        });
+
+        // NEW: EDIT LOGIC
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+
+                // Pre-fill inputs with existing data
+                document.getElementById('editCompany').value = this.getAttribute('data-company');
+                document.getElementById('editContact').value = this.getAttribute('data-contact');
+                document.getElementById('editEmail').value = this.getAttribute('data-email');
+                document.getElementById('editPhone').value = this.getAttribute('data-phone');
+                document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
+                document.getElementById('editOther').value = this.getAttribute('data-other');
+
+                document.getElementById('editModal').style.display = "block";
+                document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
+            });
+        });
+
+        function closeTransactionModal() { document.getElementById('transactionModal').style.display = "none"; }
+        function closeActionModal() { document.getElementById('actionModal').style.display = "none"; }
+        function closeEditModal() { document.getElementById('editModal').style.display = "none"; }
+
+        window.onclick = function (event) {
+            if (event.target == document.getElementById('actionModal')) closeActionModal();
+            if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
+            if (event.target == document.getElementById('editModal')) closeEditModal();
+        }
+    </script>
+</body>
+
+</html>
