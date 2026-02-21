@@ -1,0 +1,51 @@
+/* --- MOBILE ONLY STYLES --- */
+@media (max-width: 768px) {
+    /* Make buttons larger for easier tapping */
+    .btn, button {
+        padding: 15px 20px;
+        width: 100%;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+
+    /* Stack tables into "cards" so you don't have to scroll sideways */
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead tr {
+        display: none; /* Hide table headers on mobile */
+    }
+
+    tr {
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+    }
+
+    td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border: none;
+    }
+
+    /* Add labels back so users know what the data is */
+    td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: 45%;
+        text-align: left;
+        font-weight: bold;
+    }
+
+    /* Adjust the navigation menu for thumbs */
+    .navbar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+}
