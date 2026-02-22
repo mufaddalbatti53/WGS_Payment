@@ -288,7 +288,7 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
                     companyName: row['COMPANY NAME'],
                     contactPerson: row['CONTACT PERSON'] || '',
                     email: row['EMAIL ADDRESS'] || '',
-                    phone: row['PRIMARY CALLING NUMBER'] || '',
+                    phoneNumber: row['PRIMARY CALLING NUMBER'] || '',
                     whatsappNumber: row['WHATSAPP NUMBER'] || '',
                     otherNumbers: row['OTHER NUMBERS'] || '',
                     totalAmount: row['TOTAL AMOUNT'] || 0,
@@ -328,8 +328,9 @@ app.post('/customers', async (req, res) => {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: req.body.phoneNumber,
+            phoneNumber: req.body.phoneNumber,
             whatsappNumber: req.body.whatsappNumber,
+            otherNumbers: req.body.otherNumbers || '',
             totalAmount: req.body.totalAmount || 0,
             adminId: req.session.adminId // <-- THE MAGIC STAMP
         });
@@ -354,7 +355,7 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: req.body.phoneNumber, // Fixed!
+            phoneNumber: req.body.phoneNumber, // Fixed!
             whatsappNumber: req.body.whatsappNumber, // Fixed!
             otherNumbers: req.body.otherNumbers
         }
