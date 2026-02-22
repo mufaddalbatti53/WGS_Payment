@@ -335,7 +335,7 @@ td, p, span, div {
                                     </td>
                                     <td data-label="Contact Info">
                                         📞 <a href="tel:+<%= customer.phone %>"
-                                            style="text-decoration:none; color:black;">+<%= customer.phone %></a><br>
+                                            style="text-decoration:none; color:black;">+<%= customer.phoneNumber %></a><br>
 
                                         <% if (customer.otherNumbers) { %>
                                             <% customer.otherNumbers.split(',').forEach(num=> { %>
@@ -392,7 +392,7 @@ td, p, span, div {
                                             <br>
                                             <button class="btn btn-orange reminder-btn" data-id="<%= customer._id %>"
                                                 data-whatsapp="<%= customer.whatsappNumber %>"
-                                                data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
+                                                data-email="<%= customer.email %>" data-phone="<%= customer.phoneNumber %>"
                                                 data-due="<%= due %>" data-company="<%= customer.companyName %>">
                                                 Send Reminder 🔔
                                             </button>
@@ -405,7 +405,7 @@ td, p, span, div {
                                                         data-company="<%= customer.companyName %>"
                                                         data-contact="<%= customer.contactPerson %>"
                                                         data-email="<%= customer.email %>"
-                                                        data-phone="<%= customer.phone %>"
+                                                        data-phone="<%= customer.phoneNumber %>"
                                                         data-whatsapp="<%= customer.whatsappNumber %>"
                                                         data-other="<%= customer.otherNumbers %>">
                                                         Edit Details ✎
@@ -480,7 +480,7 @@ td, p, span, div {
                 <div class="form-row">
                     <div style="flex:1">
                         <label class="trans-label">Full Phone (with Code)</label>
-                        <input type="text" name="phone" id="editPhone" required class="input-style">
+                        <input type="text" name="phoneNumber" id="editPhone" required class="input-style">
                     </div>
                     <div style="flex:1">
                         <label class="trans-label">Full WhatsApp (with Code)</label>

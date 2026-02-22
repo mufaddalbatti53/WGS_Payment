@@ -25,7 +25,8 @@ mongoose.connect(dbURI)
 
 // --- CONFIGURATION ---
 app.set('view engine', 'ejs');
-app.use(express.static('public'));
+// Allows Android to read the hidden assetlinks.json file
+app.use(express.static('public', { dotfiles: 'allow' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
@@ -242,7 +243,7 @@ app.get('/export', async (req, res) => {
             'COMPANY NAME': c.companyName || '',
             'CONTACT PERSON': c.contactPerson || '',
             'EMAIL ADDRESS': c.email || '',
-            'PRIMARY CALLING NUMBER': c.phone || '',
+            'PRIMARY CALLING NUMBER': c.phoneNumber || '',
             'WHATSAPP NUMBER': c.whatsappNumber || '',
             'OTHER NUMBERS': c.otherNumbers || '',
             'TOTAL AMOUNT': c.totalAmount || 0,
@@ -327,7 +328,7 @@ app.post('/customers', async (req, res) => {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: req.body.phone,
+            phone: req.body.phoneNumber,
             whatsappNumber: req.body.whatsappNumber,
             totalAmount: req.body.totalAmount || 0,
             adminId: req.session.adminId // <-- THE MAGIC STAMP
@@ -353,7 +354,7 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: req.body.phone,
+            phone: req.body.phoneNumber, // Fixed!
             whatsappNumber: req.body.whatsappNumber, // Fixed!
             otherNumbers: req.body.otherNumbers
         }
