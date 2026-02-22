@@ -34,7 +34,7 @@ app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }
 const logActivity = async (req, action, details) => {
     const user = await User.findById(req.session.userId);
     const username = user ? user.username : "Unknown";
-    await Activity.create({ username, action, details });
+    await Activity.create({ username, action, details, adminId: req.session.adminId });
 };
 
 const requireLogin = (req, res, next) => {
@@ -47,28 +47,40 @@ const requireLogin = (req, res, next) => {
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => { res.render('login', { error: null }); });
 
+// --- LOGIN ROUTE (WITH MULTI-TENANCY WORKSPACES) ---
 app.post('/login', async (req, res) => {
-    const { type, username, password, phone } = req.body;
+    try {
+        const { username, password } = req.body;
 
-    // STAFF LOGIN
-    if (type === 'staff') {
+        // 1. Find the user in the database
         const user = await User.findOne({ username });
-        if (user && await bcrypt.compare(password, user.password)) {
+
+        // 2. Check if user exists and password matches
+        // (Note: If you are using bcrypt for passwords, replace this with bcrypt.compare)
+        if (user && user.password === password) {
+
+            // 3. Save basic user info to the session memory
             req.session.userId = user._id;
             req.session.role = user.role;
-            return res.redirect('/');
+
+            // 4. THE MAGIC TRICK: Set the Workspace ID (adminId)
+            if (user.role === 'admin') {
+                // If they are an Admin, their own ID becomes the Workspace Key
+                req.session.adminId = user._id;
+            } else if (user.role === 'staff') {
+                // If they are Staff, we grab their boss's ID to use as the Workspace Key
+                req.session.adminId = user.adminId;
+            }
+
+            // 5. Send them to the dashboard
+            res.redirect('/');
+
+        } else {
+            res.send("Invalid username or password. Please try again.");
         }
-        return res.render('login', { error: "Invalid Credentials" });
-    }
-    // CUSTOMER LOGIN
-    if (type === 'customer') {
-        const customer = await Customer.findOne({ phone: phone });
-        if (customer) {
-            req.session.userId = customer._id;
-            req.session.role = 'customer';
-            return res.redirect('/');
-        }
-        return res.render('login', { error: "Number not found" });
+    } catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).send("An error occurred during login.");
     }
 });
 
@@ -96,27 +108,50 @@ app.get('/logout', (req, res) => {
 });
 
 // 2. DASHBOARD
-app.get('/', requireLogin, async (req, res) => {
-    const role = req.session.role;
-    let customers = [];
-    if (role === 'admin' || role === 'staff') {
-        customers = await Customer.find({});
-    } else {
-        customers = await Customer.find({ _id: req.session.userId });
+// --- LOAD DASHBOARD (FILTERED BY WORKSPACE) ---
+app.get('/', async (req, res) => {
+    // 1. Check if they are logged in
+    if (!req.session.userId) {
+        return res.redirect('/login');
     }
-    res.render('index', { customers, role });
+
+    try {
+        // 2. Fetch ONLY the customers that belong to this specific Admin's workspace
+        const customers = await Customer.find({ adminId: req.session.adminId }).lean();
+
+        // 3. Send the filtered data to the page
+        res.render('index', { customers: customers, role: req.session.role });
+    } catch (err) {
+        console.error("Dashboard Error:", err);
+        res.status(500).send("Error loading dashboard.");
+    }
 });
 
 // 3. ADMIN PAGES
 app.get('/staff', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.redirect('/');
-    const staffMembers = await User.find({ role: 'staff' });
-    res.render('staff', { staffMembers });
+    // 1. Security Check: Block staff from viewing the management page
+    if (req.session.role !== 'admin') {
+        return res.status(403).send("Unauthorized. Only Admins can view this page.");
+    }
+
+    try {
+        // 2. The Magic Filter: Find users who are staff AND belong to this Admin
+        const myStaff = await User.find({
+            role: 'staff',
+            adminId: req.session.adminId
+        }).lean();
+
+        // 3. Send that filtered list to your staff.ejs page
+        res.render('staff', { staffMembers: myStaff, role: req.session.role });
+    } catch (error) {
+        console.error("Error loading staff list:", error);
+        res.status(500).send("Error loading staff list.");
+    }
 });
 
 app.get('/activity', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.redirect('/');
-    const activities = await Activity.find({}).sort({ date: -1 }).limit(50);
+    const activities = await Activity.find({ adminId: req.session.adminId }).sort({ date: -1 }).limit(50);
     res.render('activity', { activities });
 });
 
@@ -142,32 +177,61 @@ app.post('/create-staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
-        await User.create({ username: req.body.username, password: hashedPassword, role: 'staff' });
+
+        // Create the user and link them to the Admin's workspace
+        await User.create({
+            username: req.body.username,
+            password: hashedPassword,
+            role: 'staff',
+            adminId: req.session.adminId // <-- THE MAGIC STAMP IS HERE
+        });
+
         await logActivity(req, "Created Staff", `Created: ${req.body.username}`);
         res.redirect('/staff');
-    } catch (e) { res.send("Staff username taken"); }
+    } catch (e) {
+        res.send("Staff username taken");
+    }
 });
+
+// --- SECURE STAFF ACTIONS ---
 
 app.post('/reset-staff-password', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
+
     const { staffId, newPassword } = req.body;
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const staff = await User.findByIdAndUpdate(staffId, { password: hashedPassword });
-    await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
+
+    // SECURITY: Double-padlock. Only update if the staff member belongs to THIS admin.
+    const staff = await User.findOneAndUpdate(
+        { _id: staffId, adminId: req.session.adminId },
+        { password: hashedPassword }
+    );
+
+    if (staff) {
+        await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
+    }
     res.redirect('/staff');
 });
 
 app.delete('/staff/:id', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-    const staff = await User.findByIdAndDelete(req.params.id);
-    if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
+
+    // SECURITY: Double-padlock. Only delete if the staff member belongs to THIS admin.
+    const staff = await User.findOneAndDelete({
+        _id: req.params.id,
+        adminId: req.session.adminId
+    });
+
+    if (staff) {
+        await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
+    }
     res.redirect('/staff');
 });
 
 // --- EXPORT TO EXCEL ROUTE ---
 app.get('/export', async (req, res) => {
     try {
-        const customers = await Customer.find().lean();
+        const customers = await Customer.find({ adminId: req.session.adminId }).lean();
 
         // Map database fields to exact Excel column names
         const excelData = customers.map(c => ({
@@ -199,19 +263,22 @@ app.get('/export', async (req, res) => {
 
 
 // --- IMPORT FROM EXCEL ROUTE (WITH SMART UPDATE) ---
+// --- IMPORT FROM EXCEL ROUTE (MULTI-TENANT SECURED) ---
 app.post('/import', upload.single('excelFile'), async (req, res) => {
+    // 1. Security Check: Make sure they are logged in
+    if (!req.session.userId) return res.redirect('/login');
+
     try {
         if (!req.file) return res.status(400).send('Please upload an Excel file.');
 
-        // cellDates: true ensures dates format correctly from Excel
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
+        // Loop through all 100+ rows instantly
         for (let row of data) {
             if (row['COMPANY NAME']) {
 
-                // Map the Excel columns back to your database fields
                 const updateData = {
                     companyName: row['COMPANY NAME'],
                     contactPerson: row['CONTACT PERSON'] || '',
@@ -221,19 +288,23 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
                     otherNumbers: row['OTHER NUMBERS'] || '',
                     totalAmount: row['TOTAL AMOUNT'] || 0,
                     paidAmount: row['PAID'] || 0,
-                    nextActionDate: row['NEXT ACTION DATE'] || null
+                    nextActionDate: row['NEXT ACTION DATE'] || null,
+                    adminId: req.session.adminId // <-- THE MAGIC STAMP!
                 };
 
-                // SMART UPDATE LOGIC:
-                // Find by Company Name. If found -> update details. If NOT found -> insert as new.
+                // Smart Update: Make sure it only updates customers in THIS Admin's workspace
                 await Customer.findOneAndUpdate(
-                    { companyName: row['COMPANY NAME'] },
+                    {
+                        companyName: row['COMPANY NAME'],
+                        adminId: req.session.adminId // Only look for duplicates inside this company
+                    },
                     { $set: updateData },
                     { new: true, upsert: true }
                 );
             }
         }
 
+        // After all rows are processed, refresh the dashboard at once
         res.redirect('/');
     } catch (err) {
         console.error(err);
@@ -242,46 +313,66 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
 });
 
 // 5. CUSTOMER ACTIONS
-app.post('/customers', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
-    await Customer.create({
-        companyName: req.body.companyName,
-        contactPerson: req.body.contactPerson,
-        phone: req.body.countryCode + req.body.localPhone,
-        otherNumbers: req.body.otherNumbers,
-        whatsapp: req.body.countryCode + req.body.whatsapp,
-        email: req.body.email,
-        totalAmount: req.body.totalAmount,
-        nextReminderDate: new Date()
-    });
-    await logActivity(req, "Added Customer", `Added: ${req.body.companyName}`);
-    res.redirect('/');
+// --- ADD NEW CUSTOMER (STAMPED WITH WORKSPACE ID) ---
+app.post('/customers', async (req, res) => {
+    if (!req.session.userId) return res.redirect('/login');
+
+    try {
+        // Create the customer and secretly attach the Admin's ID to them
+        await Customer.create({
+            companyName: req.body.companyName,
+            contactPerson: req.body.contactPerson,
+            email: req.body.email,
+            phone: req.body.phone,
+            whatsappNumber: req.body.whatsappNumber,
+            totalAmount: req.body.totalAmount || 0,
+            adminId: req.session.adminId // <-- THE MAGIC STAMP
+        });
+
+        res.redirect('/');
+    } catch (err) {
+        console.error("Add Customer Error:", err);
+        res.status(500).send("Error adding customer.");
+    }
 });
+
+// --- SECURE CUSTOMER ACTIONS ---
 
 app.put('/customers/:id/edit', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-    await Customer.findByIdAndUpdate(req.params.id, {
-        companyName: req.body.companyName,
-        contactPerson: req.body.contactPerson,
-        email: req.body.email,
-        phone: req.body.phone,
-        whatsapp: req.body.whatsapp,
-        otherNumbers: req.body.otherNumbers
-    });
+
+    // SECURITY: Match the ID *and* the Workspace ID.
+    // BUG FIX: Changed 'whatsapp' to 'whatsappNumber'
+    await Customer.findOneAndUpdate(
+        { _id: req.params.id, adminId: req.session.adminId },
+        {
+            companyName: req.body.companyName,
+            contactPerson: req.body.contactPerson,
+            email: req.body.email,
+            phone: req.body.phone,
+            whatsappNumber: req.body.whatsappNumber, // Fixed!
+            otherNumbers: req.body.otherNumbers
+        }
+    );
     await logActivity(req, "Updated Details", `Updated profile for: ${req.body.companyName}`);
     res.redirect('/');
 });
 
 app.delete('/customers/:id', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-    const customer = await Customer.findByIdAndDelete(req.params.id);
-    await logActivity(req, "Deleted Customer", `Removed: ${customer.companyName}`);
+
+    // SECURITY: Only delete if it belongs to this admin's workspace
+    const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
+
+    if (customer) await logActivity(req, "Deleted Customer", `Removed: ${customer.companyName}`);
     res.redirect('/');
 });
 
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
-    if (req.session.role === 'customer') return res.send("Unauthorized");
-    const customer = await Customer.findById(req.params.id);
+    // SECURITY: Find customer within this specific workspace
+    const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
+
+    if (!customer) return res.status(404).send("Customer not found.");
 
     const newPurchase = Number(req.body.newPurchase) || 0;
     const payment = Number(req.body.payment) || 0;
@@ -299,9 +390,14 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
 });
 
 app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
-    const customer = await Customer.findById(req.params.id);
+    // SECURITY: Ensure staff/admin can only set reminders for their own customers
+    const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
+
+    if (!customer) return res.status(404).send("Customer not found.");
+
     customer.nextReminderDate = new Date(req.body.nextDate);
     await customer.save();
+
     await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName} set to ${req.body.nextDate}`);
     res.redirect('/');
 });

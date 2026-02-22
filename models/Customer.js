@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Add this line!
     companyName: { type: String, required: true },
     contactPerson: { type: String },
     email: { type: String },

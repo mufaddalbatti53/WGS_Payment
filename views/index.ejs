@@ -294,7 +294,7 @@ td, p, span, div {
                         </select>
                         <input type="text" name="localPhone" placeholder="Primary Calling Number" required
                             class="input-style">
-                        <input type="text" name="whatsapp" placeholder="WhatsApp Number" required class="input-style">
+                        <input type="text" name="whatsappNumber" placeholder="WhatsApp Number" required class="input-style">
                     </div>
 
                     <div class="form-row">
@@ -325,7 +325,7 @@ td, p, span, div {
                                 const isDueForReminder=now>= nextDate;
                                 %>
                                 <tr>
-                                    <td data-label="Name of Column">
+                                    <td data-label="Company / Contact">
                                         <strong>
                                             <%= customer.companyName %>
                                         </strong><br>
@@ -333,7 +333,7 @@ td, p, span, div {
                                             <%= customer.contactPerson %>
                                         </span>
                                     </td>
-                                    <td data-label="Name of Column">
+                                    <td data-label="Contact Info">
                                         📞 <a href="tel:+<%= customer.phone %>"
                                             style="text-decoration:none; color:black;">+<%= customer.phone %></a><br>
 
@@ -348,10 +348,10 @@ td, p, span, div {
                                                         <% }) %>
                                                             <% } %>
 
-                                                                💬 <a href="https://wa.me/<%= customer.whatsapp %>"
+                                                                💬 <a href="https://wa.me/<%= customer.whatsappNumber %>"
                                                                     target="_blank"
                                                                     style="text-decoration:none; color:green;">+<%=
-                                                                        customer.whatsapp %></a><br>
+                                                                        customer.whatsappNumber %></a><br>
 
                                                                 <% if (customer.email && customer.email.trim() !=="" ) {
                                                                     %>
@@ -366,7 +366,7 @@ td, p, span, div {
                                                                             Email Saved)</span>
                                                                         <% } %>
                                     </td>
-                                    <td data-label="Name of Column">
+                                    <td data-label="Financials">
                                         Total: ₹<%= customer.totalAmount %><br>
                                             Paid: ₹<%= customer.paidAmount %><br>
                                                 <% if (due> 0) { %>
@@ -376,14 +376,14 @@ td, p, span, div {
                                                         <% } %>
                                     </td>
 
-                                    <td data-label="Name of Column">
+                                    <td data-label="Next Action Date">
                                         <%= nextDate.toDateString() %>
                                             <% if (due> 0 && isDueForReminder) { %>
                                                 <br><span style="color:red; font-weight:bold;">(Action Required)</span>
                                                 <% } %>
                                     </td>
 
-                                    <td data-label="Name of Column">
+                                    <td data-label="Actions">
                                         <% if (role==='admin' || role==='staff' ) { %>
                                             <button class="btn btn-blue transaction-btn" data-id="<%= customer._id %>"
                                                 data-company="<%= customer.companyName %>" style="margin-bottom: 5px;">
@@ -391,7 +391,7 @@ td, p, span, div {
                                             </button>
                                             <br>
                                             <button class="btn btn-orange reminder-btn" data-id="<%= customer._id %>"
-                                                data-whatsapp="<%= customer.whatsapp %>"
+                                                data-whatsapp="<%= customer.whatsappNumber %>"
                                                 data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
                                                 data-due="<%= due %>" data-company="<%= customer.companyName %>">
                                                 Send Reminder 🔔
@@ -406,7 +406,7 @@ td, p, span, div {
                                                         data-contact="<%= customer.contactPerson %>"
                                                         data-email="<%= customer.email %>"
                                                         data-phone="<%= customer.phone %>"
-                                                        data-whatsapp="<%= customer.whatsapp %>"
+                                                        data-whatsapp="<%= customer.whatsappNumber %>"
                                                         data-other="<%= customer.otherNumbers %>">
                                                         Edit Details ✎
                                                     </button>
@@ -484,7 +484,7 @@ td, p, span, div {
                     </div>
                     <div style="flex:1">
                         <label class="trans-label">Full WhatsApp (with Code)</label>
-                        <input type="text" name="whatsapp" id="editWhatsapp" required class="input-style">
+                        <input type="text" name="whatsappNumber" id="editWhatsapp" required class="input-style">
                     </div>
                 </div>
 
