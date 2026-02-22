@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.onrender.wgs_payment.twa",
+            "sha256_cert_fingerprints": [
+                "EB:B3:BE:54:29:DB:D8:D7:FC:98:3D:39:B4:A1:8A:67:52:84:A0:EA:27:83:C4:DA:26:94:E6:B8:06:FF:E7:9A"
+            ]
+        }
+    }
+]
