@@ -48,6 +48,7 @@ const requireLogin = (req, res, next) => {
 app.get('/login', (req, res) => { res.render('login', { error: null }); });
 
 // --- LOGIN ROUTE (WITH MULTI-TENANCY WORKSPACES) ---
+// --- LOGIN ROUTE (WITH BCRYPT ENCRYPTION FIX) ---
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -55,20 +56,23 @@ app.post('/login', async (req, res) => {
         // 1. Find the user in the database
         const user = await User.findOne({ username });
 
-        // 2. Check if user exists and password matches
-        // (Note: If you are using bcrypt for passwords, replace this with bcrypt.compare)
-        if (user && user.password === password) {
+        // If the user doesn't exist, stop here
+        if (!user) {
+            return res.send("Invalid username or password. Please try again.");
+        }
 
+        // 2. UNLOCK THE VAULT: Compare typed password with encrypted database password
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (isMatch) {
             // 3. Save basic user info to the session memory
             req.session.userId = user._id;
             req.session.role = user.role;
 
-            // 4. THE MAGIC TRICK: Set the Workspace ID (adminId)
+            // 4. Set the Workspace ID (adminId)
             if (user.role === 'admin') {
-                // If they are an Admin, their own ID becomes the Workspace Key
                 req.session.adminId = user._id;
             } else if (user.role === 'staff') {
-                // If they are Staff, we grab their boss's ID to use as the Workspace Key
                 req.session.adminId = user.adminId;
             }
 
