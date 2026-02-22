@@ -2,15 +2,12 @@
 <html lang="en">
 
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#27ae60">
-    <link rel="apple-touch-icon" href="/images/logo.png">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Payment Manager</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#27ae60">
+    <link rel="apple-touch-icon" href="/images/logo.png">
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -335,7 +332,7 @@ td, p, span, div {
                                     </td>
                                     <td data-label="Contact Info">
                                         📞 <a href="tel:+<%= customer.phone %>"
-                                            style="text-decoration:none; color:black;">+<%= customer.phoneNumber %></a><br>
+                                            style="text-decoration:none; color:black;">+<%= customer.phone %></a><br>
 
                                         <% if (customer.otherNumbers) { %>
                                             <% customer.otherNumbers.split(',').forEach(num=> { %>
@@ -392,7 +389,7 @@ td, p, span, div {
                                             <br>
                                             <button class="btn btn-orange reminder-btn" data-id="<%= customer._id %>"
                                                 data-whatsapp="<%= customer.whatsappNumber %>"
-                                                data-email="<%= customer.email %>" data-phone="<%= customer.phoneNumber %>"
+                                                data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
                                                 data-due="<%= due %>" data-company="<%= customer.companyName %>">
                                                 Send Reminder 🔔
                                             </button>
@@ -405,7 +402,7 @@ td, p, span, div {
                                                         data-company="<%= customer.companyName %>"
                                                         data-contact="<%= customer.contactPerson %>"
                                                         data-email="<%= customer.email %>"
-                                                        data-phone="<%= customer.phoneNumber %>"
+                                                        data-phone="<%= customer.phone %>"
                                                         data-whatsapp="<%= customer.whatsappNumber %>"
                                                         data-other="<%= customer.otherNumbers %>">
                                                         Edit Details ✎
@@ -480,7 +477,7 @@ td, p, span, div {
                 <div class="form-row">
                     <div style="flex:1">
                         <label class="trans-label">Full Phone (with Code)</label>
-                        <input type="text" name="phoneNumber" id="editPhone" required class="input-style">
+                        <input type="text" name="phone" id="editPhone" required class="input-style">
                     </div>
                     <div style="flex:1">
                         <label class="trans-label">Full WhatsApp (with Code)</label>

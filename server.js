@@ -6,6 +6,7 @@ const methodOverride = require('method-override');
 
 // Add this near the top of server.js
 const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() }); // Stores uploaded files in RAM safely
 
@@ -234,34 +235,68 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
 });
 
 // --- EXPORT TO EXCEL ROUTE ---
+// --- EXPORT TO EXCEL ROUTE (BEAUTIFUL TEMPLATE) ---
 app.get('/export', async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
 
-        // Map database fields to exact Excel column names
-        const excelData = customers.map(c => ({
-            'COMPANY NAME': c.companyName || '',
-            'CONTACT PERSON': c.contactPerson || '',
-            'EMAIL ADDRESS': c.email || '',
-            'PRIMARY CALLING NUMBER': c.phoneNumber || '',
-            'WHATSAPP NUMBER': c.whatsappNumber || '',
-            'OTHER NUMBERS': c.otherNumbers || '',
-            'TOTAL AMOUNT': c.totalAmount || 0,
-            'PAID': c.paidAmount || 0,
-            'NEXT ACTION DATE': c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : ''
-        }));
+        // 1. Create a new, blank workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Customers');
 
-        const worksheet = xlsx.utils.json_to_sheet(excelData);
-        const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, 'Customers');
+        // 2. Define the Columns and their exact widths so text doesn't get cut off
+        worksheet.columns = [
+            { header: 'COMPANY NAME', key: 'companyName', width: 30 },
+            { header: 'CONTACT PERSON', key: 'contactPerson', width: 25 },
+            { header: 'EMAIL ADDRESS', key: 'email', width: 35 },
+            { header: 'PRIMARY CALLING NUMBER', key: 'phone', width: 25 },
+            { header: 'WHATSAPP NUMBER', key: 'whatsappNumber', width: 25 },
+            { header: 'TOTAL AMOUNT', key: 'totalAmount', width: 20 },
+            { header: 'PAID', key: 'paidAmount', width: 20 },
+            { header: 'NEXT ACTION DATE', key: 'nextActionDate', width: 20 }
+        ];
 
-        const buffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
-        res.setHeader('Content-Disposition', 'attachment; filename="Customer_Data.xlsx"');
+        // 3. Add the Customer Data into the rows
+        customers.forEach(c => {
+            worksheet.addRow({
+                companyName: c.companyName || '',
+                contactPerson: c.contactPerson || '',
+                email: c.email || '',
+                phone: c.phone || '',
+                whatsappNumber: c.whatsappNumber || '',
+                totalAmount: c.totalAmount || 0,
+                paidAmount: c.paidAmount || 0,
+                nextActionDate: c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : ''
+            });
+        });
+
+        // 4. Style the Header Row (Row 1)
+        worksheet.getRow(1).eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // White bold text
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF27AE60' } // Your app's custom green theme color
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+        });
+
+        // 5. Format the Money Columns to show commas and the Rupee symbol
+        worksheet.getColumn('totalAmount').numFmt = '₹#,##0.00';
+        worksheet.getColumn('paidAmount').numFmt = '₹#,##0.00';
+
+        // 6. Send the beautiful file to the browser
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.send(buffer);
+        res.setHeader('Content-Disposition', 'attachment; filename="Customer_Master_List.xlsx"');
+
+        await workbook.xlsx.write(res);
+        res.end();
 
     } catch (err) {
-        console.error(err);
+        console.error("Export Error:", err);
         res.status(500).send("Failed to export Excel file.");
     }
 });
@@ -288,7 +323,7 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
                     companyName: row['COMPANY NAME'],
                     contactPerson: row['CONTACT PERSON'] || '',
                     email: row['EMAIL ADDRESS'] || '',
-                    phoneNumber: row['PRIMARY CALLING NUMBER'] || '',
+                    phone: row['PRIMARY CALLING NUMBER'] || '',
                     whatsappNumber: row['WHATSAPP NUMBER'] || '',
                     otherNumbers: row['OTHER NUMBERS'] || '',
                     totalAmount: row['TOTAL AMOUNT'] || 0,
@@ -319,20 +354,22 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
 
 // 5. CUSTOMER ACTIONS
 // --- ADD NEW CUSTOMER (STAMPED WITH WORKSPACE ID) ---
+// --- ADD NEW CUSTOMER (WITH PHONE NUMBER FIX) ---
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
     try {
-        // Create the customer and secretly attach the Admin's ID to them
+        // THE FIX: Stitch the country code and the local phone number together
+        const fullPhoneNumber = req.body.countryCode + req.body.localPhone;
+
         await Customer.create({
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phoneNumber: req.body.phoneNumber,
+            phone: fullPhoneNumber, // <-- Saves the stitched number here!
             whatsappNumber: req.body.whatsappNumber,
-            otherNumbers: req.body.otherNumbers || '',
             totalAmount: req.body.totalAmount || 0,
-            adminId: req.session.adminId // <-- THE MAGIC STAMP
+            adminId: req.session.adminId
         });
 
         res.redirect('/');
@@ -341,7 +378,6 @@ app.post('/customers', async (req, res) => {
         res.status(500).send("Error adding customer.");
     }
 });
-
 // --- SECURE CUSTOMER ACTIONS ---
 
 app.put('/customers/:id/edit', requireLogin, async (req, res) => {
@@ -355,7 +391,7 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phoneNumber: req.body.phoneNumber, // Fixed!
+            phone: req.body.phone, // Fixed!
             whatsappNumber: req.body.whatsappNumber, // Fixed!
             otherNumbers: req.body.otherNumbers
         }
