@@ -324,44 +324,10 @@
                 </form>
             </div>
 
-            <div style="background: #eee; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
-                <h3>Add New Party</h3>
-                <form action="/customers" method="POST">
-                    <div class="form-row">
-                        <input type="text" name="companyName" placeholder="Company Name" required class="input-style">
-                        <input type="text" name="contactPerson" placeholder="Contact Person" required
-                            class="input-style">
-                    </div>
-                    <div class="form-row">
-                        <input type="email" name="email" placeholder="Email Address" class="input-style">
-                        <input type="number" name="totalAmount" placeholder="Total Amount (₹)" required
-                            class="input-style">
-                    </div>
-                    <div class="form-row">
-                        <select name="countryCode" id="countryCode" class="input-style" style="width: 80px;">
-                            <option value="91" selected>+91</option>
-                            <option value="1">+1</option>
-                            <option value="971">+971</option>
-                        </select>
-                        <input type="text" name="localPhone" placeholder="Primary Calling Number" required
-                            class="input-style">
-                        <input type="text" name="whatsappNumber" placeholder="WhatsApp Number" required class="input-style">
-                    </div>
-
-                    <div class="form-row">
-                        <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
-                            class="input-style">
-                            <div style="flex:1;">
-                                <input type="date" name="nextActionDate" placeholder="Your Desire Payment Date" required class="input-style" style="color:#555;"
-                                    title="Set First Action Date">
-                            </div>
-                    </div>
-                    
-
-                    <button type="submit" class="btn" style="background:#333; color:white; padding: 10px 20px;">Add
-                        Party</button>
-                </form>
-            </div>
+        <button onclick="openAddModal()" class="btn btn-green"
+            style="width: 100%; padding: 15px; font-size: 18px; margin-bottom: 20px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            ➕ Add New Party
+        </button>
             <% } %>
 
                 <table>
@@ -386,9 +352,7 @@
                             const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days past the set action date.` :
                             "";
                 
-                            const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from ${customer.companyName}. This is a gentle
-                            reminder. You have previously paid ₹${customer.paidAmount} on this account. Your current outstanding due is
-                            ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
+                            const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from ${customer.companyName}. This is a gentle reminder. You have previously paid ₹${customer.paidAmount} on this account. Your current outstanding due is ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
                             const encodedMsg = encodeURIComponent(msg);
                             %>
                             <tr>
@@ -496,16 +460,20 @@
                                             </strong>
                                             <span>
                                                 <%= customer.contactPerson %>
-                                            </span>
+                                            </span><br>
+                                            <a href="tel:+<%= customer.phone %>"
+                                                style="color:#3498db; text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:4px;">📞
+                                                +<%= customer.phone %></a>
                                         </div>
                                         <div class="m-fin">
                                             <div class="m-fin-top">Total ₹<%= customer.totalAmount %>
                                             </div>
-                                            <% if (due> 0) { %><div class="m-fin-due">Due ₹<%= due %>
+                                            <div class="m-fin-paid" style="font-weight:bold; font-size:13px; color:#28a745; margin-top:2px;">Paid ₹<%=
+                                                    customer.paidAmount %>
+                                            </div>
+                                            <% if (due> 0) { %><div class="m-fin-due" style="color:#d00; font-size:14px; margin-top:2px;">Due ₹<%= due %>
                                                 </div>
                                                 <% } %>
-                                                    <div class="m-fin-paid">Paid ₹<%= customer.paidAmount %>
-                                                    </div>
                                         </div>
                                     </div>
                                 
@@ -558,6 +526,49 @@
                             <% }) %>
                 </tbody>
                 </table>
+    </div>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddModal()">&times;</span>
+            <h3 style="margin-top: 0;">Add New Party</h3>
+            <form action="/customers" method="POST">
+                <label class="trans-label">Company Name</label>
+                <input type="text" name="companyName" placeholder="Company Name" required class="input-style">
+    
+                <label class="trans-label">Contact Person</label>
+                <input type="text" name="contactPerson" placeholder="Contact Person" required class="input-style">
+    
+                <label class="trans-label">Email Address</label>
+                <input type="email" name="email" placeholder="Email Address" class="input-style">
+    
+                <label class="trans-label">Total Amount (₹)</label>
+                <input type="number" name="totalAmount" placeholder="Total Amount (₹)" required class="input-style">
+    
+                <label class="trans-label">Primary Phone (with Code)</label>
+                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                    <select name="countryCode" id="countryCode" class="input-style" style="width: 80px; margin-bottom: 0;">
+                        <option value="91" selected>+91</option>
+                        <option value="1">+1</option>
+                        <option value="971">+971</option>
+                    </select>
+                    <input type="text" name="localPhone" placeholder="Calling Number" required class="input-style"
+                        style="margin-bottom: 0; width: 100%;">
+                </div>
+    
+                <label class="trans-label">WhatsApp Number (with Code)</label>
+                <input type="text" name="whatsappNumber" placeholder="WhatsApp Number" required class="input-style">
+    
+                <label class="trans-label">Other Numbers</label>
+                <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)" class="input-style">
+    
+                <label class="trans-label">First Action Date</label>
+                <input type="date" name="nextActionDate" required class="input-style">
+    
+                <button type="submit" class="btn btn-green"
+                    style="width:100%; padding: 12px; font-size: 16px; margin-top: 10px;">Save Party</button>
+            </form>
+        </div>
     </div>
 
     <div id="transactionModal" class="modal">
@@ -677,6 +688,17 @@
             if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
             if (event.target == document.getElementById('editModal')) closeEditModal();
         }
+        // Add these to your existing modal functions:
+            function openAddModal() { document.getElementById('addModal').style.display = "block"; }
+            function closeAddModal() { document.getElementById('addModal').style.display = "none"; }
+
+            // Update your window.onclick to include the new addModal:
+            window.onclick = function (event) {
+                if (event.target == document.getElementById('actionModal')) closeActionModal();
+                if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
+                if (event.target == document.getElementById('editModal')) closeEditModal();
+                if (event.target == document.getElementById('addModal')) closeAddModal(); // <--- ADD THIS LINE
+            }
     </script>
 </body>
 

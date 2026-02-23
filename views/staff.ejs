@@ -2,12 +2,10 @@
 <html lang="en">
 
 <head>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#27ae60">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="apple-touch-icon" href="/images/logo.png">
     <meta charset="UTF-8">
-    <title>Staff Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manage Staff</title>
+    <meta name="theme-color" content="#27ae60">
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -24,132 +22,210 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
+        h1 {
+            margin-top: 0;
+        }
+
         .btn {
             padding: 10px 15px;
-            cursor: pointer;
             border: none;
             border-radius: 4px;
+            cursor: pointer;
             color: white;
+            text-decoration: none;
             font-weight: bold;
         }
 
-        .btn-back {
-            background: #555;
-            text-decoration: none;
-            display: inline-block;
-            margin-bottom: 20px;
-            padding: 8px 15px;
-            border-radius: 4px;
-            color: white;
+        .btn-blue {
+            background: #3498db;
         }
 
-        .staff-card {
-            background: #f9f9f9;
-            padding: 15px;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 4px;
+        .btn-red {
+            background: #e74c3c;
         }
 
-        input {
+        .btn-green {
+            background: #27ae60;
+        }
+
+        .input-style {
+            width: 100%;
             padding: 10px;
+            margin-bottom: 15px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            box-sizing: border-box;
         }
 
-        /* PASSWORD CONTAINER STYLE */
-        .password-container {
-            position: relative;
-            display: inline-block;
+        /* Desktop Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
         }
 
-        /* The Eye Icon Style */
-        .toggle-password {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            font-size: 16px;
-            color: #777;
-            user-select: none;
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        /* Mobile Card View */
+        @media screen and (max-width: 768px) {
+
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            thead tr {
+                display: none;
+            }
+
+            tr {
+                background: #fff;
+                border: 2px solid #3498db;
+                border-radius: 8px;
+                margin-bottom: 15px;
+                padding: 15px;
+                position: relative;
+            }
+
+            td {
+                border: none !important;
+                padding: 5px 0 !important;
+            }
+
+            .desktop-only {
+                display: none !important;
+            }
+
+            .mobile-only {
+                display: block !important;
+            }
+
+            .staff-card-header {
+                font-size: 18px;
+                font-weight: bold;
+                color: #333;
+                margin-bottom: 10px;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 5px;
+            }
+
+            .staff-actions {
+                display: flex;
+                gap: 10px;
+                margin-top: 15px;
+            }
+
+            .staff-actions form {
+                flex: 1;
+                margin: 0;
+            }
+
+            .staff-actions button {
+                width: 100%;
+            }
+        }
+
+        @media screen and (min-width: 769px) {
+            .mobile-only {
+                display: none !important;
+            }
         }
     </style>
 </head>
 
 <body>
-
-    <a href="/" class="btn-back">← Back to Dashboard</a>
-
     <div class="container">
-        <h1>Staff Management</h1>
+        <a href="/" style="text-decoration: none; color: #3498db; font-weight: bold;">&larr; Back to Dashboard</a>
+        <h1 style="margin-top: 15px;">👤 Manage Staff</h1>
 
-        <div
-            style="background: #e1f5fe; padding: 20px; border-radius: 4px; margin-bottom: 30px; border: 1px solid #b3e5fc;">
-            <h3>Create New Staff</h3>
-
-            <form action="/create-staff" method="POST"
-                style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <input type="text" name="username" placeholder="Username" required style="flex: 1;">
-
-                <div class="password-container" style="flex: 1;">
-                    <input type="password" name="password" id="staffPassword" placeholder="Password" required
-                        style="width: 100%; box-sizing: border-box;">
-                    <span class="toggle-password" onclick="togglePassword()">👁️</span>
-                </div>
-
-                <button type="submit" class="btn" style="background:#0288d1;">Create Staff</button>
+        <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>Create New Staff Account</h3>
+            <form action="/create-staff" method="POST">
+                <input type="text" name="username" placeholder="Staff Username" required class="input-style">
+                <input type="text" name="password" placeholder="Staff Password" required class="input-style">
+                <button type="submit" class="btn btn-green" style="width: 100%;">Create Account</button>
             </form>
         </div>
 
-        <h3>Existing Staff Members</h3>
-        <% if (staffMembers.length===0) { %>
-            <p>No staff found.</p>
-            <% } %>
-
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Reset Password</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
                 <% staffMembers.forEach(staff=> { %>
-                    <div class="staff-card">
-                        <span style="font-size: 1.2em;"><strong>
+                    <tr>
+                        <td class="desktop-only"><strong>
                                 <%= staff.username %>
-                            </strong></span>
-
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <form action="/reset-staff-password" method="POST" style="display: flex; gap: 5px;">
+                            </strong></td>
+                        <td class="desktop-only"><span
+                                style="background: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px;">
+                                <%= staff.role.toUpperCase() %>
+                            </span></td>
+                        <td class="desktop-only">
+                            <form action="/reset-staff-password" method="POST" style="display:flex; gap:5px;">
                                 <input type="hidden" name="staffId" value="<%= staff._id %>">
-                                <input type="text" name="newPassword" placeholder="New Pass" required
-                                    style="width: 100px;">
-                                <button type="submit" class="btn"
-                                    style="background: #f39c12; font-size: 12px;">Reset</button>
+                                <input type="text" name="newPassword" placeholder="New Password" required
+                                    style="padding:5px; border:1px solid #ccc; border-radius:4px;">
+                                <button type="submit" class="btn btn-blue" style="padding: 5px 10px;">Reset</button>
                             </form>
+                        </td>
+                        <td class="desktop-only">
+                            <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST"
+                                onsubmit="return confirm('Delete this staff member permanently?');">
+                                <button type="submit" class="btn btn-red" style="padding: 5px 10px;">Delete</button>
+                            </form>
+                        </td>
 
-                            <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST">
-                                <button type="submit" class="btn"
-                                    style="background: #e74c3c; font-size: 12px;">Delete</button>
-                            </form>
-                        </div>
-                    </div>
+                        <td class="mobile-only">
+                            <div class="staff-card-header">
+                                👤 <%= staff.username %>
+                                    <span
+                                        style="float: right; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                        <%= staff.role.toUpperCase() %>
+                                    </span>
+                            </div>
+
+                            <div style="margin-top: 10px;">
+                                <form action="/reset-staff-password" method="POST" style="display: flex; gap: 5px;">
+                                    <input type="hidden" name="staffId" value="<%= staff._id %>">
+                                    <input type="text" name="newPassword" placeholder="Type new password..." required
+                                        class="input-style" style="margin-bottom: 0; flex: 2;">
+                                    <button type="submit" class="btn btn-blue" style="flex: 1;">Reset</button>
+                                </form>
+                            </div>
+
+                            <div class="staff-actions">
+                                <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST"
+                                    onsubmit="return confirm('Delete this staff member permanently?');">
+                                    <button type="submit" class="btn btn-red">🗑️ Delete Account</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
                     <% }) %>
+            </tbody>
+        </table>
     </div>
-
-    <script>
-        function togglePassword() {
-            const passwordInput = document.getElementById('staffPassword');
-            const icon = document.querySelector('.toggle-password');
-
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text'; // Show text
-                icon.innerText = '🔒'; // Change to lock
-            } else {
-                passwordInput.type = 'password'; // Hide text
-                icon.innerText = '👁️'; // Change to eye
-            }
-        }
-    </script>
-
 </body>
-
 
 </html>
