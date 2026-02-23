@@ -201,30 +201,62 @@
             margin-bottom: 3px;
         }
         @media screen and (max-width: 768px) {
-            /* Force long emails, phone numbers, and activity logs to wrap inside the screen */
-td, p, span, div {
-    overflow-wrap: break-word;
-    word-wrap: break-word;
-    word-break: break-word; /* Breaks long strings like emails to the next line */
-    white-space: normal !important; 
-    max-width: 100%; /* Ensures nothing stretches beyond the screen */
-}
-    /* Make buttons huge for thumbs */
+    /* Base mobile resets */
+    td, p, span, div { overflow-wrap: break-word; word-break: break-word; white-space: normal !important; }
     input, select, button, .btn { width: 100% !important; margin-bottom: 10px; padding: 12px !important; font-size: 16px !important; }
-    
-    /* Turn tables into vertical cards */
-    table, thead, tbody, th, td, tr { display: block; }
-    thead tr { display: none; } /* Hide the top header row */
-    
-    tr { background: #fff; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px; padding: 15px; }
-    td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 45% !important; text-align: right !important; }
-    
-    /* Add labels on the left side of the mobile card */
-    td::before { 
-        content: attr(data-label); 
-        position: absolute; left: 0; width: 40%; 
-        text-align: left; font-weight: bold; color: #555; 
+
+    /* Hide standard table headers */
+    table, thead, tbody, th, td, tr { display: block; width: 100%; box-sizing: border-box; }
+    thead tr { display: none; }
+
+    /* 1. THE ORANGE CARD */
+    tr {
+        background: #fff;
+        border: 3px solid #e67e22; /* Matches the sketch orange */
+        border-radius: 8px;
+        margin-bottom: 20px;
+        padding: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
     }
+    td { border: none !important; padding: 0 !important; text-align: left !important; }
+    td::before { display: none; } /* Hide old labels */
+
+    /* 2. LEFT SIDE: Underlined Name */
+    td:nth-child(1) { width: 45%; font-size: 18px; line-height: 1.2; }
+    td:nth-child(1) strong { font-size: 24px; text-decoration: underline; display: block; margin-bottom: 5px; color: #000; }
+
+    /* 3. RIGHT SIDE: Financials */
+    td:nth-child(3) { width: 55%; text-align: right !important; font-size: 15px; }
+
+    /* Hide/Show logic for Desktop vs Mobile */
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+
+    /* Subdued extra info */
+    td:nth-child(2), td:nth-child(4) { width: 100%; font-size: 12px; color: #777; margin-top: 10px; }
+
+    /* 4. THE ACTION CIRCLES (Bottom Right) */
+    td:nth-child(5) { width: 100%; display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    
+    .action-circle {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        border: 2px solid #e67e22; /* Orange circle */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 22px;
+        background: transparent;
+    }
+}
+
+/* Hide mobile elements on Desktop */
+@media screen and (min-width: 769px) {
+    .mobile-only { display: none !important; }
 }
     </style>
 </head>
@@ -318,22 +350,27 @@ td, p, span, div {
                     <tbody>
                         <% customers.forEach(customer=> { %>
                             <% const due=customer.totalAmount - customer.paidAmount; const now=new Date(); const
-                                nextDate=customer.nextReminderDate ? new Date(customer.nextReminderDate) : new Date();
-                                const isDueForReminder=now>= nextDate;
+                                nextDate=customer.nextReminderDate ? new Date(customer.nextReminderDate) : new Date(); const
+                                isDueForReminder=now>= nextDate;
+                    
+                                // Generate the message here so the mobile circles can use it instantly
+                                const msg = `Hello, this is a reminder regarding ${customer.companyName}. Your total due is ₹${due}. Please
+                                pay soon.`;
+                                const encodedMsg = encodeURIComponent(msg);
                                 %>
                                 <tr>
-                                    <td data-label="Company / Contact">
+                                    <td>
                                         <strong>
                                             <%= customer.companyName %>
-                                        </strong><br>
-                                        <span style="color:#555; font-size:12px;">
+                                        </strong>
+                                        <span style="color:#555; font-size:14px;">
                                             <%= customer.contactPerson %>
                                         </span>
                                     </td>
-                                    <td data-label="Contact Info">
-                                        📞 <a href="tel:+<%= customer.phone %>"
-                                            style="text-decoration:none; color:black;">+<%= customer.phone %></a><br>
-
+                    
+                                    <td>
+                                        📞 <a href="tel:+<%= customer.phone %>" style="text-decoration:none; color:black;">+<%=
+                                                customer.phone %></a><br>
                                         <% if (customer.otherNumbers) { %>
                                             <% customer.otherNumbers.split(',').forEach(num=> { %>
                                                 <% if(num.trim() !=="" ) { %>
@@ -344,76 +381,76 @@ td, p, span, div {
                                                     <% } %>
                                                         <% }) %>
                                                             <% } %>
-
-                                                                💬 <a href="https://wa.me/<%= customer.whatsappNumber %>"
-                                                                    target="_blank"
-                                                                    style="text-decoration:none; color:green;">+<%=
-                                                                        customer.whatsappNumber %></a><br>
-
-                                                                <% if (customer.email && customer.email.trim() !=="" ) {
-                                                                    %>
-                                                                    📧 <a
-                                                                        href="https://mail.google.com/mail/?view=cm&fs=1&to=<%= customer.email %>"
-                                                                        target="_blank"
-                                                                        style="color:blue; text-decoration:underline;">
-                                                                        <%= customer.email %>
-                                                                    </a>
-                                                                    <% } else { %>
-                                                                        <span style="color:#999; font-size:12px;">(No
-                                                                            Email Saved)</span>
-                                                                        <% } %>
                                     </td>
-                                    <td data-label="Financials">
-                                        Total: ₹<%= customer.totalAmount %><br>
-                                            Paid: ₹<%= customer.paidAmount %><br>
-                                                <% if (due> 0) { %>
-                                                    <span class="badge-due">Due: ₹<%= due %></span>
-                                                    <% } else { %>
-                                                        <span class="badge-paid">Paid</span>
-                                                        <% } %>
+                    
+                                    <td>
+                                        <div class="desktop-only">
+                                            Total: ₹<%= customer.totalAmount %><br>
+                                                Paid: ₹<%= customer.paidAmount %><br>
+                                                    <% if (due> 0) { %> <span class="badge-due">Due: ₹<%= due %></span>
+                                                        <% } else { %> <span class="badge-paid">Paid</span>
+                                                            <% } %>
+                                        </div>
+                                        <div class="mobile-only" style="text-align: right;">
+                                            <span style="color:#000;">Total ₹<%= customer.totalAmount %></span>
+                                            <% if (due> 0) { %> <span style="color:#d00; font-weight:bold; margin-left: 5px;">Due ₹<%= due
+                                                        %></span>
+                                                <% } %>
+                                                    <br><span style="color:#28a745;">Paid ₹<%= customer.paidAmount %></span>
+                                        </div>
                                     </td>
-
-                                    <td data-label="Next Action Date">
+                    
+                                    <td class="desktop-only">
                                         <%= nextDate.toDateString() %>
-                                            <% if (due> 0 && isDueForReminder) { %>
-                                                <br><span style="color:red; font-weight:bold;">(Action Required)</span>
+                                            <% if (due> 0 && isDueForReminder) { %> <br><span style="color:red; font-weight:bold;">(Action
+                                                    Required)</span>
                                                 <% } %>
                                     </td>
-
-                                    <td data-label="Actions">
-                                        <% if (role==='admin' || role==='staff' ) { %>
-                                            <button class="btn btn-blue transaction-btn" data-id="<%= customer._id %>"
-                                                data-company="<%= customer.companyName %>" style="margin-bottom: 5px;">
-                                                Update Balance ✎
-                                            </button>
-                                            <br>
-                                            <button class="btn btn-orange reminder-btn" data-id="<%= customer._id %>"
-                                                data-whatsapp="<%= customer.whatsappNumber %>"
-                                                data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
-                                                data-due="<%= due %>" data-company="<%= customer.companyName %>">
-                                                Send Reminder 🔔
-                                            </button>
-                                            <% } %>
-
-                                                <% if (role==='admin' ) { %>
-                                                    <br>
-                                                    <button class="btn btn-yellow edit-btn" style="margin-top: 5px;"
-                                                        data-id="<%= customer._id %>"
-                                                        data-company="<%= customer.companyName %>"
-                                                        data-contact="<%= customer.contactPerson %>"
-                                                        data-email="<%= customer.email %>"
-                                                        data-phone="<%= customer.phone %>"
-                                                        data-whatsapp="<%= customer.whatsappNumber %>"
-                                                        data-other="<%= customer.otherNumbers %>">
-                                                        Edit Details ✎
-                                                    </button>
-
-                                                    <form action="/customers/<%= customer._id %>?_method=DELETE"
-                                                        method="POST" style="display:inline; margin-left:5px;">
-                                                        <button type="submit"
-                                                            style="color:red; background:none; border:none; cursor:pointer;">X</button>
-                                                    </form>
-                                                    <% } %>
+                    
+                                    <td>
+                                        <div class="desktop-only">
+                                            <% if (role==='admin' || role==='staff' ) { %>
+                                                <button class="btn btn-blue transaction-btn" data-id="<%= customer._id %>"
+                                                    data-company="<%= customer.companyName %>" style="margin-bottom: 5px;">Update Balance
+                                                    ✎</button><br>
+                                                <button class="btn btn-orange reminder-btn" data-id="<%= customer._id %>"
+                                                    data-whatsapp="<%= customer.whatsappNumber %>" data-email="<%= customer.email %>"
+                                                    data-phone="<%= customer.phone %>" data-due="<%= due %>"
+                                                    data-company="<%= customer.companyName %>">Send Reminder 🔔</button>
+                                                <% } %>
+                                                    <% if (role==='admin' ) { %>
+                                                        <br><button class="btn btn-yellow edit-btn" style="margin-top: 5px;"
+                                                            data-id="<%= customer._id %>" data-company="<%= customer.companyName %>"
+                                                            data-contact="<%= customer.contactPerson %>" data-email="<%= customer.email %>"
+                                                            data-phone="<%= customer.phone %>"
+                                                            data-whatsapp="<%= customer.whatsappNumber %>"
+                                                            data-other="<%= customer.otherNumbers %>">Edit Details ✎</button>
+                                                        <form action="/customers/<%= customer._id %>?_method=DELETE" method="POST"
+                                                            style="display:inline; margin-left:5px;"><button type="submit"
+                                                                style="color:red; background:none; border:none; cursor:pointer;">X</button>
+                                                        </form>
+                                                        <% } %>
+                                        </div>
+                    
+                                        <div class="mobile-only" style="display:flex; justify-content:flex-end; gap:10px; width:100%;">
+                                            <% if (role==='admin' || role==='staff' ) { %>
+                                                <button class="btn btn-blue transaction-btn" data-id="<%= customer._id %>"
+                                                    data-company="<%= customer.companyName %>"
+                                                    style="width: auto !important; padding: 0 15px !important; margin: 0; border-radius: 25px;">Pay
+                                                    ₹</button>
+                                                <% } %>
+                    
+                                                    <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
+                                                        target="_blank" class="action-circle">
+                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA"
+                                                            width="26" height="26">
+                                                    </a>
+                    
+                                                    <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>" class="action-circle">💬</a>
+                    
+                                                    <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                        class="action-circle">📧</a>
+                                        </div>
                                     </td>
                                 </tr>
                                 <% }) %>
@@ -526,8 +563,9 @@ td, p, span, div {
                 document.getElementById('smsLink').href = `sms:+${phone}?body=${encodedMsg}`;
 
                 const emailBtn = document.getElementById('emailLink');
+                // THE FIX: mailto: forces the phone/PC to open the default email app
                 if (email && email.trim() !== "") {
-                    emailBtn.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=Payment Reminder: ${encodeURIComponent(company)}&body=${encodedMsg}`;
+                    emailBtn.href = `mailto:${email}?subject=Payment Reminder: ${encodeURIComponent(company)}&body=${encodedMsg}`;
                     emailBtn.style.opacity = "1";
                     emailBtn.style.pointerEvents = "auto";
                 } else {
