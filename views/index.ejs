@@ -563,8 +563,8 @@
                 <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)" class="input-style">
     
                 <label class="trans-label">First Action Date</label>
-                <input type="date" name="nextActionDate" required class="input-style">
-    
+                <input type="text" name="nextActionDate" placeholder="Select Desire Date 📅" required class="input-style"
+                    onfocus="(this.type='date')" onblur="if(!this.value) this.type='text'">
                 <button type="submit" class="btn btn-green"
                     style="width:100%; padding: 12px; font-size: 16px; margin-top: 10px;">Save Party</button>
             </form>
