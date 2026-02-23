@@ -342,17 +342,15 @@
                 <tbody>
                     <% customers.forEach(customer=> { %>
                         <% const due=customer.totalAmount - customer.paidAmount; const now=new Date(); const
-                            nextDate=customer.nextReminderDate ? new Date(customer.nextReminderDate) : new Date(); // Calculate if the
-                            date has arrived and how many days it is past due const today=new Date(now.getFullYear(), now.getMonth(),
-                            now.getDate()); const target=new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
-                            const isDueForReminder=today>= target;
+                            nextDate=customer.nextReminderDate ? new Date(customer.nextReminderDate) : new Date(); const today=new
+                            Date(now.getFullYear(), now.getMonth(), now.getDate()); const target=new Date(nextDate.getFullYear(),
+                            nextDate.getMonth(), nextDate.getDate()); const isDueForReminder=today>= target;
                 
                             const diffTime = Math.abs(today - target);
                             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                             const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days past the set action date.` :
                             "";
                 
-                            // The Upgraded Smart Message
                             const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from ${customer.companyName}. This is a gentle
                             reminder. You have previously paid ₹${customer.paidAmount} on this account. Your current outstanding due is
                             ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
@@ -445,7 +443,6 @@
                                                                 data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
                                                                 data-whatsapp="<%= customer.whatsappNumber %>"
                                                                 data-other="<%= customer.otherNumbers %>">Edit ✏️</button>
-                
                                                             <form action="/customers/<%= customer._id %>?_method=DELETE" method="POST"
                                                                 style="margin:0;"
                                                                 onsubmit="return confirm('Are you sure you want to permanently delete this customer?');">
@@ -507,7 +504,6 @@
                                                                 data-whatsapp="<%= customer.whatsappNumber %>"
                                                                 data-other="<%= customer.otherNumbers %>"
                                                                 title="Edit Customer Details">✏️</button>
-                
                                                             <form action="/customers/<%= customer._id %>?_method=DELETE" method="POST"
                                                                 style="margin:0;"
                                                                 onsubmit="return confirm('Are you sure you want to permanently delete this customer?');">
