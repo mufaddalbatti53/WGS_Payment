@@ -355,21 +355,22 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
 // 5. CUSTOMER ACTIONS
 // --- ADD NEW CUSTOMER (STAMPED WITH WORKSPACE ID) ---
 // --- ADD NEW CUSTOMER (WITH PHONE NUMBER FIX) ---
+// --- ADD NEW CUSTOMER (NOW ASKS FOR FIRST ACTION DATE) ---
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
     try {
-        // THE FIX: Stitch the country code and the local phone number together
         const fullPhoneNumber = req.body.countryCode + req.body.localPhone;
 
         await Customer.create({
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: fullPhoneNumber, // <-- Saves the stitched number here!
+            phone: fullPhoneNumber,
             whatsappNumber: req.body.whatsappNumber,
             totalAmount: req.body.totalAmount || 0,
-            adminId: req.session.adminId
+            adminId: req.session.adminId,
+            nextReminderDate: req.body.nextReminderDate // <-- Captures the date immediately!
         });
 
         res.redirect('/');

@@ -208,6 +208,36 @@
     table, thead, tbody, th, td, tr { display: block; width: 100%; box-sizing: border-box; }
     thead tr { display: none; }
     
+    /* ========================================= */
+    /* 📱 MOBILE FORM FIX (Stacks inputs vertically) */
+    /* ========================================= */
+    .form-row {
+        flex-direction: column !important;
+        gap: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Make the Country Code and Phone Number sit nicely together */
+    select[name="countryCode"] {
+        width: 100px !important;
+        display: inline-block !important;
+    }
+    input[name="localPhone"] {
+        width: calc(100% - 110px) !important;
+        display: inline-block !important;
+    }
+
+    /* Fix the top Admin menu buttons so they don't get squished */
+    .admin-menu {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .admin-menu a {
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+    }
     /* The App Card (Matches the sketch border) */
     tr {
         background: #fff;
@@ -321,7 +351,12 @@
                     <div class="form-row">
                         <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
                             class="input-style">
+                            <div style="flex:1;">
+                                <input type="date" name="nextReminderDate" required class="input-style" style="color:#555;"
+                                    title="Set First Action Date">
+                            </div>
                     </div>
+                    
 
                     <button type="submit" class="btn" style="background:#333; color:white; padding: 10px 20px;">Add
                         Party</button>
@@ -473,39 +508,45 @@
                                                     </div>
                                         </div>
                                     </div>
-                
+                                
+                                    <div
+                                        style="font-size: 13px; color: #555; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #eee;">
+                                        📅 Action Date: <strong style="color:#000;">
+                                            <%= nextDate.toDateString() %>
+                                        </strong>
+                                        <% if (due> 0 && isDueForReminder) { %>
+                                            <span style="color:red; font-weight:bold; float:right;">(Action Required)</span>
+                                            <% } %>
+                                    </div>
+                                
                                     <% if (due> 0 && isDueForReminder) { %>
                                         <div class="m-circles">
-                                            <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
-                                                target="_blank" class="m-circle">
-                                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA"
-                                                    width="22" height="22">
+                                            <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>" target="_blank"
+                                                class="m-circle">
+                                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" width="22"
+                                                    height="22">
                                             </a>
                                             <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>" class="m-circle">💬</a>
                                             <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
                                                 class="m-circle">📧</a>
                                         </div>
                                         <% } %>
-                
+                                
                                             <div class="m-tools">
                                                 <% if (role==='admin' || role==='staff' ) { %>
                                                     <button class="m-tool-btn transaction-btn" data-id="<%= customer._id %>"
                                                         data-company="<%= customer.companyName %>" title="Update Payment">💳</button>
                                                     <button class="m-tool-btn reminder-btn" data-id="<%= customer._id %>"
-                                                        data-company="<%= customer.companyName %>"
-                                                        title="Set Next Action Date">📅</button>
+                                                        data-company="<%= customer.companyName %>" title="Set Next Action Date">📅</button>
                                                     <% } %>
-                
+                                
                                                         <% if (role==='admin' ) { %>
                                                             <button class="m-tool-btn edit-btn" data-id="<%= customer._id %>"
-                                                                data-company="<%= customer.companyName %>"
-                                                                data-contact="<%= customer.contactPerson %>"
+                                                                data-company="<%= customer.companyName %>" data-contact="<%= customer.contactPerson %>"
                                                                 data-email="<%= customer.email %>" data-phone="<%= customer.phone %>"
-                                                                data-whatsapp="<%= customer.whatsappNumber %>"
-                                                                data-other="<%= customer.otherNumbers %>"
+                                                                data-whatsapp="<%= customer.whatsappNumber %>" data-other="<%= customer.otherNumbers %>"
                                                                 title="Edit Customer Details">✏️</button>
-                                                            <form action="/customers/<%= customer._id %>?_method=DELETE" method="POST"
-                                                                style="margin:0;"
+                                                            <form action="/customers/<%= customer._id %>?_method=DELETE" method="POST" style="margin:0;"
                                                                 onsubmit="return confirm('Are you sure you want to permanently delete this customer?');">
                                                                 <button type="submit" class="m-tool-btn" style="color:red;"
                                                                     title="Delete Customer">🗑️</button>
