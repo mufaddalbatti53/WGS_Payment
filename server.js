@@ -370,7 +370,7 @@ app.post('/customers', async (req, res) => {
             whatsappNumber: req.body.whatsappNumber,
             totalAmount: req.body.totalAmount || 0,
             adminId: req.session.adminId,
-            nextReminderDate: req.body.nextReminderDate // <-- Captures the date immediately!
+            nextActionDate: req.body.nextActionDate // <-- Captures the date immediately!
         });
 
         res.redirect('/');
@@ -438,7 +438,7 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
 
     if (!customer) return res.status(404).send("Customer not found.");
 
-    customer.nextReminderDate = new Date(req.body.nextDate);
+    customer.nextActionDate = new Date(req.body.nextDate);
     await customer.save();
 
     await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName} set to ${req.body.nextDate}`);

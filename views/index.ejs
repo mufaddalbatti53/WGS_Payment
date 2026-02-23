@@ -352,7 +352,7 @@
                         <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
                             class="input-style">
                             <div style="flex:1;">
-                                <input type="date" name="nextReminderDate" required class="input-style" style="color:#555;"
+                                <input type="date" name="nextActionDate" required class="input-style" style="color:#555;"
                                     title="Set First Action Date">
                             </div>
                     </div>
@@ -377,7 +377,7 @@
                 <tbody>
                     <% customers.forEach(customer=> { %>
                         <% const due=customer.totalAmount - customer.paidAmount; const now=new Date(); const
-                            nextDate=customer.nextReminderDate ? new Date(customer.nextReminderDate) : new Date(); const today=new
+                            nextDate=customer.nextActionDate ? new Date(customer.nextActionDate) : new Date(); const today=new
                             Date(now.getFullYear(), now.getMonth(), now.getDate()); const target=new Date(nextDate.getFullYear(),
                             nextDate.getMonth(), nextDate.getDate()); const isDueForReminder=today>= target;
                 
