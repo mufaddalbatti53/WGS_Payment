@@ -46,6 +46,33 @@ const requireLogin = (req, res, next) => {
 
 // --- ROUTES ---
 
+// Activity Log Schema
+const activitySchema = new mongoose.Schema({
+    adminId: { type: String, required: true },
+    userId: { type: String, required: true },
+    username: { type: String, required: true },
+    action: { type: String, required: true },
+    details: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const ActivityLog = mongoose.model('ActivityLog', activitySchema);
+
+async function logActivity(req, action, details) {
+    try {
+        if (!req.session || !req.session.adminId) return;
+
+        await Activity.create({ // (Make sure this matches your model name above!)
+            adminId: req.session.adminId,
+            userId: req.session.userId,
+            username: req.session.username || 'Admin',
+            action: action,
+            details: details
+        });
+    } catch (err) {
+        console.error("Logging Error:", err);
+    }
+}
+
 // 1. LOGIN & RECOVERY
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
@@ -478,6 +505,7 @@ app.post('/customers', async (req, res) => {
             adminId: req.session.adminId,
             nextActionDate: req.body.nextActionDate // <-- Captures the date immediately!
         });
+        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName} with Total ₹${req.body.totalAmount || 0}`);
 
         res.redirect('/');
     } catch (err) {
@@ -503,17 +531,22 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
             otherNumbers: req.body.otherNumbers
         }
     );
+    await logActivity(req, "Edited Party", `Updated profile details for ${customer.companyName}.`);
     await logActivity(req, "Updated Details", `Updated profile for: ${req.body.companyName}`);
     res.redirect('/');
 });
 
 app.delete('/customers/:id', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
 
-    // SECURITY: Only delete if it belongs to this admin's workspace
+    // Grab the customer before deleting so we know their name for the log!
     const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
 
-    if (customer) await logActivity(req, "Deleted Customer", `Removed: ${customer.companyName}`);
+    if (customer) {
+        // 🚨 ADD THIS TRACKER:
+        await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName}`);
+    }
+
     res.redirect('/');
 });
 
@@ -535,6 +568,7 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
     if (payment > 0) details += `Paid ₹${payment}.`;
 
     await logActivity(req, "Transaction Updated", `${customer.companyName}: ${details}`);
+    await logActivity(req, "Payment Updated", `Added ₹${payment} payment and ₹${newPurchase} new purchase to ${customer.companyName}.`);
     res.redirect('/');
 });
 
@@ -551,16 +585,7 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     res.redirect('/');
 });
 
-// Activity Log Schema
-const activitySchema = new mongoose.Schema({
-    adminId: { type: String, required: true },
-    userId: { type: String, required: true },
-    username: { type: String, required: true },
-    action: { type: String, required: true },
-    details: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-const ActivityLog = mongoose.model('ActivityLog', activitySchema);
+
 
 // --- START SERVER ---
 const PORT = process.env.PORT || 3000;
