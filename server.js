@@ -381,51 +381,54 @@ app.get('/export', requireLogin, async (req, res) => {
 
 // --- IMPORT FROM EXCEL ROUTE (WITH SMART UPDATE) ---
 // --- IMPORT FROM EXCEL ROUTE (MULTI-TENANT SECURED) ---
-app.post('/import', upload.single('excelFile'), async (req, res) => {
-    // 1. Security Check: Make sure they are logged in
-    if (!req.session.userId) return res.redirect('/login');
-
+// --- IMPORT FROM EXCEL ROUTE (UPDATED FOR PREMIUM TEMPLATE) ---
+app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
-        if (!req.file) return res.status(400).send('Please upload an Excel file.');
+        if (!req.file) return res.redirect('/');
 
-        const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
+        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
-        const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        const sheet = workbook.Sheets[sheetName];
 
-        // Loop through all 100+ rows instantly
-        for (let row of data) {
-            if (row['COMPANY NAME']) {
+        // THE FIX: { range: 1 } tells the reader to skip Row 1 (the title) and use Row 2 as the headers!
+        const importedData = xlsx.utils.sheet_to_json(sheet, { range: 1 });
 
-                const updateData = {
-                    companyName: row['COMPANY NAME'],
-                    contactPerson: row['CONTACT PERSON'] || '',
-                    email: row['EMAIL ADDRESS'] || '',
-                    phone: String(row['PRIMARY CALLING NUMBER']) || '',
-                    whatsappNumber: String(row['WHATSAPP NUMBER']) || '',
-                    otherNumbers: String(row['OTHER NUMBERS']) || '',
-                    totalAmount: row['TOTAL AMOUNT'] || 0,
-                    paidAmount: row['PAID'] || 0,
-                    nextActionDate: String(row['NEXT ACTION DATE']) || null,
-                    adminId: req.session.adminId // <-- THE MAGIC STAMP!
-                };
+        for (let row of importedData) {
+            // If the row is completely blank or missing a company name, skip it
+            if (!row['Company Name']) continue;
 
-                // Smart Update: Make sure it only updates customers in THIS Admin's workspace
-                await Customer.findOneAndUpdate(
-                    {
-                        companyName: row['COMPANY NAME'],
-                        adminId: req.session.adminId // Only look for duplicates inside this company
-                    },
-                    { $set: updateData },
-                    { returnDocument: 'after', upsert: true }
-                );
-            }
+            // 1. Force phone numbers to be text (stops math conversion)
+            const phoneStr = String(row['Phone Number'] || '');
+            const waStr = String(row['WhatsApp Number'] || row['Phone Number'] || '');
+
+            // 2. Clean the money (removes ₹ and commas so the database can do proper math)
+            const cleanTotal = Number(String(row['Total Due'] || '0').replace(/[^0-9.-]+/g, "")) || 0;
+            const cleanPaid = Number(String(row['Paid Amount'] || '0').replace(/[^0-9.-]+/g, "")) || 0;
+
+            // 3. Save or Update the database
+            await Customer.findOneAndUpdate(
+                { companyName: row['Company Name'], adminId: req.session.adminId },
+                {
+                    contactPerson: row['Contact Person'] || '',
+                    email: row['Email Address'] || '',
+                    phone: phoneStr,
+                    whatsappNumber: waStr,
+                    totalAmount: cleanTotal,
+                    paidAmount: cleanPaid,
+                    // Only update the date if they typed one in Excel
+                    ...(row['Next Action Date'] && { nextActionDate: new Date(row['Next Action Date']) })
+                },
+                { upsert: true, returnDocument: 'after' } // upsert: true creates a new party if they don't exist yet!
+            );
         }
 
-        // After all rows are processed, refresh the dashboard at once
+        // Log the activity
+        await logActivity(req, "Excel Import", `Imported/Updated ${importedData.length} customers from Excel.`);
+
         res.redirect('/');
     } catch (err) {
-        console.error(err);
-        res.status(500).send("Failed to import Excel file.");
+        console.error("Import Error:", err);
+        res.status(500).send("Failed to import Excel file. Please ensure it matches the exact template.");
     }
 });
 
