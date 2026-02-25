@@ -155,6 +155,58 @@
         <a href="/" style="text-decoration: none; color: #3498db; font-weight: bold;">&larr; Back to Dashboard</a>
         <h1 style="margin-top: 15px;">📜 Activity Log</h1>
 
+        <div
+            style="background: white; padding: 20px; border-radius: 16px; box-shadow: 0 8px 24px rgba(155, 89, 182, 0.1); margin-bottom: 20px; border: 1px solid #eee;">
+        
+            <input type="text" id="activitySearch" class="input-style"
+                placeholder="🔍 Search logs by user, action, or details..." style="font-size: 16px; padding: 12px;">
+        
+            <% if (role==='admin' ) { %>
+                <form action="/activity/delete-bulk" method="POST"
+                    onsubmit="return confirm('Are you sure you want to delete these logs permanently?');"
+                    style="margin-top: 10px; padding-top: 15px; border-top: 1px solid #eee;">
+                    <strong style="font-size: 14px; color: #555; display: block; margin-bottom: 10px;">🗑️ Bulk Clear
+                        Logs</strong>
+        
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <select name="filterType" id="filterType" class="input-style"
+                            style="flex: 1; min-width: 150px; margin-bottom: 0;" onchange="toggleCustomDates()">
+                            <option value="older_than_30">Older than 30 Days</option>
+                            <option value="last_30">Last 30 Days</option>
+                            <option value="custom">Custom Date Range</option>
+                            <option value="all">Delete ALL Logs</option>
+                        </select>
+        
+                        <div id="customDateBoxes" style="display: none; flex: 2; gap: 10px; min-width: 250px;">
+                            <input type="date" name="startDate" class="input-style" style="margin-bottom: 0;">
+                            <span style="align-self: center;">to</span>
+                            <input type="date" name="endDate" class="input-style" style="margin-bottom: 0;">
+                        </div>
+        
+                        <button type="submit" class="btn btn-red" style="padding: 10px 20px;">Clear Now</button>
+                    </div>
+                </form>
+                <% } %>
+        </div>
+        
+        <script>
+            // Show/Hide Custom Date Boxes
+            function toggleCustomDates() {
+                const type = document.getElementById('filterType').value;
+                document.getElementById('customDateBoxes').style.display = (type === 'custom') ? 'flex' : 'none';
+            }
+
+            // Real-Time Search for Activity
+            document.getElementById('activitySearch').addEventListener('keyup', function () {
+                let filter = this.value.toLowerCase();
+                let rows = document.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    let text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(filter) ? '' : 'none';
+                });
+            });
+        </script>
+
         <table>
             <thead>
                 <tr>
@@ -166,46 +218,57 @@
             </thead>
             <tbody>
                 <% activities.forEach(log=> { %>
-                    <tr>
-                        <td class="desktop-only" style="white-space: nowrap; color: #555;">
-                            <%= new Date(log.createdAt).toLocaleString('en-IN') %>
-                        </td>
-                        <td class="desktop-only">
-                            <strong>
-                                <%= log.username || 'Admin' %>
-                            </strong>
-                        </td>
-                        <td class="desktop-only action-text">
-                            <%= log.action %>
-                        </td>
-                        <td class="desktop-only">
-                            <%= log.details %>
-                        </td>
-
-                        <td class="mobile-only">
-                            <div class="log-header">
-                                <div class="log-action">
-                                    <%= log.action %>
-                                </div>
-                                <div class="log-date">
-                                    <%= new Date(log.createdAt).toLocaleDateString('en-IN') %><br>
-                                        <strong>
-                                            <%= new Date(log.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit' ,
-                                                minute: '2-digit' }) %>
-                                        </strong>
-                                </div>
-                            </div>
-                            <div class="log-user">
-                                👤 <strong>
+                    <% // THE FIX: Smart Date Finder // This checks all the common names you might have used in your database const
+                        rawDate=log.createdAt || log.date || log.timestamp; const hasValidDate=rawDate ? true : false; const
+                        validDate=hasValidDate ? new Date(rawDate) : null; %>
+                        <tr>
+                            <td class="desktop-only" style="white-space: nowrap; color: #555;">
+                                <% if (hasValidDate) { %>
+                                    <%= validDate.toLocaleString('en-IN') %>
+                                        <% } else { %>
+                                            <span style="color:#999;">Date Unknown</span>
+                                            <% } %>
+                            </td>
+                            <td class="desktop-only">
+                                <strong>
                                     <%= log.username || 'Admin' %>
                                 </strong>
-                            </div>
-                            <div class="log-details">
+                            </td>
+                            <td class="desktop-only action-text">
+                                <%= log.action %>
+                            </td>
+                            <td class="desktop-only">
                                 <%= log.details %>
-                            </div>
-                        </td>
-                    </tr>
-                    <% }) %>
+                            </td>
+            
+                            <td class="mobile-only">
+                                <div class="log-header">
+                                    <div class="log-action">
+                                        <%= log.action %>
+                                    </div>
+                                    <div class="log-date">
+                                        <% if (hasValidDate) { %>
+                                            <%= validDate.toLocaleDateString('en-IN') %><br>
+                                                <strong>
+                                                    <%= validDate.toLocaleTimeString('en-IN', { hour: '2-digit' , minute: '2-digit'
+                                                        }) %>
+                                                </strong>
+                                                <% } else { %>
+                                                    <span style="color:#999;">Date Unknown</span>
+                                                    <% } %>
+                                    </div>
+                                </div>
+                                <div class="log-user">
+                                    👤 <strong>
+                                        <%= log.username || 'Admin' %>
+                                    </strong>
+                                </div>
+                                <div class="log-details">
+                                    <%= log.details %>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
             </tbody>
         </table>
     </div>

@@ -151,6 +151,41 @@
             cursor: pointer;
         }
 
+        /* ========================================= */
+        /* 📊 DASHBOARD STATS & SEARCH               */
+        /* ========================================= */
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+        .stat-card { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 16px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06); 
+            text-align: center; 
+            border-bottom: 4px solid #27ae60; 
+        }
+        .stat-card.alert { border-bottom-color: #e74c3c; }
+        .stat-card.warning { border-bottom-color: #f39c12; }
+        .stat-title { font-size: 12px; color: #777; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #333; }
+        
+        .search-box {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 16px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .search-box:focus { border-color: #27ae60; }
+
         .admin-menu {
             display: flex;
             gap: 10px;
@@ -325,6 +360,32 @@
                         Due", "Paid Amount"</small>
                 </form>
             </div>
+            <% let totalPending=0; let missingContactsCount=0; customers.forEach(c=> {
+                const due = c.totalAmount - c.paidAmount;
+                if (due > 0) totalPending += due;
+                if (!c.phone && !c.whatsappNumber) missingContactsCount++;
+                });
+                %>
+            
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">Total Parties</div>
+                        <div class="stat-value">👥 <%= customers.length %>
+                        </div>
+                    </div>
+                    <div class="stat-card alert">
+                        <div class="stat-title">Total Pending Bills</div>
+                        <div class="stat-value">₹<%= totalPending.toLocaleString('en-IN') %>
+                        </div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-title">Missing Contacts</div>
+                        <div class="stat-value">⚠️ <%= missingContactsCount %>
+                        </div>
+                    </div>
+                </div>
+            
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search party, contact person, or phone...">
 
         <button onclick="openAddModal()" class="btn btn-green"
             style="width: 100%; padding: 15px; font-size: 18px; margin-bottom: 20px; border-radius: 8px; font-weight: bold; box-shadow: 0 8px 20px rgba(39, 174, 96, 0.3);">
@@ -639,6 +700,8 @@
         </div>
     </div>
 
+    
+
     <script>
         // 1. Transaction Logic
             document.querySelectorAll('.transaction-btn').forEach(button => {
@@ -718,6 +781,21 @@
                 if (event.target == document.getElementById('editModal')) closeEditModal();
                 if (event.target == document.getElementById('addModal')) closeAddModal();
             }
+
+            // 🔍 REAL-TIME SEARCH FILTER
+                document.getElementById('searchInput').addEventListener('keyup', function () {
+                    let filter = this.value.toLowerCase();
+                    let rows = document.querySelectorAll('tbody tr'); // Grabs all desktop & mobile rows
+
+                    rows.forEach(row => {
+                        let text = row.innerText.toLowerCase();
+                        if (text.includes(filter)) {
+                            row.style.display = ''; // Show
+                        } else {
+                            row.style.display = 'none'; // Hide
+                        }
+                    });
+                });
     </script>
 </body>
 

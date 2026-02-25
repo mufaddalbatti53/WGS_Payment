@@ -167,6 +167,40 @@ app.get('/activity', requireLogin, async (req, res) => {
     const activities = await Activity.find({ adminId: req.session.adminId }).sort({ date: -1 }).limit(50);
     res.render('activity', { activities });
 });
+// --- BULK DELETE ACTIVITY LOGS ---
+app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
+    // Only Admin can clear logs
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+
+    try {
+        const { filterType, startDate, endDate } = req.body;
+        let query = { adminId: req.session.adminId };
+        const now = new Date();
+
+        if (filterType === 'older_than_30') {
+            const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+            query.createdAt = { $lt: thirtyDaysAgo };
+        }
+        else if (filterType === 'last_30') {
+            const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+            query.createdAt = { $gte: thirtyDaysAgo };
+        }
+        else if (filterType === 'custom' && startDate && endDate) {
+            query.createdAt = {
+                $gte: new Date(startDate),
+                $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) // Include the whole end day
+            };
+        }
+        // If filterType is 'all', the query just remains { adminId: req.session.adminId } which deletes all.
+
+        await ActivityLog.deleteMany(query);
+        res.redirect('/activity');
+
+    } catch (err) {
+        console.error("Bulk Delete Error:", err);
+        res.status(500).send("Failed to delete logs.");
+    }
+});
 
 // 4. ADMIN ACTIONS (Staff Management)
 app.get('/register', (req, res) => { res.render('register'); });
