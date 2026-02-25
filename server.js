@@ -57,19 +57,35 @@ const activitySchema = new mongoose.Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', activitySchema);
 
+// --- MASTER TRACKING FUNCTION (LOUD DEBUG VERSION) ---
 async function logActivity(req, action, details) {
-    try {
-        if (!req.session || !req.session.adminId) return;
+    console.log(`\n▶️ [ACTIVITY TRIGGERED] Attempting to log: "${action}"`);
 
-        await Activity.create({ // (Make sure this matches your model name above!)
+    try {
+        // 1. Check if it knows who is logged in
+        if (!req.session) {
+            console.log("❌ [ACTIVITY FAILED] Reason: No session found.");
+            return;
+        }
+        if (!req.session.adminId) {
+            console.log("❌ [ACTIVITY FAILED] Reason: req.session.adminId is missing.");
+            return;
+        }
+
+        // 2. Try to save to the database
+        // 🚨 IMPORTANT: If your model at the top is named `Activity`, change `ActivityLog.create` to `Activity.create` below!
+        await ActivityLog.create({
             adminId: req.session.adminId,
-            userId: req.session.userId,
+            userId: req.session.userId || req.session.adminId, // Fallback just in case
             username: req.session.username || 'Admin',
             action: action,
             details: details
         });
+
+        console.log("✅ [ACTIVITY SUCCESS] Successfully saved to database!\n");
+
     } catch (err) {
-        console.error("Logging Error:", err);
+        console.error("❌ [ACTIVITY DATABASE ERROR] Here is why it crashed:", err.message, "\n");
     }
 }
 
