@@ -405,7 +405,7 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
                     otherNumbers: String(row['OTHER NUMBERS']) || '',
                     totalAmount: row['TOTAL AMOUNT'] || 0,
                     paidAmount: row['PAID'] || 0,
-                    nextActionDate: row['NEXT ACTION DATE'] || null,
+                    nextActionDate: String(row['NEXT ACTION DATE']) || null,
                     adminId: req.session.adminId // <-- THE MAGIC STAMP!
                 };
 
