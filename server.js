@@ -288,59 +288,84 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
 
 // --- EXPORT TO EXCEL ROUTE ---
 // --- EXPORT TO EXCEL ROUTE (BEAUTIFUL TEMPLATE) ---
-app.get('/export', async (req, res) => {
+// --- EXPORT TO EXCEL ROUTE (PREMIUM REPORT + PHONE NUMBER FIX) ---
+app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
 
-        // 1. Create a new, blank workbook
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Customers');
 
-        // 2. Define the Columns and their exact widths so text doesn't get cut off
-        worksheet.columns = [
-            { header: 'COMPANY NAME', key: 'companyName', width: 30 },
-            { header: 'CONTACT PERSON', key: 'contactPerson', width: 25 },
-            { header: 'EMAIL ADDRESS', key: 'email', width: 35 },
-            { header: 'PRIMARY CALLING NUMBER', key: 'phone', width: 25 },
-            { header: 'WHATSAPP NUMBER', key: 'whatsappNumber', width: 25 },
-            { header: 'TOTAL AMOUNT', key: 'totalAmount', width: 20 },
-            { header: 'PAID', key: 'paidAmount', width: 20 },
-            { header: 'NEXT ACTION DATE', key: 'nextActionDate', width: 20 }
+        // 1. Create sheet and FREEZE the top 2 rows so they stay visible when scrolling!
+        const worksheet = workbook.addWorksheet('Customer Master', {
+            views: [{ state: 'frozen', ySplit: 2 }]
+        });
+
+        // 2. Add a Premium Title Row (Spans across all columns)
+        worksheet.mergeCells('A1:H1');
+        const titleCell = worksheet.getCell('A1');
+        titleCell.value = '📊 CUSTOMER FINANCIAL STATEMENT  |  Generated on: ' + new Date().toLocaleDateString('en-IN');
+        titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } }; // Dark slate blue
+        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        // 3. Define the Headers (MUST MATCH YOUR IMPORT ROUTE EXACTLY)
+        worksheet.getRow(2).values = [
+            'Company Name', 'Contact Person', 'Email Address',
+            'Phone Number', 'WhatsApp Number', 'Total Due', 'Paid Amount', 'Next Action Date'
         ];
 
-        // 3. Add the Customer Data into the rows
-        customers.forEach(c => {
-            worksheet.addRow({
+        // 4. Set Column Widths and Force Text Formatting for Phones
+        worksheet.columns = [
+            { key: 'companyName', width: 30 },
+            { key: 'contactPerson', width: 25 },
+            { key: 'email', width: 35 },
+            // THE FIX: style: { numFmt: '@' } forces Excel to treat any typed number as TEXT!
+            { key: 'phone', width: 25, style: { numFmt: '@' } },
+            { key: 'whatsappNumber', width: 25, style: { numFmt: '@' } },
+            { key: 'totalAmount', width: 20, style: { numFmt: '₹#,##0.00' } },
+            { key: 'paidAmount', width: 20, style: { numFmt: '₹#,##0.00' } },
+            { key: 'nextActionDate', width: 20 }
+        ];
+
+        // 5. Style the Header Row
+        worksheet.getRow(2).eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF27AE60' } }; // Theme Green
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
+
+        // 6. Add the Data with Zebra Striping
+        customers.forEach((c, index) => {
+            const row = worksheet.addRow({
                 companyName: c.companyName || '',
                 contactPerson: c.contactPerson || '',
                 email: c.email || '',
-                phone: c.phone || '',
-                whatsappNumber: c.whatsappNumber || '',
+                // THE SECOND FIX: Force existing database numbers to strings
+                phone: c.phone ? String(c.phone) : '',
+                whatsappNumber: c.whatsappNumber ? String(c.whatsappNumber) : '',
                 totalAmount: c.totalAmount || 0,
                 paidAmount: c.paidAmount || 0,
                 nextActionDate: c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : ''
             });
+
+            // Alternate row colors (White and very light grey) for easy reading
+            const isEven = index % 2 === 0;
+            row.eachCell((cell, colNumber) => {
+                cell.border = { top: { style: 'thin', color: { argb: 'FFEEEEEE' } }, bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+                if (isEven) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9F9F9' } };
+                }
+                cell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+                // Keep the money columns aligned to the right
+                if (colNumber === 6 || colNumber === 7) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                }
+            });
         });
 
-        // 4. Style the Header Row (Row 1)
-        worksheet.getRow(1).eachCell((cell) => {
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // White bold text
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FF27AE60' } // Your app's custom green theme color
-            };
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            cell.border = {
-                top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
-            };
-        });
-
-        // 5. Format the Money Columns to show commas and the Rupee symbol
-        worksheet.getColumn('totalAmount').numFmt = '₹#,##0.00';
-        worksheet.getColumn('paidAmount').numFmt = '₹#,##0.00';
-
-        // 6. Send the beautiful file to the browser
+        // 7. Send the file
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="Customer_Master_List.xlsx"');
 
@@ -375,9 +400,9 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
                     companyName: row['COMPANY NAME'],
                     contactPerson: row['CONTACT PERSON'] || '',
                     email: row['EMAIL ADDRESS'] || '',
-                    phone: row['PRIMARY CALLING NUMBER'] || '',
-                    whatsappNumber: row['WHATSAPP NUMBER'] || '',
-                    otherNumbers: row['OTHER NUMBERS'] || '',
+                    phone: String(row['PRIMARY CALLING NUMBER']) || '',
+                    whatsappNumber: String(row['WHATSAPP NUMBER']) || '',
+                    otherNumbers: String(row['OTHER NUMBERS']) || '',
                     totalAmount: row['TOTAL AMOUNT'] || 0,
                     paidAmount: row['PAID'] || 0,
                     nextActionDate: row['NEXT ACTION DATE'] || null,
