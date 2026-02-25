@@ -32,12 +32,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
 
-// --- HELPERS & MIDDLEWARE ---
-const logActivity = async (req, action, details) => {
-    const user = await User.findById(req.session.userId);
-    const username = user ? user.username : "Unknown";
-    await Activity.create({ username, action, details, adminId: req.session.adminId });
-};
+
 
 const requireLogin = (req, res, next) => {
     if (!req.session.userId) return res.redirect('/login');
