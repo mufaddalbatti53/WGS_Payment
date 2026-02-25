@@ -165,7 +165,10 @@ app.get('/staff', requireLogin, async (req, res) => {
 app.get('/activity', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.redirect('/');
     const activities = await Activity.find({ adminId: req.session.adminId }).sort({ date: -1 }).limit(50);
-    res.render('activity', { activities });
+    res.render('activity', {
+        activities: logs,
+        role: req.session.role // <-- THE FIX: Now we are sending the role!
+    });
 });
 // --- BULK DELETE ACTIVITY LOGS ---
 app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
