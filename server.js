@@ -162,13 +162,21 @@ app.get('/staff', requireLogin, async (req, res) => {
     }
 });
 
+// --- VIEW ACTIVITY LOG ---
 app.get('/activity', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.redirect('/');
-    const activities = await Activity.find({ adminId: req.session.adminId }).sort({ date: -1 }).limit(50);
-    res.render('activity', {
-        activities: logs,
-        role: req.session.role // <-- THE FIX: Now we are sending the role!
-    });
+    try {
+        // 1. Fetch the activities from the database and store them in the 'activities' variable
+        const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).lean();
+
+        // 2. Pass BOTH the activities AND the role to the frontend!
+        res.render('activity', {
+            activities: activities,
+            role: req.session.role
+        });
+    } catch (err) {
+        console.error("Activity Load Error:", err);
+        res.status(500).send("Error loading activity log.");
+    }
 });
 // --- BULK DELETE ACTIVITY LOGS ---
 app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
@@ -383,7 +391,7 @@ app.post('/import', upload.single('excelFile'), async (req, res) => {
                         adminId: req.session.adminId // Only look for duplicates inside this company
                     },
                     { $set: updateData },
-                    { new: true, upsert: true }
+                    { returnDocument: 'after', upsert: true }
                 );
             }
         }
