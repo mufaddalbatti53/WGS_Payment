@@ -497,6 +497,17 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     res.redirect('/');
 });
 
+// Activity Log Schema
+const activitySchema = new mongoose.Schema({
+    adminId: { type: String, required: true },
+    userId: { type: String, required: true },
+    username: { type: String, required: true },
+    action: { type: String, required: true },
+    details: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const ActivityLog = mongoose.model('ActivityLog', activitySchema);
+
 // --- START SERVER ---
 const PORT = process.env.PORT || 3000;
 
