@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Activity Log</title>
+    <meta name="theme-color" content="#9b59b6">
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -12,29 +13,29 @@
             background: #f4f4f9;
         }
 
+        /* 1. The Floating Main Container */
         .container {
             max-width: 1000px;
             margin: 0 auto;
             background: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            /* Premium roundness */
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
+            /* Deep floating shadow */
         }
 
-        .btn-back {
-            background: #555;
-            color: white;
-            padding: 8px 15px;
-            text-decoration: none;
-            border-radius: 4px;
-            display: inline-block;
-            margin-bottom: 20px;
+        h1 {
+            margin-top: 0;
+            color: #333;
         }
 
+        /* Desktop Table */
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            font-size: 14px;
         }
 
         th,
@@ -42,41 +43,117 @@
             padding: 12px;
             border-bottom: 1px solid #ddd;
             text-align: left;
+            vertical-align: top;
         }
 
         th {
             background: #eee;
         }
 
-        tr:hover {
-            background: #f9f9f9;
+        .action-text {
+            font-weight: bold;
+            color: #9b59b6;
         }
+
+        /* ========================================= */
+        /* 📱 MOBILE VIEW (Floating Purple Cards)    */
+        /* ========================================= */
         @media screen and (max-width: 768px) {
-    table, thead, tbody, th, td, tr { display: block; }
-    thead tr { display: none; } /* Hide the top header row */
 
-    tr { background: #fff; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px; padding: 15px; }
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
 
-    /* The padding-left creates space for the label */
-    td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 35% !important; text-align: left !important; }
+            thead tr {
+                display: none;
+            }
 
-    /* Add labels on the left side of the mobile card */
-    td::before { 
-        content: attr(data-label); 
-        position: absolute; left: 0; width: 30%; 
-        text-align: left; font-weight: bold; color: #555; 
-    }
-}
+            /* The Uppish Card Design */
+            tr {
+                background: #fff;
+                border: 2px solid #9b59b6;
+                /* Purple theme */
+                border-radius: 16px;
+                margin-bottom: 15px;
+                padding: 15px;
+                position: relative;
+                box-shadow: 0 8px 24px rgba(155, 89, 182, 0.15);
+                /* Soft purple floating shadow */
+            }
+
+            td {
+                border: none !important;
+                padding: 0 !important;
+            }
+
+            .desktop-only {
+                display: none !important;
+            }
+
+            .mobile-only {
+                display: block !important;
+            }
+
+            /* Card Internal Layout */
+            .log-header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+                align-items: flex-start;
+            }
+
+            .log-action {
+                font-size: 16px;
+                font-weight: bold;
+                color: #9b59b6;
+            }
+
+            .log-date {
+                font-size: 12px;
+                color: #777;
+                text-align: right;
+                line-height: 1.2;
+            }
+
+            .log-user {
+                margin-bottom: 10px;
+                font-size: 14px;
+                color: #444;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 8px;
+            }
+
+            .log-details {
+                font-size: 14px;
+                color: #222;
+                background: #f9f9f9;
+                padding: 12px;
+                border-radius: 12px;
+                border: 1px solid #eee;
+                line-height: 1.4;
+            }
+        }
+
+        /* Hide mobile on Desktop */
+        @media screen and (min-width: 769px) {
+            .mobile-only {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
 <body>
-
-    <a href="/" class="btn-back">← Back to Dashboard</a>
-
     <div class="container">
-        <h1>Activity Log</h1>
-        <p>Showing last 50 actions performed by Admin and Staff.</p>
+        <a href="/" style="text-decoration: none; color: #3498db; font-weight: bold;">&larr; Back to Dashboard</a>
+        <h1 style="margin-top: 15px;">📜 Activity Log</h1>
 
         <table>
             <thead>
@@ -88,27 +165,50 @@
                 </tr>
             </thead>
             <tbody>
-                <% activities.forEach(act=> { %>
+                <% activities.forEach(log=> { %>
                     <tr>
-                        <td data-label="Date:">
-                            <%= act.date.toLocaleString() %>
+                        <td class="desktop-only" style="white-space: nowrap; color: #555;">
+                            <%= new Date(log.createdAt).toLocaleString('en-IN') %>
                         </td>
-                        <td data-label="User:"><strong>
-                                <%= act.username %>
-                            </strong></td>
-                        <td data-label="Action:">
-                            <%= act.action %>
+                        <td class="desktop-only">
+                            <strong>
+                                <%= log.username || 'Admin' %>
+                            </strong>
                         </td>
-                        <td data-label="Details:">
-                            <%= act.details %>
+                        <td class="desktop-only action-text">
+                            <%= log.action %>
+                        </td>
+                        <td class="desktop-only">
+                            <%= log.details %>
+                        </td>
+
+                        <td class="mobile-only">
+                            <div class="log-header">
+                                <div class="log-action">
+                                    <%= log.action %>
+                                </div>
+                                <div class="log-date">
+                                    <%= new Date(log.createdAt).toLocaleDateString('en-IN') %><br>
+                                        <strong>
+                                            <%= new Date(log.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit' ,
+                                                minute: '2-digit' }) %>
+                                        </strong>
+                                </div>
+                            </div>
+                            <div class="log-user">
+                                👤 <strong>
+                                    <%= log.username || 'Admin' %>
+                                </strong>
+                            </div>
+                            <div class="log-details">
+                                <%= log.details %>
+                            </div>
                         </td>
                     </tr>
                     <% }) %>
             </tbody>
         </table>
     </div>
-
 </body>
-
 
 </html>

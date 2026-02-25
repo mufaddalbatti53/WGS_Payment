@@ -47,7 +47,14 @@ const requireLogin = (req, res, next) => {
 // --- ROUTES ---
 
 // 1. LOGIN & RECOVERY
-app.get('/login', (req, res) => { res.render('login', { error: null }); });
+// 1. LOGIN & RECOVERY
+app.get('/login', (req, res) => {
+    // If they are already logged in, instantly bounce them back to the dashboard!
+    if (req.session.userId) {
+        return res.redirect('/');
+    }
+    res.render('login', { error: null });
+});
 
 // --- LOGIN ROUTE (WITH MULTI-TENANCY WORKSPACES) ---
 // --- LOGIN ROUTE (WITH BCRYPT ENCRYPTION FIX) ---

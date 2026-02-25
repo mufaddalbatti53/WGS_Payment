@@ -13,13 +13,13 @@
             background: #f4f4f9;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+       .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 16px; /* Much rounder */
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08); /* Deep, soft floating shadow */
         }
 
         h1 {
@@ -93,15 +93,16 @@
                 display: none;
             }
 
-            tr {
-                background: #fff;
-                border: 2px solid #3498db;
-                border-radius: 8px;
-                margin-bottom: 15px;
-                padding: 15px;
-                position: relative;
+            tr { 
+                background: #fff; 
+                border: 2px solid #3498db; 
+                border-radius: 16px; /* Much rounder */
+                margin-bottom: 20px; 
+                padding: 15px; 
+                position: relative; 
+                /* Tinted blue shadow to make the staff card float */
+                box-shadow: 0 8px 24px rgba(52, 152, 219, 0.15); 
             }
-
             td {
                 border: none !important;
                 padding: 5px 0 !important;
@@ -153,7 +154,8 @@
         <a href="/" style="text-decoration: none; color: #3498db; font-weight: bold;">&larr; Back to Dashboard</a>
         <h1 style="margin-top: 15px;">👤 Manage Staff</h1>
 
-        <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div
+            style="background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 1px solid #eee;">
             <h3>Create New Staff Account</h3>
             <form action="/create-staff" method="POST">
                 <input type="text" name="username" placeholder="Staff Username" required class="input-style">

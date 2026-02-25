@@ -20,8 +20,8 @@
             margin: 0 auto;
             background: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 16px; /* Much rounder */
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08); /* Deep, soft floating shadow */
         }
 
         table {
@@ -133,16 +133,16 @@
             background: rgba(0, 0, 0, 0.5);
         }
 
-        .modal-content {
+       .modal-content {
             background: white;
-            margin: 10% auto; /* Centers better on mobile */
+            margin: 10% auto; 
             padding: 20px;
-            border-radius: 8px;
-            width: 90%; /* Forces it to fit inside the screen */
+            border-radius: 16px; /* Much rounder */
+            width: 90%; 
             max-width: 400px;
-            max-height: 80vh; /* Prevents it from getting taller than the phone screen */
-            overflow-y: auto; /* Adds an internal scrollbar if the screen is tiny */
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            max-height: 80vh; 
+            overflow-y: auto; 
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); /* Heavy elevated shadow so it pops off the screen */
         }
 
         .close {
@@ -239,14 +239,16 @@
         box-sizing: border-box;
     }
     /* The App Card (Matches the sketch border) */
-    tr {
-        background: #fff;
-        border: 2px solid #e67e22; 
-        border-radius: 12px;
-        margin-bottom: 15px;
-        padding: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
+    /* The App Card */
+        tr {
+            background: #fff;
+            border: 2px solid #e67e22; 
+            border-radius: 16px; /* Much rounder */
+            margin-bottom: 20px;
+            padding: 15px;
+            /* Tinted orange shadow to make it glow slightly off the page */
+            box-shadow: 0 8px 24px rgba(230, 126, 34, 0.15); 
+        }
     
     td { border: none !important; padding: 0 !important; }
     td.desktop-only { display: none !important; }
@@ -325,7 +327,7 @@
             </div>
 
         <button onclick="openAddModal()" class="btn btn-green"
-            style="width: 100%; padding: 15px; font-size: 18px; margin-bottom: 20px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            style="width: 100%; padding: 15px; font-size: 18px; margin-bottom: 20px; border-radius: 8px; font-weight: bold; box-shadow: 0 8px 20px rgba(39, 174, 96, 0.3);">
             ➕ Add New Party
         </button>
             <% } %>
@@ -638,66 +640,83 @@
     </div>
 
     <script>
-        // Transaction Logic
-        document.querySelectorAll('.transaction-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const id = this.getAttribute('data-id');
-                const company = this.getAttribute('data-company');
-                document.getElementById('transactionModal').style.display = "block";
-                document.getElementById('transCompanyName').innerText = company;
-                document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
-            });
-        });
+        // 1. Transaction Logic
+            document.querySelectorAll('.transaction-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const id = this.getAttribute('data-id');
+                    const company = this.getAttribute('data-company');
 
-        // CLEANED UP Reminder/Date Logic
+                    window.history.pushState({ modal: true }, '', '#pay'); // Drops the fake breadcrumb
+                    document.getElementById('transactionModal').style.display = "block";
+                    document.getElementById('transCompanyName').innerText = company;
+                    document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
+                });
+            });
+
+            // 2. Reminder/Date Logic
             document.querySelectorAll('.reminder-btn').forEach(button => {
                 button.addEventListener('click', function () {
                     const id = this.getAttribute('data-id');
                     const company = this.getAttribute('data-company');
 
+                    window.history.pushState({ modal: true }, '', '#date'); // Drops the fake breadcrumb
                     document.getElementById('actionModal').style.display = "block";
                     document.getElementById('modalCompanyName').innerText = company;
                     document.getElementById('updateDateForm').action = `/customers/${id}/update-reminder?_method=PUT`;
                 });
             });
 
-        // NEW: EDIT LOGIC
-        document.querySelectorAll('.edit-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const id = this.getAttribute('data-id');
+            // 3. Edit Logic
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const id = this.getAttribute('data-id');
 
-                // Pre-fill inputs with existing data
-                document.getElementById('editCompany').value = this.getAttribute('data-company');
-                document.getElementById('editContact').value = this.getAttribute('data-contact');
-                document.getElementById('editEmail').value = this.getAttribute('data-email');
-                document.getElementById('editPhone').value = this.getAttribute('data-phone');
-                document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
-                document.getElementById('editOther').value = this.getAttribute('data-other');
+                    document.getElementById('editCompany').value = this.getAttribute('data-company');
+                    document.getElementById('editContact').value = this.getAttribute('data-contact');
+                    document.getElementById('editEmail').value = this.getAttribute('data-email');
+                    document.getElementById('editPhone').value = this.getAttribute('data-phone');
+                    document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
+                    document.getElementById('editOther').value = this.getAttribute('data-other');
 
-                document.getElementById('editModal').style.display = "block";
-                document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
+                    window.history.pushState({ modal: true }, '', '#edit'); // Drops the fake breadcrumb
+                    document.getElementById('editModal').style.display = "block";
+                    document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
+                });
             });
-        });
 
-        function closeTransactionModal() { document.getElementById('transactionModal').style.display = "none"; }
-        function closeActionModal() { document.getElementById('actionModal').style.display = "none"; }
-        function closeEditModal() { document.getElementById('editModal').style.display = "none"; }
+            // 4. Add Party Modal
+            function openAddModal() {
+                window.history.pushState({ modal: true }, '', '#add'); // Drops the fake breadcrumb
+                document.getElementById('addModal').style.display = "block";
+            }
 
-        window.onclick = function (event) {
-            if (event.target == document.getElementById('actionModal')) closeActionModal();
-            if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
-            if (event.target == document.getElementById('editModal')) closeEditModal();
-        }
-        // Add these to your existing modal functions:
-            function openAddModal() { document.getElementById('addModal').style.display = "block"; }
-            function closeAddModal() { document.getElementById('addModal').style.display = "none"; }
+            // 5. Native Close Functions
+            function closeAllModals() {
+                document.getElementById('transactionModal').style.display = "none";
+                document.getElementById('actionModal').style.display = "none";
+                document.getElementById('editModal').style.display = "none";
+                document.getElementById('addModal').style.display = "none";
+            }
 
-            // Update your window.onclick to include the new addModal:
+            function closeTransactionModal() { window.history.back(); }
+            function closeActionModal() { window.history.back(); }
+            function closeEditModal() { window.history.back(); }
+            function closeAddModal() { window.history.back(); }
+
+            // ==========================================
+            // 🚨 THE HIJACK: LISTENING FOR THE BACK BUTTON
+            // ==========================================
+            window.addEventListener('popstate', function (event) {
+                // When the physical back button is pressed, instantly close all popups!
+                closeAllModals();
+            });
+
+            // Close on dark background click
             window.onclick = function (event) {
                 if (event.target == document.getElementById('actionModal')) closeActionModal();
                 if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
                 if (event.target == document.getElementById('editModal')) closeEditModal();
-                if (event.target == document.getElementById('addModal')) closeAddModal(); // <--- ADD THIS LINE
+                if (event.target == document.getElementById('addModal')) closeAddModal();
             }
     </script>
 </body>
