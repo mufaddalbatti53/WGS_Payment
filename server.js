@@ -382,6 +382,7 @@ app.get('/export', requireLogin, async (req, res) => {
 // --- IMPORT FROM EXCEL ROUTE (WITH SMART UPDATE) ---
 // --- IMPORT FROM EXCEL ROUTE (MULTI-TENANT SECURED) ---
 // --- IMPORT FROM EXCEL ROUTE (UPDATED FOR PREMIUM TEMPLATE) ---
+// --- IMPORT FROM EXCEL ROUTE (WITH SAFE DATE PARSING) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -390,22 +391,48 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
 
-        // THE FIX: { range: 1 } tells the reader to skip Row 1 (the title) and use Row 2 as the headers!
+        // Read from Row 2 (skipping the title row)
         const importedData = xlsx.utils.sheet_to_json(sheet, { range: 1 });
 
         for (let row of importedData) {
-            // If the row is completely blank or missing a company name, skip it
             if (!row['Company Name']) continue;
 
-            // 1. Force phone numbers to be text (stops math conversion)
+            // 1. Force phone numbers to be text
             const phoneStr = String(row['Phone Number'] || '');
             const waStr = String(row['WhatsApp Number'] || row['Phone Number'] || '');
 
-            // 2. Clean the money (removes ₹ and commas so the database can do proper math)
+            // 2. Clean the money
             const cleanTotal = Number(String(row['Total Due'] || '0').replace(/[^0-9.-]+/g, "")) || 0;
             const cleanPaid = Number(String(row['Paid Amount'] || '0').replace(/[^0-9.-]+/g, "")) || 0;
 
-            // 3. Save or Update the database
+            // 3. SAFE DATE PARSER: Prevents the "Invalid Date" crash
+            let safeActionDate = null;
+            if (row['Next Action Date']) {
+                let tempDate;
+
+                // If Excel sends a serial number (e.g., 45000)
+                if (typeof row['Next Action Date'] === 'number') {
+                    tempDate = new Date(Math.round((row['Next Action Date'] - 25569) * 86400 * 1000));
+                }
+                // If Excel sends a string date
+                else {
+                    const dateStr = String(row['Next Action Date']);
+                    // If it's DD/MM/YYYY or DD-MM-YYYY, swap to MM/DD/YYYY for JavaScript
+                    if (dateStr.match(/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/)) {
+                        const parts = dateStr.split(/[\/\-]/);
+                        tempDate = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+                    } else {
+                        tempDate = new Date(dateStr);
+                    }
+                }
+
+                // Only attach the date if it successfully converted
+                if (!isNaN(tempDate.getTime())) {
+                    safeActionDate = tempDate;
+                }
+            }
+
+            // 4. Save to Database
             await Customer.findOneAndUpdate(
                 { companyName: row['Company Name'], adminId: req.session.adminId },
                 {
@@ -415,17 +442,16 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                     whatsappNumber: waStr,
                     totalAmount: cleanTotal,
                     paidAmount: cleanPaid,
-                    // Only update the date if they typed one in Excel
-                    ...(row['Next Action Date'] && { nextActionDate: new Date(row['Next Action Date']) })
+                    // Safely apply the verified date, or leave it blank
+                    ...(safeActionDate && { nextActionDate: safeActionDate })
                 },
-                { upsert: true, returnDocument: 'after' } // upsert: true creates a new party if they don't exist yet!
+                { upsert: true, returnDocument: 'after' }
             );
         }
 
-        // Log the activity
         await logActivity(req, "Excel Import", `Imported/Updated ${importedData.length} customers from Excel.`);
-
         res.redirect('/');
+
     } catch (err) {
         console.error("Import Error:", err);
         res.status(500).send("Failed to import Excel file. Please ensure it matches the exact template.");
