@@ -526,10 +526,12 @@ app.post('/customers', async (req, res) => {
 });
 // --- SECURE CUSTOMER ACTIONS ---
 
-app.put('/customers/:id/edit', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+// --- SECURE CUSTOMER ACTIONS ---
 
-    // THE FIX: Added "const customer =" and "{ returnDocument: 'after' }"
+app.put('/customers/:id/edit', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.send("Unauthorized");
+
+    // THE FIX: We added "const customer =" right here!
     const customer = await Customer.findOneAndUpdate(
         { _id: req.params.id, adminId: req.session.adminId },
         {
@@ -543,7 +545,7 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
         { returnDocument: 'after' }
     );
 
-    // THE FIX: Cleaned up the double-logs into one safe log
+    // THE FIX: Now that 'customer' exists, the log works safely!
     if (customer) {
         await logActivity(req, "Edited Party", `Updated profile details for ${customer.companyName}.`);
     }
