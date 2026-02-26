@@ -271,21 +271,36 @@ app.post('/register', async (req, res) => {
 
 app.post('/create-staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
+
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
+        // Create a dummy security answer for staff so the database doesn't crash
+        const dummyAnswer = await bcrypt.hash("admin-managed", 10);
 
         // Create the user and link them to the Admin's workspace
         await User.create({
             username: req.body.username,
             password: hashedPassword,
             role: 'staff',
-            adminId: req.session.adminId // <-- THE MAGIC STAMP IS HERE
+            adminId: req.session.adminId,
+            // THE FIX: Satisfy the database rules with dummy security data
+            securityQuestion: "Managed by Admin?",
+            securityAnswer: dummyAnswer
         });
 
         await logActivity(req, "Created Staff", `Created: ${req.body.username}`);
         res.redirect('/staff');
+
     } catch (e) {
-        res.send("Staff username taken");
+        // THE FIX: Honest error reporting
+        console.error("Staff Creation Error:", e);
+
+        // Error code 11000 is MongoDB's official code for "Duplicate Key" (Username taken)
+        if (e.code === 11000) {
+            res.send("That exact username is already in use. Please go back and type a different one (like 'john_staff').");
+        } else {
+            res.send("Failed to create staff. Error: " + e.message);
+        }
     }
 });
 
