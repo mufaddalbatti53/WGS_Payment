@@ -527,23 +527,27 @@ app.post('/customers', async (req, res) => {
 // --- SECURE CUSTOMER ACTIONS ---
 
 app.put('/customers/:id/edit', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
 
-    // SECURITY: Match the ID *and* the Workspace ID.
-    // BUG FIX: Changed 'whatsapp' to 'whatsappNumber'
-    await Customer.findOneAndUpdate(
+    // THE FIX: Added "const customer =" and "{ returnDocument: 'after' }"
+    const customer = await Customer.findOneAndUpdate(
         { _id: req.params.id, adminId: req.session.adminId },
         {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: req.body.phone, // Fixed!
-            whatsappNumber: req.body.whatsappNumber, // Fixed!
+            phone: req.body.phone,
+            whatsappNumber: req.body.whatsappNumber,
             otherNumbers: req.body.otherNumbers
-        }
+        },
+        { returnDocument: 'after' }
     );
-    await logActivity(req, "Edited Party", `Updated profile details for ${customer.companyName}.`);
-    await logActivity(req, "Updated Details", `Updated profile for: ${req.body.companyName}`);
+
+    // THE FIX: Cleaned up the double-logs into one safe log
+    if (customer) {
+        await logActivity(req, "Edited Party", `Updated profile details for ${customer.companyName}.`);
+    }
+
     res.redirect('/');
 });
 
@@ -578,7 +582,6 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
     if (newPurchase > 0) details += `Bought goods worth ₹${newPurchase}. `;
     if (payment > 0) details += `Paid ₹${payment}.`;
 
-    await logActivity(req, "Transaction Updated", `${customer.companyName}: ${details}`);
     await logActivity(req, "Payment Updated", `Added ₹${payment} payment and ₹${newPurchase} new purchase to ${customer.companyName}.`);
     res.redirect('/');
 });
