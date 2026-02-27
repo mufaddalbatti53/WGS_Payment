@@ -575,7 +575,8 @@
 
             <% let totalPending=0; let missingContactsCount=0; let highRiskAmount=0; let buckets={ u30: 0, d30_60: 0,
                 d60_90: 0, d90_120: 0, d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; customers.forEach(c=> {
-                totalPending += c.totalAmount;
+                // Subtracts what they paid so the dashboard shows the true Due Amount!
+                totalPending += (c.totalAmount - c.paidAmount);
                 if (!c.phone && !c.whatsappNumber) missingContactsCount++;
 
                 // Add up company-wide aging

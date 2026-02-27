@@ -17,7 +17,6 @@ const Activity = require('./models/Activity');
 const app = express();
 
 // --- DATABASE CONNECTION ---
-// WARNING: Replace YOUR_DATABASE_PASSWORD_HERE with your real password!
 const dbURI = 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
 
 mongoose.connect(dbURI)
@@ -26,13 +25,10 @@ mongoose.connect(dbURI)
 
 // --- CONFIGURATION ---
 app.set('view engine', 'ejs');
-// Allows Android to read the hidden assetlinks.json file
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
-
-
 
 const requireLogin = (req, res, next) => {
     if (!req.session.userId) return res.redirect('/login');
@@ -57,7 +53,6 @@ async function logActivity(req, action, details) {
     console.log(`\n▶️ [ACTIVITY TRIGGERED] Attempting to log: "${action}"`);
 
     try {
-        // 1. Check if it knows who is logged in
         if (!req.session) {
             console.log("❌ [ACTIVITY FAILED] Reason: No session found.");
             return;
@@ -67,11 +62,9 @@ async function logActivity(req, action, details) {
             return;
         }
 
-        // 2. Try to save to the database
-        // 🚨 IMPORTANT: If your model at the top is named `Activity`, change `ActivityLog.create` to `Activity.create` below!
         await ActivityLog.create({
             adminId: req.session.adminId,
-            userId: req.session.userId || req.session.adminId, // Fallback just in case
+            userId: req.session.userId || req.session.adminId,
             username: req.session.username || 'Admin',
             action: action,
             details: details
@@ -85,47 +78,34 @@ async function logActivity(req, action, details) {
 }
 
 // 1. LOGIN & RECOVERY
-// 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
-    // If they are already logged in, instantly bounce them back to the dashboard!
     if (req.session.userId) {
         return res.redirect('/');
     }
     res.render('login', { error: null });
 });
 
-// --- LOGIN ROUTE (WITH MULTI-TENANCY WORKSPACES) ---
-// --- LOGIN ROUTE (WITH BCRYPT ENCRYPTION FIX) ---
 app.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-
-        // 1. Find the user in the database
         const user = await User.findOne({ username });
 
-        // If the user doesn't exist, stop here
         if (!user) {
             return res.send("Invalid username or password. Please try again.");
         }
 
-        // 2. UNLOCK THE VAULT: Compare typed password with encrypted database password
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (isMatch) {
-            // 3. Save basic user info to the session memory
             req.session.userId = user._id;
             req.session.role = user.role;
 
-            // 4. Set the Workspace ID (adminId)
             if (user.role === 'admin') {
                 req.session.adminId = user._id;
             } else if (user.role === 'staff') {
                 req.session.adminId = user.adminId;
             }
-
-            // 5. Send them to the dashboard
             res.redirect('/');
-
         } else {
             res.send("Invalid username or password. Please try again.");
         }
@@ -159,18 +139,12 @@ app.get('/logout', (req, res) => {
 });
 
 // 2. DASHBOARD
-// --- LOAD DASHBOARD (FILTERED BY WORKSPACE) ---
 app.get('/', async (req, res) => {
-    // 1. Check if they are logged in
     if (!req.session.userId) {
         return res.redirect('/login');
     }
-
     try {
-        // 2. Fetch ONLY the customers that belong to this specific Admin's workspace
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
-
-        // 3. Send the filtered data to the page
         res.render('index', { customers: customers, role: req.session.role });
     } catch (err) {
         console.error("Dashboard Error:", err);
@@ -180,19 +154,14 @@ app.get('/', async (req, res) => {
 
 // 3. ADMIN PAGES
 app.get('/staff', requireLogin, async (req, res) => {
-    // 1. Security Check: Block staff from viewing the management page
     if (req.session.role !== 'admin') {
         return res.status(403).send("Unauthorized. Only Admins can view this page.");
     }
-
     try {
-        // 2. The Magic Filter: Find users who are staff AND belong to this Admin
         const myStaff = await User.find({
             role: 'staff',
             adminId: req.session.adminId
         }).lean();
-
-        // 3. Send that filtered list to your staff.ejs page
         res.render('staff', { staffMembers: myStaff, role: req.session.role });
     } catch (error) {
         console.error("Error loading staff list:", error);
@@ -200,13 +169,9 @@ app.get('/staff', requireLogin, async (req, res) => {
     }
 });
 
-// --- VIEW ACTIVITY LOG ---
 app.get('/activity', requireLogin, async (req, res) => {
     try {
-        // 1. Fetch the activities from the database and store them in the 'activities' variable
         const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).lean();
-
-        // 2. Pass BOTH the activities AND the role to the frontend!
         res.render('activity', {
             activities: activities,
             role: req.session.role
@@ -216,9 +181,8 @@ app.get('/activity', requireLogin, async (req, res) => {
         res.status(500).send("Error loading activity log.");
     }
 });
-// --- BULK DELETE ACTIVITY LOGS ---
+
 app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
-    // Only Admin can clear logs
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
 
     try {
@@ -237,10 +201,9 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
         else if (filterType === 'custom' && startDate && endDate) {
             query.createdAt = {
                 $gte: new Date(startDate),
-                $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) // Include the whole end day
+                $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
             };
         }
-        // If filterType is 'all', the query just remains { adminId: req.session.adminId } which deletes all.
 
         await ActivityLog.deleteMany(query);
         res.redirect('/activity');
@@ -274,16 +237,13 @@ app.post('/create-staff', requireLogin, async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
-        // Create a dummy security answer for staff so the database doesn't crash
         const dummyAnswer = await bcrypt.hash("admin-managed", 10);
 
-        // Create the user and link them to the Admin's workspace
         await User.create({
             username: req.body.username,
             password: hashedPassword,
             role: 'staff',
             adminId: req.session.adminId,
-            // THE FIX: Satisfy the database rules with dummy security data
             securityQuestion: "Managed by Admin?",
             securityAnswer: dummyAnswer
         });
@@ -292,10 +252,7 @@ app.post('/create-staff', requireLogin, async (req, res) => {
         res.redirect('/staff');
 
     } catch (e) {
-        // THE FIX: Honest error reporting
         console.error("Staff Creation Error:", e);
-
-        // Error code 11000 is MongoDB's official code for "Duplicate Key" (Username taken)
         if (e.code === 11000) {
             res.send("That exact username is already in use. Please go back and type a different one (like 'john_staff').");
         } else {
@@ -304,15 +261,12 @@ app.post('/create-staff', requireLogin, async (req, res) => {
     }
 });
 
-// --- SECURE STAFF ACTIONS ---
-
 app.post('/reset-staff-password', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
 
     const { staffId, newPassword } = req.body;
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // SECURITY: Double-padlock. Only update if the staff member belongs to THIS admin.
     const staff = await User.findOneAndUpdate(
         { _id: staffId, adminId: req.session.adminId },
         { password: hashedPassword }
@@ -327,7 +281,6 @@ app.post('/reset-staff-password', requireLogin, async (req, res) => {
 app.delete('/staff/:id', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
 
-    // SECURITY: Double-padlock. Only delete if the staff member belongs to THIS admin.
     const staff = await User.findOneAndDelete({
         _id: req.params.id,
         adminId: req.session.adminId
@@ -340,39 +293,30 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
 });
 
 // --- EXPORT TO EXCEL ROUTE ---
-// --- EXPORT TO EXCEL ROUTE (BEAUTIFUL TEMPLATE) ---
-// --- EXPORT TO EXCEL ROUTE (PREMIUM REPORT + PHONE NUMBER FIX) ---
 app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
-
         const workbook = new ExcelJS.Workbook();
-
-        // 1. Create sheet and FREEZE the top 2 rows so they stay visible when scrolling!
         const worksheet = workbook.addWorksheet('Customer Master', {
             views: [{ state: 'frozen', ySplit: 2 }]
         });
 
-        // 2. Add a Premium Title Row (Spans across all columns)
         worksheet.mergeCells('A1:H1');
         const titleCell = worksheet.getCell('A1');
         titleCell.value = '📊 CUSTOMER FINANCIAL STATEMENT  |  Generated on: ' + new Date().toLocaleDateString('en-IN');
         titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } }; // Dark slate blue
+        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
         titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        // 3. Define the Headers (MUST MATCH YOUR IMPORT ROUTE EXACTLY)
         worksheet.getRow(2).values = [
             'Company Name', 'Contact Person', 'Email Address',
             'Phone Number', 'WhatsApp Number', 'Total Due', 'Paid Amount', 'Next Action Date'
         ];
 
-        // 4. Set Column Widths and Force Text Formatting for Phones
         worksheet.columns = [
             { key: 'companyName', width: 30 },
             { key: 'contactPerson', width: 25 },
             { key: 'email', width: 35 },
-            // THE FIX: style: { numFmt: '@' } forces Excel to treat any typed number as TEXT!
             { key: 'phone', width: 25, style: { numFmt: '@' } },
             { key: 'whatsappNumber', width: 25, style: { numFmt: '@' } },
             { key: 'totalAmount', width: 20, style: { numFmt: '₹#,##0.00' } },
@@ -380,21 +324,18 @@ app.get('/export', requireLogin, async (req, res) => {
             { key: 'nextActionDate', width: 20 }
         ];
 
-        // 5. Style the Header Row
         worksheet.getRow(2).eachCell((cell) => {
             cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF27AE60' } }; // Theme Green
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF27AE60' } };
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
 
-        // 6. Add the Data with Zebra Striping
         customers.forEach((c, index) => {
             const row = worksheet.addRow({
                 companyName: c.companyName || '',
                 contactPerson: c.contactPerson || '',
                 email: c.email || '',
-                // THE SECOND FIX: Force existing database numbers to strings
                 phone: c.phone ? String(c.phone) : '',
                 whatsappNumber: c.whatsappNumber ? String(c.whatsappNumber) : '',
                 totalAmount: c.totalAmount || 0,
@@ -402,7 +343,6 @@ app.get('/export', requireLogin, async (req, res) => {
                 nextActionDate: c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : ''
             });
 
-            // Alternate row colors (White and very light grey) for easy reading
             const isEven = index % 2 === 0;
             row.eachCell((cell, colNumber) => {
                 cell.border = { top: { style: 'thin', color: { argb: 'FFEEEEEE' } }, bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
@@ -410,15 +350,12 @@ app.get('/export', requireLogin, async (req, res) => {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9F9F9' } };
                 }
                 cell.alignment = { vertical: 'middle', horizontal: 'left' };
-
-                // Keep the money columns aligned to the right
                 if (colNumber === 6 || colNumber === 7) {
                     cell.alignment = { vertical: 'middle', horizontal: 'right' };
                 }
             });
         });
 
-        // 7. Send the file
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="Customer_Master_List.xlsx"');
 
@@ -432,10 +369,6 @@ app.get('/export', requireLogin, async (req, res) => {
 });
 
 
-// --- IMPORT FROM EXCEL ROUTE (WITH SMART UPDATE) ---
-// --- IMPORT FROM EXCEL ROUTE (MULTI-TENANT SECURED) ---
-// --- IMPORT FROM EXCEL ROUTE (UPDATED FOR PREMIUM TEMPLATE) ---
-// --- IMPORT FROM EXCEL ROUTE (WITH SAFE DATE PARSING) ---
 // --- SMART ACCOUNTING IMPORTER (TALLY / BUSY COMPATIBLE) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
@@ -444,43 +377,38 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // 1. SMART SCAN: Find where the actual table headers start (skipping the top 11 junk rows)
+        // 1. SMART SCAN: Find where the actual table headers start
         const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         let headerRowIndex = 0;
 
         for (let i = 0; i < Math.min(20, rawData.length); i++) {
             const rowString = JSON.stringify(rawData[i]).toLowerCase();
-            // Look for common accounting export headers
             if (rowString.includes('particulars') || rowString.includes('party name') || rowString.includes('company')) {
                 headerRowIndex = i;
                 break;
             }
         }
 
-        // 2. Read the data starting from the correct row
         const importedData = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex });
 
         for (let row of importedData) {
-            // "Particulars" is standard for Tally. Fallbacks provided for other software.
             const partyName = row['Particulars'] || row['Party Name'] || row['Company Name'];
             if (!partyName || String(partyName).trim().toLowerCase() === 'grand total') continue;
 
-            // Money Cleaner Helper
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
 
-            // Extract Aging Buckets (Using common export names, adjust if your Excel is spelled differently)
+            // THE FIX: Matches exact Tally export spacing
             const agingData = {
-                under30: cleanMoney(row['< 30 Days'] || row['< 30 days'] || row['0-30 Days']),
-                days30to60: cleanMoney(row['31-60 Days'] || row['30-60 Days']),
-                days60to90: cleanMoney(row['61-90 Days'] || row['60-90 Days']),
-                days90to120: cleanMoney(row['91-120 Days'] || row['90-120 Days']),
-                days120to150: cleanMoney(row['121-150 Days'] || row['120-150 Days']),
-                days150to180: cleanMoney(row['151-180 Days'] || row['150-180 Days']),
-                above180: cleanMoney(row['> 180 Days'] || row['> 180 days']),
+                under30: cleanMoney(row['(< 30 days )'] || row['< 30 Days'] || row['0-30 Days']),
+                days30to60: cleanMoney(row['30 to 60 days'] || row['30-60 Days']),
+                days60to90: cleanMoney(row['60 to 90 days'] || row['60-90 Days']),
+                days90to120: cleanMoney(row['90 to 120 days'] || row['90-120 Days']),
+                days120to150: cleanMoney(row['120 to 150 days'] || row['120-150 Days']),
+                days150to180: cleanMoney(row['150 to 180 days'] || row['150-180 Days']),
+                above180: cleanMoney(row['(> 180 days )'] || row['> 180 Days']),
                 onAccount: cleanMoney(row['On Account'] || row['Unadjusted'])
             };
 
-            // Calculate total pending from buckets if there is no specific total column
             let totalPending = cleanMoney(row['Closing Balance'] || row['Pending Amount'] || row['Total Due']);
             if (totalPending === 0) {
                 totalPending = Object.values(agingData).reduce((a, b) => a + b, 0);
@@ -508,14 +436,13 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
 });
 
 // 5. CUSTOMER ACTIONS
-// --- ADD NEW CUSTOMER (STAMPED WITH WORKSPACE ID) ---
-// --- ADD NEW CUSTOMER (WITH PHONE NUMBER FIX) ---
-// --- ADD NEW CUSTOMER (NOW ASKS FOR FIRST ACTION DATE) ---
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
     try {
         const fullPhoneNumber = req.body.countryCode + req.body.localPhone;
+        // THE FIX: Save initial amount to use in total and bucket
+        const initialAmount = Number(req.body.totalAmount) || 0;
 
         await Customer.create({
             companyName: req.body.companyName,
@@ -523,11 +450,17 @@ app.post('/customers', async (req, res) => {
             email: req.body.email,
             phone: fullPhoneNumber,
             whatsappNumber: req.body.whatsappNumber,
-            totalAmount: req.body.totalAmount || 0,
+            totalAmount: initialAmount,
             adminId: req.session.adminId,
-            nextActionDate: req.body.nextActionDate // <-- Captures the date immediately!
+            nextActionDate: req.body.nextActionDate,
+            // THE FIX: Automatically drop new debt into the <30 days bucket
+            aging: {
+                under30: initialAmount,
+                days30to60: 0, days60to90: 0, days90to120: 0,
+                days120to150: 0, days150to180: 0, above180: 0, onAccount: 0
+            }
         });
-        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName} with Total ₹${req.body.totalAmount || 0}`);
+        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName} with Total ₹${initialAmount}`);
 
         res.redirect('/');
     } catch (err) {
@@ -535,14 +468,10 @@ app.post('/customers', async (req, res) => {
         res.status(500).send("Error adding customer.");
     }
 });
-// --- SECURE CUSTOMER ACTIONS ---
-
-// --- SECURE CUSTOMER ACTIONS ---
 
 app.put('/customers/:id/edit', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
 
-    // THE FIX: We added "const customer =" right here!
     const customer = await Customer.findOneAndUpdate(
         { _id: req.params.id, adminId: req.session.adminId },
         {
@@ -556,7 +485,6 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
         { returnDocument: 'after' }
     );
 
-    // THE FIX: Now that 'customer' exists, the log works safely!
     if (customer) {
         await logActivity(req, "Edited Party", `Updated profile details for ${customer.companyName}.`);
     }
@@ -567,21 +495,18 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
 app.delete('/customers/:id', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
 
-    // Grab the customer before deleting so we know their name for the log!
     const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
 
     if (customer) {
-        // 🚨 ADD THIS TRACKER:
         await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName}`);
     }
 
     res.redirect('/');
 });
 
+// THE FIX: FIFO Payment Engine
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
-    // SECURITY: Find customer within this specific workspace
     const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
-
     if (!customer) return res.status(404).send("Customer not found.");
 
     const newPurchase = Number(req.body.newPurchase) || 0;
@@ -589,6 +514,38 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
 
     customer.totalAmount = Number(customer.totalAmount) + newPurchase;
     customer.paidAmount = Number(customer.paidAmount) + payment;
+
+    // Safety check: ensure aging exists
+    if (!customer.aging) {
+        customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
+    }
+
+    // 1. Add new purchases to the < 30 days bucket
+    customer.aging.under30 += newPurchase;
+
+    // 2. FIFO Payment Engine: Pay off the oldest debt buckets first
+    let remainingPayment = payment;
+    const bucketOrder = ['above180', 'days150to180', 'days120to150', 'days90to120', 'days60to90', 'days30to60', 'under30', 'onAccount'];
+
+    for (let bucket of bucketOrder) {
+        if (remainingPayment <= 0) break; // Stop when payment is fully applied
+
+        if (customer.aging[bucket] > 0) {
+            if (customer.aging[bucket] >= remainingPayment) {
+                customer.aging[bucket] -= remainingPayment;
+                remainingPayment = 0;
+            } else {
+                remainingPayment -= customer.aging[bucket];
+                customer.aging[bucket] = 0;
+            }
+        }
+    }
+
+    // If they overpay past all debts, drop the extra into On Account
+    if (remainingPayment > 0) {
+        customer.aging.onAccount -= remainingPayment;
+    }
+
     await customer.save();
 
     let details = "";
@@ -600,7 +557,6 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
 });
 
 app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
-    // SECURITY: Ensure staff/admin can only set reminders for their own customers
     const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
 
     if (!customer) return res.status(404).send("Customer not found.");
@@ -612,10 +568,7 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     res.redirect('/');
 });
 
-
-
 // --- START SERVER ---
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
-
