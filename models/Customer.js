@@ -1,16 +1,28 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
-    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Add this line!
+    adminId: { type: String, required: true },
     companyName: { type: String, required: true },
-    contactPerson: { type: String },
-    email: { type: String },
-    phone: { type: String }, // Used as Primary Calling Number
-    whatsappNumber: { type: String },
-    otherNumbers: { type: String },
+    contactPerson: { type: String, default: '' },
+    email: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    whatsappNumber: { type: String, default: '' },
+    otherNumbers: { type: String, default: '' },
     totalAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
-    nextActionDate: { type: Date }
+    nextActionDate: { type: Date, default: null },
+    
+    // THE UPGRADE: Aging Buckets (from Tally/Busy Export)
+    aging: {
+        under30: { type: Number, default: 0 },
+        days30to60: { type: Number, default: 0 },
+        days60to90: { type: Number, default: 0 },
+        days90to120: { type: Number, default: 0 },
+        days120to150: { type: Number, default: 0 },
+        days150to180: { type: Number, default: 0 },
+        above180: { type: Number, default: 0 },
+        onAccount: { type: Number, default: 0 }
+    }
 });
 
 module.exports = mongoose.model('Customer', customerSchema);

@@ -436,78 +436,74 @@ app.get('/export', requireLogin, async (req, res) => {
 // --- IMPORT FROM EXCEL ROUTE (MULTI-TENANT SECURED) ---
 // --- IMPORT FROM EXCEL ROUTE (UPDATED FOR PREMIUM TEMPLATE) ---
 // --- IMPORT FROM EXCEL ROUTE (WITH SAFE DATE PARSING) ---
+// --- SMART ACCOUNTING IMPORTER (TALLY / BUSY COMPATIBLE) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
 
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // Read from Row 2 (skipping the title row)
-        const importedData = xlsx.utils.sheet_to_json(sheet, { range: 1 });
+        // 1. SMART SCAN: Find where the actual table headers start (skipping the top 11 junk rows)
+        const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+        let headerRowIndex = 0;
+
+        for (let i = 0; i < Math.min(20, rawData.length); i++) {
+            const rowString = JSON.stringify(rawData[i]).toLowerCase();
+            // Look for common accounting export headers
+            if (rowString.includes('particulars') || rowString.includes('party name') || rowString.includes('company')) {
+                headerRowIndex = i;
+                break;
+            }
+        }
+
+        // 2. Read the data starting from the correct row
+        const importedData = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex });
 
         for (let row of importedData) {
-            if (!row['Company Name']) continue;
+            // "Particulars" is standard for Tally. Fallbacks provided for other software.
+            const partyName = row['Particulars'] || row['Party Name'] || row['Company Name'];
+            if (!partyName || String(partyName).trim().toLowerCase() === 'grand total') continue;
 
-            // 1. Force phone numbers to be text
-            const phoneStr = String(row['Phone Number'] || '');
-            const waStr = String(row['WhatsApp Number'] || row['Phone Number'] || '');
+            // Money Cleaner Helper
+            const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
 
-            // 2. Clean the money
-            const cleanTotal = Number(String(row['Total Due'] || '0').replace(/[^0-9.-]+/g, "")) || 0;
-            const cleanPaid = Number(String(row['Paid Amount'] || '0').replace(/[^0-9.-]+/g, "")) || 0;
+            // Extract Aging Buckets (Using common export names, adjust if your Excel is spelled differently)
+            const agingData = {
+                under30: cleanMoney(row['< 30 Days'] || row['< 30 days'] || row['0-30 Days']),
+                days30to60: cleanMoney(row['31-60 Days'] || row['30-60 Days']),
+                days60to90: cleanMoney(row['61-90 Days'] || row['60-90 Days']),
+                days90to120: cleanMoney(row['91-120 Days'] || row['90-120 Days']),
+                days120to150: cleanMoney(row['121-150 Days'] || row['120-150 Days']),
+                days150to180: cleanMoney(row['151-180 Days'] || row['150-180 Days']),
+                above180: cleanMoney(row['> 180 Days'] || row['> 180 days']),
+                onAccount: cleanMoney(row['On Account'] || row['Unadjusted'])
+            };
 
-            // 3. SAFE DATE PARSER: Prevents the "Invalid Date" crash
-            let safeActionDate = null;
-            if (row['Next Action Date']) {
-                let tempDate;
-
-                // If Excel sends a serial number (e.g., 45000)
-                if (typeof row['Next Action Date'] === 'number') {
-                    tempDate = new Date(Math.round((row['Next Action Date'] - 25569) * 86400 * 1000));
-                }
-                // If Excel sends a string date
-                else {
-                    const dateStr = String(row['Next Action Date']);
-                    // If it's DD/MM/YYYY or DD-MM-YYYY, swap to MM/DD/YYYY for JavaScript
-                    if (dateStr.match(/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/)) {
-                        const parts = dateStr.split(/[\/\-]/);
-                        tempDate = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
-                    } else {
-                        tempDate = new Date(dateStr);
-                    }
-                }
-
-                // Only attach the date if it successfully converted
-                if (!isNaN(tempDate.getTime())) {
-                    safeActionDate = tempDate;
-                }
+            // Calculate total pending from buckets if there is no specific total column
+            let totalPending = cleanMoney(row['Closing Balance'] || row['Pending Amount'] || row['Total Due']);
+            if (totalPending === 0) {
+                totalPending = Object.values(agingData).reduce((a, b) => a + b, 0);
             }
 
-            // 4. Save to Database
             await Customer.findOneAndUpdate(
-                { companyName: row['Company Name'], adminId: req.session.adminId },
+                { companyName: partyName, adminId: req.session.adminId },
                 {
                     contactPerson: row['Contact Person'] || '',
-                    email: row['Email Address'] || '',
-                    phone: phoneStr,
-                    whatsappNumber: waStr,
-                    totalAmount: cleanTotal,
-                    paidAmount: cleanPaid,
-                    // Safely apply the verified date, or leave it blank
-                    ...(safeActionDate && { nextActionDate: safeActionDate })
+                    phone: String(row['Phone'] || row['Phone Number'] || ''),
+                    totalAmount: totalPending,
+                    aging: agingData
                 },
                 { upsert: true, returnDocument: 'after' }
             );
         }
 
-        await logActivity(req, "Excel Import", `Imported/Updated ${importedData.length} customers from Excel.`);
+        await logActivity(req, "Excel Import", `Imported ${importedData.length} records from Accounting Export.`);
         res.redirect('/');
 
     } catch (err) {
-        console.error("Import Error:", err);
-        res.status(500).send("Failed to import Excel file. Please ensure it matches the exact template.");
+        console.error("Smart Import Error:", err);
+        res.status(500).send("Failed to import. Please check file format.");
     }
 });
 
