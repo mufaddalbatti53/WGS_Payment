@@ -10,6 +10,7 @@ const customerSchema = new mongoose.Schema({
     otherNumbers: { type: String, default: '' },
     totalAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },
+    lastPaymentDate: { type: Date, default: null },
     nextActionDate: { type: Date, default: null },
     
     // THE UPGRADE: Aging Buckets (from Tally/Busy Export)

@@ -518,6 +518,28 @@
                 display: none !important;
             }
         }
+
+        /* ========================================= */
+        /* ✅ BULK ACTION BAR                        */
+        /* ========================================= */
+        .bulk-action-bar {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+        }
+        .bulk-action-bar.visible { bottom: 30px; }
+        .checkbox-custom { width: 18px; height: 18px; cursor: pointer; accent-color: #27ae60; }
     </style>
 </head>
 
@@ -720,6 +742,7 @@
                     <table>
                         <thead>
                             <tr>
+                                <th style="width: 30px;"><input type="checkbox" id="selectAll" class="checkbox-custom"></th>
                                 <th>Company / Contact</th>
                                 <th>Contact Info</th>
                                 <th>Financials</th>
@@ -741,14 +764,23 @@
                                     the set action date.` : "";
 
                                     // DYNAMIC SENDER NAME FIX
-                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'}. This is a gentle
-                                    reminder from ${adminUser.companyName || 'our company'}. You have previously paid
-                                    ₹${customer.paidAmount} on this account. Your current outstanding due is
-                                    ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
+                                    // --- DYNAMIC WHATSAPP/SMS MESSAGE GENERATOR ---
+                                    let paidText = `₹${customer.paidAmount}`;
+                                    if (customer.paidAmount > 0 && customer.lastPaymentDate) {
+                                    const lastPaidDateStr = new Date(customer.lastPaymentDate).toLocaleDateString('en-IN');
+                                    paidText += ` (Last paid on: ${lastPaidDateStr})`;
+                                    }
+                                    
+                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from ${customer.companyName},\n\nThis is a gentle payment reminder from ${adminUser.companyName || 'our company'}.\n\n📊 *Account Summary:*\n- Total Bill Amount: ₹${customer.totalAmount}\n- Total Amount Paid: ${paidText}\n- Current Outstanding Due: *₹${due}*\n\n${daysText ? '_' + daysText + '_\n\n' : ''}Please arrange the payment for the pending amount at your earliest convenience.\n\nThank you,\n${adminUser.companyName || 'Our Team'}`;
+                                    
                                     const encodedMsg = encodeURIComponent(msg);
                                     %>
                                     <tr class="customer-row"
                                         data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
+                                        <td class="desktop-only">
+                                            <input type="checkbox" class="customer-checkbox checkbox-custom" value="<%= customer._id %>">
+                                        </td>
+                                        
                                         <td class="desktop-only">
                                             <strong>
                                                 <%= customer.companyName %>
@@ -859,6 +891,9 @@
                                         </td>
 
                                         <td class="mobile-only">
+                                            <div style="position: absolute; top: 15px; right: 15px;">
+                                                <input type="checkbox" class="customer-checkbox checkbox-custom" value="<%= customer._id %>">
+                                            </div>
                                             <div class="m-top">
                                                 <div class="m-name">
                                                     <strong>
@@ -949,6 +984,19 @@
                         </tbody>
                     </table>
     </div>
+    <% if (role==='admin' ) { %>
+        <div id="bulkActionBar" class="bulk-action-bar">
+            <span id="selectedCount" style="font-weight: bold; font-size: 14px;">0 Selected</span>
+            <form id="bulkForm" action="/customers/bulk" method="POST" style="margin: 0; display: flex; gap: 10px;">
+                <input type="hidden" name="action" value="delete">
+                <div id="hiddenInputs"></div>
+                <button type="button" onclick="confirmBulkDelete()"
+                    style="background: #ef4444; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);">
+                    🗑️ Delete Selected
+                </button>
+            </form>
+        </div>
+        <% } %>
 
     <div id="addModal" class="modal">
         <div class="modal-content">
@@ -1269,6 +1317,52 @@
 
             html2pdf().set(opt).from(elementToPrint).save();
         }
+        // ==========================================
+            // ✅ BULK ACTION SELECTION LOGIC
+            // ==========================================
+            const selectAllBtn = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.customer-checkbox');
+            const bulkBar = document.getElementById('bulkActionBar');
+            const countText = document.getElementById('selectedCount');
+            const hiddenInputs = document.getElementById('hiddenInputs');
+
+            function updateBulkBar() {
+                const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                if (selected.length > 0) {
+                    if (bulkBar) bulkBar.classList.add('visible');
+                    if (countText) countText.innerText = selected.length + ' Selected';
+                } else {
+                    if (bulkBar) bulkBar.classList.remove('visible');
+                }
+            }
+
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('change', function () {
+                    // Smart Select: Only select rows that are currently visible (not hidden by search!)
+                    const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
+                    visibleRows.forEach(cb => cb.checked = this.checked);
+                    updateBulkBar();
+                });
+            }
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateBulkBar);
+            });
+
+            function confirmBulkDelete() {
+                const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                if (confirm(`⚠️ WARNING: You are about to permanently delete ${selected.length} parties. This cannot be undone. Proceed?`)) {
+                    hiddenInputs.innerHTML = '';
+                    selected.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'customerIds';
+                        input.value = cb.value;
+                        hiddenInputs.appendChild(input);
+                    });
+                    document.getElementById('bulkForm').submit();
+                }
+            }
     </script>
 </body>
 

@@ -396,6 +396,7 @@ app.get('/export', requireLogin, async (req, res) => {
 
 
 // --- SMART TALLY IMPORTER (STRICT TABLE SCANNER) ---
+// --- SMART TALLY IMPORTER (WITH SMART PHONE PARSER) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -414,7 +415,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
 
             // Once we find "Particulars", we tell the importer to start reading FROM HERE
             if (firstColumn === 'particulars') {
-                dataStartIndex = i + 1; // Start looking at the rows immediately below Particulars
+                dataStartIndex = i + 1;
                 break;
             }
         }
@@ -422,8 +423,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         // 2. Loop through ONLY the real data rows
         for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
-
-            // Col 0 is the Company Name
             const partyName = row[0] ? String(row[0]).trim() : '';
 
             // If the row has no name in Column A or if it is "Grand Total", SKIP IT!
@@ -431,18 +430,48 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 continue;
             }
 
-            // Money Cleaner Helper
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
-
-            // THE COLUMN MAP: Grab exactly from the column numbers based on your Tally file
             const contactPerson = row[1] ? String(row[1]).trim() : '';
-            const phone = row[2] ? String(row[2]).trim() : '';
+
+            // ==========================================
+            // 🚨 THE SMART PHONE PARSER
+            // ==========================================
+            const rawPhoneStr = row[2] ? String(row[2]).trim() : '';
+
+            // Split by comma, remove extra spaces, and filter out empty items
+            const phoneArray = rawPhoneStr.split(',').map(n => n.trim()).filter(n => n);
+
+            let finalPhone = '';
+            let finalWhatsapp = '';
+            let finalOther = '';
+
+            if (phoneArray.length > 0) {
+                // Helper function: Cleans junk and perfectly applies '91'
+                const formatNum = (num) => {
+                    let cleaned = num.replace(/[^0-9]/g, ''); // Strip hyphens, spaces, text
+                    if (cleaned.length === 10) return '91' + cleaned; // Standard 10 digit
+                    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned; // Already has 91
+                    return cleaned ? '91' + cleaned : ''; // Fallback for weird lengths
+                };
+
+                // 1st number is the Calling Number
+                finalPhone = formatNum(phoneArray[0]);
+
+                // If there's no specific WhatsApp column in Tally, use Calling Number for WhatsApp
+                finalWhatsapp = finalPhone;
+
+                // Any extra numbers after the comma go to Other Numbers
+                if (phoneArray.length > 1) {
+                    finalOther = phoneArray.slice(1).map(formatNum).join(', ');
+                }
+            }
+            // ==========================================
+
             const totalPending = cleanMoney(row[3]); // Column D (Index 3)
 
             const agingData = {
                 under30: cleanMoney(row[4]),        // Column E (Index 4)
                 days30to60: cleanMoney(row[5]),     // Column F (Index 5)
-                // Index 6 is an empty gap column in Tally, so we skip it!
                 days60to90: cleanMoney(row[7]),     // Column H (Index 7)
                 days90to120: cleanMoney(row[8]),    // Column I (Index 8)
                 days120to150: cleanMoney(row[9]),   // Column J (Index 9)
@@ -456,7 +485,9 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 { companyName: partyName, adminId: req.session.adminId },
                 {
                     contactPerson: contactPerson,
-                    phone: phone,
+                    phone: finalPhone,
+                    whatsappNumber: finalWhatsapp, // Set from Primary
+                    otherNumbers: finalOther,      // The comma-separated extras
                     totalAmount: totalPending,
                     aging: agingData
                 },
@@ -474,7 +505,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         res.status(500).send("Failed to import. Please check file format.");
     }
 });
-
 // 5. CUSTOMER ACTIONS
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
@@ -543,55 +573,73 @@ app.delete('/customers/:id', requireLogin, async (req, res) => {
 });
 
 // FIFO Payment Engine
+// --- THE FIX: BULLETPROOF FIFO PAYMENT ENGINE ---
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
-    const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
-    if (!customer) return res.status(404).send("Customer not found.");
+    try {
+        const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
+        if (!customer) return res.status(404).send("Customer not found.");
 
-    const newPurchase = Number(req.body.newPurchase) || 0;
-    const payment = Number(req.body.payment) || 0;
+        const newPurchase = Number(req.body.newPurchase) || 0;
+        const payment = Number(req.body.payment) || 0;
 
-    customer.totalAmount = Number(customer.totalAmount) + newPurchase;
-    customer.paidAmount = Number(customer.paidAmount) + payment;
+        // Log the date of the payment for the WhatsApp receipt!
+        if (payment > 0) customer.lastPaymentDate = new Date();
 
-    // Safety check: ensure aging exists
-    if (!customer.aging) {
-        customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
-    }
+        customer.totalAmount = (Number(customer.totalAmount) || 0) + newPurchase;
+        customer.paidAmount = (Number(customer.paidAmount) || 0) + payment;
 
-    // 1. Add new purchases to the < 30 days bucket
-    customer.aging.under30 += newPurchase;
+        // Safety check: ensure aging object exists
+        if (!customer.aging) {
+            customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
+        }
 
-    // 2. FIFO Payment Engine: Pay off the oldest debt buckets first
-    let remainingPayment = payment;
-    const bucketOrder = ['above180', 'days150to180', 'days120to150', 'days90to120', 'days60to90', 'days30to60', 'under30', 'onAccount'];
+        // 1. Add new purchases to the < 30 days bucket
+        customer.aging.under30 = (Number(customer.aging.under30) || 0) + newPurchase;
 
-    for (let bucket of bucketOrder) {
-        if (remainingPayment <= 0) break; // Stop when payment is fully applied
+        // 2. FIFO Payment Engine: Pay off the oldest debt buckets first
+        let remainingPayment = payment;
+        const bucketOrder = ['above180', 'days150to180', 'days120to150', 'days90to120', 'days60to90', 'days30to60', 'under30', 'onAccount'];
 
-        if (customer.aging[bucket] > 0) {
-            if (customer.aging[bucket] >= remainingPayment) {
-                customer.aging[bucket] -= remainingPayment;
-                remainingPayment = 0;
-            } else {
-                remainingPayment -= customer.aging[bucket];
-                customer.aging[bucket] = 0;
+        for (let bucket of bucketOrder) {
+            if (remainingPayment <= 0) break; // Stop when payment is fully applied
+
+            let currentBucketVal = Number(customer.aging[bucket]) || 0;
+
+            if (currentBucketVal > 0) {
+                if (currentBucketVal >= remainingPayment) {
+                    customer.aging[bucket] = currentBucketVal - remainingPayment;
+                    remainingPayment = 0;
+                } else {
+                    remainingPayment -= currentBucketVal;
+                    customer.aging[bucket] = 0;
+                }
             }
         }
+
+        // 3. THE MATH FIX: If they overpay, ADD the extra into On Account (Advance Payment)
+        if (remainingPayment > 0) {
+            customer.aging.onAccount = (Number(customer.aging.onAccount) || 0) + remainingPayment;
+        }
+
+        // 🚨 THE MONGOOSE FIX: Force the database to recognize the aging buckets changed!
+        customer.markModified('aging');
+
+        await customer.save();
+
+        let details = "";
+        if (newPurchase > 0) details += `Bought goods worth ₹${newPurchase}. `;
+        if (payment > 0) details += `Paid ₹${payment}.`;
+
+        if (details !== "") {
+            await logActivity(req, "Payment Updated", `Added ₹${payment} payment and ₹${newPurchase} new purchase to ${customer.companyName}.`);
+        }
+
+        res.redirect('/');
+
+    } catch (err) {
+        console.error("Transaction Error:", err);
+        res.status(500).send("Error updating balance.");
     }
-
-    // If they overpay past all debts, drop the extra into On Account
-    if (remainingPayment > 0) {
-        customer.aging.onAccount -= remainingPayment;
-    }
-
-    await customer.save();
-
-    let details = "";
-    if (newPurchase > 0) details += `Bought goods worth ₹${newPurchase}. `;
-    if (payment > 0) details += `Paid ₹${payment}.`;
-
-    await logActivity(req, "Payment Updated", `Added ₹${payment} payment and ₹${newPurchase} new purchase to ${customer.companyName}.`);
-    res.redirect('/');
 });
 
 app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
@@ -603,6 +651,31 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     await customer.save();
 
     await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName} set to ${req.body.nextDate}`);
+    res.redirect('/');
+});
+// --- BULK CUSTOMER ACTIONS ---
+app.post('/customers/bulk', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+
+    const { action, customerIds } = req.body;
+
+    // Safety check: ensure customerIds is converted to an array (a list)
+    let ids = [];
+    if (Array.isArray(customerIds)) ids = customerIds;
+    else if (customerIds) ids = [customerIds];
+
+    if (ids.length === 0) return res.redirect('/');
+
+    try {
+        if (action === 'delete') {
+            // Delete all customers whose ID is in that list
+            const result = await Customer.deleteMany({ _id: { $in: ids }, adminId: req.session.adminId });
+            await logActivity(req, "Bulk Delete", `Permanently deleted ${result.deletedCount} parties at once.`);
+        }
+    } catch (err) {
+        console.error("Bulk Action Error:", err);
+    }
+
     res.redirect('/');
 });
 
