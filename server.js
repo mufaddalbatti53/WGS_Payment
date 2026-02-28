@@ -389,6 +389,7 @@ app.get('/export', requireLogin, async (req, res) => {
 
 // --- SMART ACCOUNTING IMPORTER (TALLY / BUSY COMPATIBLE) ---
 // --- SMART TALLY IMPORTER (ARRAY MAPPED) ---
+// --- SMART TALLY IMPORTER (STRICT TABLE SCANNER) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -396,29 +397,39 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // THE FIX: Read the Excel file purely as an Array of columns (header: 1), ignoring header names completely!
+        // Read the Excel file purely as an Array of columns
         const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         let importedCount = 0;
 
+        // 1. STRICT SCAN: Find the exact row where the table headers start
+        let dataStartIndex = 0;
         for (let i = 0; i < rawData.length; i++) {
+            const firstColumn = rawData[i][0] ? String(rawData[i][0]).trim().toLowerCase() : '';
+
+            // Once we find "Particulars", we tell the importer to start reading FROM HERE
+            if (firstColumn === 'particulars') {
+                dataStartIndex = i + 1; // Start looking at the rows immediately below Particulars
+                break;
+            }
+        }
+
+        // 2. Loop through ONLY the real data rows
+        for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
 
             // Col 0 is the Company Name
             const partyName = row[0] ? String(row[0]).trim() : '';
 
-            // Skip the top junk rows, empty rows, and Tally totals
-            if (!partyName ||
-                partyName.toLowerCase() === 'particulars' ||
-                partyName.toLowerCase() === 'grand total' ||
-                partyName.toLowerCase().includes('maktronic') ||
-                partyName === 'Sundry Debtors') {
+            // If the row has no name in Column A (like empty spacer rows) 
+            // or if it is the "Grand Total" row at the bottom, SKIP IT!
+            if (!partyName || partyName.toLowerCase() === 'grand total') {
                 continue;
             }
 
             // Money Cleaner Helper
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
 
-            // THE COLUMN MAP: We grab exactly from the column numbers based on your Tally file
+            // THE COLUMN MAP: Grab exactly from the column numbers based on your Tally file
             const contactPerson = row[1] ? String(row[1]).trim() : '';
             const phone = row[2] ? String(row[2]).trim() : '';
             const totalPending = cleanMoney(row[3]); // Column D (Index 3)
@@ -450,7 +461,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             importedCount++;
         }
 
-        await logActivity(req, "Excel Import", `Imported ${importedCount} records from Tally Array Map.`);
+        await logActivity(req, "Excel Import", `Imported ${importedCount} real customers from Tally/CSV Export.`);
         res.redirect('/');
 
     } catch (err) {
