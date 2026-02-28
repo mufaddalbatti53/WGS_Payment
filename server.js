@@ -48,10 +48,9 @@ const activitySchema = new mongoose.Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', activitySchema);
 
-// --- MASTER TRACKING FUNCTION (LOUD DEBUG VERSION) ---
+// --- MASTER TRACKING FUNCTION ---
 async function logActivity(req, action, details) {
     console.log(`\n▶️ [ACTIVITY TRIGGERED] Attempting to log: "${action}"`);
-
     try {
         if (!req.session) {
             console.log("❌ [ACTIVITY FAILED] Reason: No session found.");
@@ -71,7 +70,6 @@ async function logActivity(req, action, details) {
         });
 
         console.log("✅ [ACTIVITY SUCCESS] Successfully saved to database!\n");
-
     } catch (err) {
         console.error("❌ [ACTIVITY DATABASE ERROR] Here is why it crashed:", err.message, "\n");
     }
@@ -145,7 +143,15 @@ app.get('/', async (req, res) => {
     }
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
-        res.render('index', { customers: customers, role: req.session.role });
+
+        // NEW: Fetch Admin's Company Profile to pass to the frontend
+        const adminUser = await User.findById(req.session.adminId).lean() || {};
+
+        res.render('index', {
+            customers: customers,
+            role: req.session.role,
+            adminUser: adminUser
+        });
     } catch (err) {
         console.error("Dashboard Error:", err);
         res.status(500).send("Error loading dashboard.");
@@ -184,7 +190,6 @@ app.get('/activity', requireLogin, async (req, res) => {
 
 app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-
     try {
         const { filterType, startDate, endDate } = req.body;
         let query = { adminId: req.session.adminId };
@@ -207,11 +212,29 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
 
         await ActivityLog.deleteMany(query);
         res.redirect('/activity');
-
     } catch (err) {
         console.error("Bulk Delete Error:", err);
         res.status(500).send("Failed to delete logs.");
     }
+});
+
+// --- UPDATE COMPANY PROFILE ---
+app.put('/settings', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+
+    await User.findByIdAndUpdate(req.session.adminId, {
+        companyName: req.body.companyName,
+        addressLine1: req.body.addressLine1,
+        addressLine2: req.body.addressLine2,
+        addressLine3: req.body.addressLine3,
+        dlNo: req.body.dlNo,
+        msmeNo: req.body.msmeNo,
+        contactNo: req.body.contactNo,
+        companyEmail: req.body.companyEmail
+    });
+
+    await logActivity(req, "Company Profile", "Updated company profile details.");
+    res.redirect('/');
 });
 
 // 4. ADMIN ACTIONS (Staff Management)
@@ -234,7 +257,6 @@ app.post('/register', async (req, res) => {
 
 app.post('/create-staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const dummyAnswer = await bcrypt.hash("admin-managed", 10);
@@ -250,7 +272,6 @@ app.post('/create-staff', requireLogin, async (req, res) => {
 
         await logActivity(req, "Created Staff", `Created: ${req.body.username}`);
         res.redirect('/staff');
-
     } catch (e) {
         console.error("Staff Creation Error:", e);
         if (e.code === 11000) {
@@ -263,7 +284,6 @@ app.post('/create-staff', requireLogin, async (req, res) => {
 
 app.post('/reset-staff-password', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-
     const { staffId, newPassword } = req.body;
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -292,87 +312,75 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
     res.redirect('/staff');
 });
 
-// --- EXPORT TO EXCEL ROUTE ---
-// --- EXPORT TO EXCEL ROUTE (EXACT TALLY FORMAT CLONE) ---
+// --- EXPORT TO EXCEL ROUTE (DYNAMIC & B&W) ---
 app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
+
+        // Grab the Admin's specific company details
+        const admin = await User.findById(req.session.adminId).lean();
+
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Sundry Debtors');
 
-        // 1. Tally Company Header Information (Rows 1 to 11)
-        worksheet.addRow(['Maktronic Medical LLP']);
-        worksheet.addRow(['Unit No.3,Retiwala Industrial Estate']);
-        worksheet.addRow(['H.A.Palav Marg,Chinchpokli Cross Lane,']);
-        worksheet.addRow(['Byculla,Mumbai -400027']);
-        worksheet.addRow(['DL NO.20B-223067/21B-223068']);
-        worksheet.addRow(['MSME UDYAM REG NO.UDYAM-MH-19-0119755']);
-        worksheet.addRow(['CONTACT NO: 022-23732271/022-23702278']);
-        worksheet.addRow(['E-Mail : maktronicmedical2017@gmail.com']);
+        // 1. Dynamic Top Section (Will be blank if Admin skipped the form)
+        worksheet.addRow([admin.companyName || '']);
+        worksheet.addRow([admin.addressLine1 || '']);
+        worksheet.addRow([admin.addressLine2 || '']);
+        worksheet.addRow([admin.addressLine3 || '']);
+        worksheet.addRow([admin.dlNo ? `DL NO. ${admin.dlNo}` : '']);
+        worksheet.addRow([admin.msmeNo ? `MSME UDYAM REG NO. ${admin.msmeNo}` : '']);
+        worksheet.addRow([admin.contactNo ? `CONTACT NO: ${admin.contactNo}` : '']);
+        worksheet.addRow([admin.companyEmail ? `E-Mail : ${admin.companyEmail}` : '']);
         worksheet.addRow(['Sundry Debtors']);
         worksheet.addRow(['Group Outstandings']);
 
-        // Dynamic Date Range for the current financial year
         const currentYear = new Date().getFullYear();
         const dateRange = `1-Apr-${currentYear - 1} to 31-Mar-${currentYear}`;
         worksheet.addRow([dateRange]);
 
-        // 2. The Multi-Layered Tally Headers (Rows 12 to 16)
+        const compName = admin.companyName || 'Company';
+
+        // 2. The Multi-Layered Headers
         worksheet.addRow(['', '', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors']);
-        worksheet.addRow(['', '', '', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', '', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP']);
-
-        // Row 14: Main Identifiers
+        worksheet.addRow(['', '', '', compName, compName, compName, '', compName, compName, compName, compName, compName, compName]);
         worksheet.addRow(['Particulars', 'Contact Person', 'Telephone No.', dateRange, dateRange, dateRange, '', dateRange, dateRange, dateRange, dateRange, dateRange, dateRange]);
-
-        // Row 15: The Actual Bucket Names
         worksheet.addRow(['', '', '', 'Pending Bills', '(< 30 days )', '30 to 60 days', '', '60 to 90 days', '90 to 120 days', '120 to 150 days', '150 to 180 days', '(> 180 days )', 'On Account']);
-
-        // Row 16: Debit/Credit Indicators
         worksheet.addRow(['', '', '', 'Debit', 'Debit', 'Debit', 'Credit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit']);
-
-        // Row 17: Tally always leaves a blank spacer row before data
         worksheet.addRow([]);
 
-        // 3. Match Tally's exact Column Widths
-        worksheet.getColumn(1).width = 45; // Particulars (Company Name)
-        worksheet.getColumn(2).width = 25; // Contact Person
-        worksheet.getColumn(3).width = 15; // Telephone No
-        for (let i = 4; i <= 13; i++) {
-            worksheet.getColumn(i).width = 15; // All financial columns
-        }
+        worksheet.getColumn(1).width = 35;
+        worksheet.getColumn(2).width = 25;
+        worksheet.getColumn(3).width = 15;
+        for (let i = 4; i <= 13; i++) worksheet.getColumn(i).width = 15;
 
-        // 4. Populate the Data Rows
+        // Populate Rows
         customers.forEach((c) => {
             const aging = c.aging || {};
-
             worksheet.addRow([
-                c.companyName || '',
-                c.contactPerson || '',
-                c.phone ? String(c.phone) : '',
-                c.totalAmount || 0,          // Pending Bills
-                aging.under30 || '',         // (< 30 days )
-                aging.days30to60 || '',      // 30 to 60 days
-                '',                          // Credit column (Empty gap in Tally)
-                aging.days60to90 || '',      // 60 to 90 days
-                aging.days90to120 || '',     // 90 to 120 days
-                aging.days120to150 || '',    // 120 to 150 days
-                aging.days150to180 || '',    // 150 to 180 days
-                aging.above180 || '',        // (> 180 days )
-                aging.onAccount || ''        // On Account
+                c.companyName || '', c.contactPerson || '', c.phone ? String(c.phone) : '',
+                c.totalAmount || 0, aging.under30 || '', aging.days30to60 || '', '',
+                aging.days60to90 || '', aging.days90to120 || '', aging.days120to150 || '',
+                aging.days150to180 || '', aging.above180 || '', aging.onAccount || ''
             ]);
         });
 
-        // 5. Apply basic text alignment (Numbers right, Text left)
+        // 3. Black and White Styling
         worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 17) {
-                row.eachCell((cell, colNumber) => {
-                    if (colNumber > 3) {
-                        cell.alignment = { horizontal: 'right' };
-                    } else {
-                        cell.alignment = { horizontal: 'left' };
-                    }
-                });
-            }
+            row.eachCell((cell, colNumber) => {
+                cell.font = { color: { argb: 'FF000000' } }; // Pure Black Text
+
+                // Bold the Company header info and Table Headers
+                if (rowNumber <= 11 || (rowNumber >= 12 && rowNumber <= 16)) {
+                    cell.font = { bold: true, color: { argb: 'FF000000' } };
+                }
+
+                if (rowNumber > 17 && colNumber > 3) {
+                    cell.alignment = { horizontal: 'right' };
+                } else {
+                    cell.alignment = { horizontal: 'left' };
+                }
+            });
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -380,15 +388,13 @@ app.get('/export', requireLogin, async (req, res) => {
 
         await workbook.xlsx.write(res);
         res.end();
-
     } catch (err) {
         console.error("Export Error:", err);
         res.status(500).send("Failed to export Excel file.");
     }
 });
 
-// --- SMART ACCOUNTING IMPORTER (TALLY / BUSY COMPATIBLE) ---
-// --- SMART TALLY IMPORTER (ARRAY MAPPED) ---
+
 // --- SMART TALLY IMPORTER (STRICT TABLE SCANNER) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
@@ -420,8 +426,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             // Col 0 is the Company Name
             const partyName = row[0] ? String(row[0]).trim() : '';
 
-            // If the row has no name in Column A (like empty spacer rows) 
-            // or if it is the "Grand Total" row at the bottom, SKIP IT!
+            // If the row has no name in Column A or if it is "Grand Total", SKIP IT!
             if (!partyName || partyName.toLowerCase() === 'grand total') {
                 continue;
             }
@@ -476,7 +481,6 @@ app.post('/customers', async (req, res) => {
 
     try {
         const fullPhoneNumber = req.body.countryCode + req.body.localPhone;
-        // THE FIX: Save initial amount to use in total and bucket
         const initialAmount = Number(req.body.totalAmount) || 0;
 
         await Customer.create({
@@ -488,7 +492,6 @@ app.post('/customers', async (req, res) => {
             totalAmount: initialAmount,
             adminId: req.session.adminId,
             nextActionDate: req.body.nextActionDate,
-            // THE FIX: Automatically drop new debt into the <30 days bucket
             aging: {
                 under30: initialAmount,
                 days30to60: 0, days60to90: 0, days90to120: 0,
@@ -539,7 +542,7 @@ app.delete('/customers/:id', requireLogin, async (req, res) => {
     res.redirect('/');
 });
 
-// THE FIX: FIFO Payment Engine
+// FIFO Payment Engine
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
     const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
     if (!customer) return res.status(404).send("Customer not found.");

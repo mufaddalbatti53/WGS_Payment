@@ -385,7 +385,8 @@
                 gap: 10px;
             }
 
-            .admin-menu a {
+            .admin-menu a,
+            .admin-menu button {
                 text-align: center;
                 width: 100%;
                 box-sizing: border-box;
@@ -532,7 +533,12 @@
     <div class="container">
 
         <div class="top-header">
-            <h1 style="margin: 0; font-size: 24px; color: #1e293b;">Dashboard</h1>
+            <h1 style="margin: 0; font-size: 24px; color: #1e293b;">
+                Dashboard
+                <span style="font-size: 14px; color: #64748b; font-weight: normal; margin-left: 10px;">
+                    | <%= adminUser.companyName || 'Setup Your Profile' %>
+                </span>
+            </h1>
 
             <div class="header-actions">
                 <input type="text" id="searchInput" class="search-micro" placeholder="🔍 Search parties...">
@@ -544,6 +550,8 @@
             <div class="admin-menu">
                 <a href="/staff" class="menu-btn btn-menu-blue">👤 Manage Staff</a>
                 <a href="/activity" class="menu-btn btn-menu-purple">📜 Activity Log</a>
+                <button onclick="document.getElementById('settingsModal').style.display='block'" class="menu-btn"
+                    style="background: #475569; border:none; cursor:pointer;">⚙️ Company Profile</button>
             </div>
 
             <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -732,8 +740,9 @@
                                     const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days past
                                     the set action date.` : "";
 
-                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from
-                                    ${customer.companyName}. This is a gentle reminder. You have previously paid
+                                    // DYNAMIC SENDER NAME FIX
+                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'}. This is a gentle
+                                    reminder from ${adminUser.companyName || 'our company'}. You have previously paid
                                     ₹${customer.paidAmount} on this account. Your current outstanding due is
                                     ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
                                     const encodedMsg = encodeURIComponent(msg);
@@ -980,6 +989,7 @@
                 <label class="trans-label">First Action Date</label>
                 <input type="text" name="nextActionDate" placeholder="Select Desire Date 📅" required
                     class="input-style" onfocus="(this.type='date')" onblur="if(!this.value) this.type='text'">
+
                 <button type="submit" class="btn btn-green"
                     style="width:100%; padding: 12px; font-size: 16px; margin-top: 10px;">Save Party</button>
             </form>
@@ -1052,6 +1062,56 @@
         </div>
     </div>
 
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
+            <h3 style="margin-top: 0;">⚙️ Company Profile (For Excel & Messages)</h3>
+            <p style="font-size: 12px; color: #666; margin-top: -10px;">Leave blank to omit from Excel exports.</p>
+
+            <form action="/settings?_method=PUT" method="POST">
+                <label class="trans-label">Company Name</label>
+                <input type="text" name="companyName" value="<%= adminUser.companyName || '' %>" class="input-style">
+
+                <label class="trans-label">Address Line 1</label>
+                <input type="text" name="addressLine1" value="<%= adminUser.addressLine1 || '' %>" class="input-style">
+
+                <label class="trans-label">Address Line 2</label>
+                <input type="text" name="addressLine2" value="<%= adminUser.addressLine2 || '' %>" class="input-style">
+
+                <label class="trans-label">Address Line 3</label>
+                <input type="text" name="addressLine3" value="<%= adminUser.addressLine3 || '' %>" class="input-style">
+
+                <div class="form-row">
+                    <div style="flex:1">
+                        <label class="trans-label">DL No.</label>
+                        <input type="text" name="dlNo" value="<%= adminUser.dlNo || '' %>" class="input-style">
+                    </div>
+                    <div style="flex:1">
+                        <label class="trans-label">MSME No.</label>
+                        <input type="text" name="msmeNo" value="<%= adminUser.msmeNo || '' %>" class="input-style">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div style="flex:1">
+                        <label class="trans-label">Contact No.</label>
+                        <input type="text" name="contactNo" value="<%= adminUser.contactNo || '' %>"
+                            class="input-style">
+                    </div>
+                    <div style="flex:1">
+                        <label class="trans-label">Email</label>
+                        <input type="email" name="companyEmail" value="<%= adminUser.companyEmail || '' %>"
+                            class="input-style">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-blue"
+                    style="width:100%; padding:12px; font-weight:bold; margin-top:10px;">💾 Save Company
+                    Profile</button>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <script>
@@ -1064,13 +1124,11 @@
             const searchInput = document.getElementById('searchInput');
 
             if (actionFilterActive) {
-                // Highlight the card
                 card.style.background = '#fff3cd';
                 card.style.transform = 'scale(0.98)';
                 card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
                 searchInput.value = '';
 
-                // Filter rows
                 rows.forEach(row => {
                     if (row.getAttribute('data-action-req') === 'true') {
                         row.style.display = '';
@@ -1079,7 +1137,6 @@
                     }
                 });
             } else {
-                // Reset card
                 card.style.background = 'white';
                 card.style.transform = 'none';
                 card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
@@ -1146,6 +1203,7 @@
             document.getElementById('actionModal').style.display = "none";
             document.getElementById('editModal').style.display = "none";
             document.getElementById('addModal').style.display = "none";
+            document.getElementById('settingsModal').style.display = "none";
         }
 
         function closeTransactionModal() { window.history.back(); }
@@ -1162,11 +1220,11 @@
             if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
             if (event.target == document.getElementById('editModal')) closeEditModal();
             if (event.target == document.getElementById('addModal')) closeAddModal();
+            if (event.target == document.getElementById('settingsModal')) document.getElementById('settingsModal').style.display = "none";
         }
 
         // 🔍 REAL-TIME SEARCH FILTER
         document.getElementById('searchInput').addEventListener('keyup', function () {
-            // Turn off action filter if they start typing
             if (actionFilterActive) {
                 actionFilterActive = false;
                 const card = document.getElementById('actionStatCard');
@@ -1198,7 +1256,6 @@
                 ${document.querySelector('table').outerHTML}
             `;
 
-            // Hide action buttons in PDF
             const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles, .action-buttons');
             buttons.forEach(btn => btn.style.display = 'none');
 
