@@ -27,43 +27,48 @@
             gap: 15px;
         }
 
-        .header-actions {
+        /* NEW: Table Toolbar (Search & Add) */
+        .table-controls {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
+            margin-bottom: 20px;
+            gap: 15px;
         }
 
         .search-micro {
-            padding: 8px 15px;
-            font-size: 14px;
+            padding: 10px 20px;
+            font-size: 15px;
             border: 1px solid #cbd5e1;
-            border-radius: 20px;
+            border-radius: 25px;
             outline: none;
-            width: 220px;
-            background: #f8fafc;
+            flex: 1;
+            /* Makes the search bar stretch beautifully */
+            max-width: 400px;
+            background: #ffffff;
             transition: all 0.3s ease;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
         }
 
         .search-micro:focus {
             border-color: #3b82f6;
-            background: #ffffff;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
         .btn-add-micro {
-            padding: 8px 16px;
+            padding: 10px 20px;
             font-size: 14px;
             font-weight: bold;
             background: #27ae60;
             color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 25px;
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(39, 174, 96, 0.2);
             text-decoration: none;
             display: inline-block;
+            white-space: nowrap;
+            /* Prevents button text from breaking into two lines */
         }
 
         .btn-add-micro:hover {
@@ -131,7 +136,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 10px;
             font-size: 14px;
         }
 
@@ -253,9 +258,6 @@
             cursor: pointer;
         }
 
-        /* ========================================= */
-        /* 📊 DASHBOARD STATS                        */
-        /* ========================================= */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -399,6 +401,7 @@
                 margin-bottom: 20px;
                 padding: 15px;
                 box-shadow: 0 8px 24px rgba(230, 126, 34, 0.15);
+                position: relative;
             }
 
             td {
@@ -421,9 +424,16 @@
                 margin-bottom: 15px;
             }
 
+            /* FIXED: Evenly splitting the top block so Checkbox fits nicely */
             .m-name {
-                width: 35%;
+                width: 50%;
                 line-height: 1.3;
+            }
+
+            .m-fin {
+                width: 50%;
+                text-align: right;
+                line-height: 1.5;
             }
 
             .m-name strong {
@@ -437,12 +447,6 @@
             .m-name span {
                 font-size: 14px;
                 color: #555;
-            }
-
-            .m-fin {
-                width: 65%;
-                text-align: right;
-                line-height: 1.5;
             }
 
             .m-fin-top {
@@ -503,8 +507,14 @@
                 justify-content: center;
             }
 
+            /* Mobile adjustment for new Table Controls */
+            .table-controls {
+                flex-direction: column;
+            }
+
             .search-micro {
                 width: 100%;
+                max-width: 100%;
             }
 
             .btn-add-micro {
@@ -534,12 +544,24 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000;
+            width: max-content;
+            max-width: 90%;
+            /* Prevents breaking on small phones */
         }
-        .bulk-action-bar.visible { bottom: 30px; }
-        .checkbox-custom { width: 18px; height: 18px; cursor: pointer; accent-color: #27ae60; }
+
+        .bulk-action-bar.visible {
+            bottom: 30px;
+        }
+
+        .checkbox-custom {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #27ae60;
+        }
     </style>
 </head>
 
@@ -553,7 +575,6 @@
     </div>
 
     <div class="container">
-
         <div class="top-header">
             <h1 style="margin: 0; font-size: 24px; color: #1e293b;">
                 Dashboard
@@ -561,11 +582,6 @@
                     | <%= adminUser.companyName || 'Setup Your Profile' %>
                 </span>
             </h1>
-
-            <div class="header-actions">
-                <input type="text" id="searchInput" class="search-micro" placeholder="🔍 Search parties...">
-                <button onclick="openAddModal()" class="btn-add-micro">➕ Add Party</button>
-            </div>
         </div>
 
         <% if (role==='admin' ) { %>
@@ -578,21 +594,17 @@
 
             <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                 <h3>Data Management</h3>
-
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <a href="/export"
                         style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold;">
                         📥 Export to Excel
                     </a>
-
                     <button onclick="downloadPDF()"
                         style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px;">
                         📄 Export to PDF
                     </button>
                 </div>
-
                 <hr style="border-top: 1px solid #ccc;">
-
                 <form action="/import" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
                     <label for="excelFile"><strong>Upload Tally/Busy Excel:</strong></label>
                     <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required style="margin-right: 10px;">
@@ -610,14 +622,12 @@
                 const due = c.totalAmount - c.paidAmount;
                 totalPending += due;
 
-                // Action Required Counter
                 const nextDate = c.nextActionDate ? new Date(c.nextActionDate) : new Date();
                 const target = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
                 if (due > 0 && todayServer >= target) {
                 actionRequiredCount++;
                 }
 
-                // Tally Aging Additions
                 if (c.aging) {
                 buckets.u30 += (c.aging.under30 || 0);
                 buckets.d30_60 += (c.aging.days30to60 || 0);
@@ -659,7 +669,6 @@
 
                 <div class="aging-card">
                     <h2 style="margin-top: 0; color: #0f172a; font-size: 22px;">Aging Buckets</h2>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span>
                                 < 30 DAYS</span><span>
@@ -669,7 +678,6 @@
                             <div class="progress-fill" style="width: <%= (buckets.u30 / maxBucket) * 100 %>%;"></div>
                         </div>
                     </div>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span>30-60 DAYS</span><span>
                                 <%= formatMoney(buckets.d30_60) %>
@@ -678,7 +686,6 @@
                             <div class="progress-fill" style="width: <%= (buckets.d30_60 / maxBucket) * 100 %>%"></div>
                         </div>
                     </div>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span>60-90 DAYS</span><span>
                                 <%= formatMoney(buckets.d60_90) %>
@@ -687,7 +694,6 @@
                             <div class="progress-fill" style="width: <%= (buckets.d60_90 / maxBucket) * 100 %>%"></div>
                         </div>
                     </div>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span>90-120 DAYS</span><span>
                                 <%= formatMoney(buckets.d90_120) %>
@@ -697,7 +703,6 @@
                                 style="width: <%= (buckets.d90_120 / maxBucket) * 100 %>%"></div>
                         </div>
                     </div>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span style="color: #ef4444;">120-150 DAYS</span><span
                                 style="color: #ef4444;">
@@ -708,7 +713,6 @@
                                 style="width: <%= (buckets.d120_150 / maxBucket) * 100 %>%;"></div>
                         </div>
                     </div>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span style="color: #ef4444;">150-180 DAYS</span><span
                                 style="color: #ef4444;">
@@ -719,7 +723,6 @@
                                 style="width: <%= (buckets.d150_180 / maxBucket) * 100 %>%"></div>
                         </div>
                     </div>
-
                     <div class="aging-row">
                         <div class="aging-labels"><span style="color: #ef4444;">> 180 DAYS</span><span
                                 style="color: #ef4444;">
@@ -730,7 +733,6 @@
                                 style="width: <%= (buckets.a180 / maxBucket) * 100 %>%"></div>
                         </div>
                     </div>
-
                     <div class="aging-row" style="margin-bottom: 0;">
                         <div class="aging-labels" style="color: #64748b;"><span>ON ACCOUNT</span><span>
                                 <%= formatMoney(buckets.onAcc) %>
@@ -739,10 +741,16 @@
                 </div>
                 <% } %>
 
+                    <div class="table-controls">
+                        <input type="text" id="searchInput" class="search-micro" placeholder="🔍 Search parties...">
+                        <button onclick="openAddModal()" class="btn-add-micro">➕ Add Party</button>
+                    </div>
+
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 30px;"><input type="checkbox" id="selectAll" class="checkbox-custom"></th>
+                                <th style="width: 30px;"><input type="checkbox" id="selectAll" class="checkbox-custom">
+                                </th>
                                 <th>Company / Contact</th>
                                 <th>Contact Info</th>
                                 <th>Financials</th>
@@ -763,24 +771,30 @@
                                     const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days past
                                     the set action date.` : "";
 
-                                    // DYNAMIC SENDER NAME FIX
-                                    // --- DYNAMIC WHATSAPP/SMS MESSAGE GENERATOR ---
                                     let paidText = `₹${customer.paidAmount}`;
                                     if (customer.paidAmount > 0 && customer.lastPaymentDate) {
-                                    const lastPaidDateStr = new Date(customer.lastPaymentDate).toLocaleDateString('en-IN');
+                                    const lastPaidDateStr = new
+                                    Date(customer.lastPaymentDate).toLocaleDateString('en-IN');
                                     paidText += ` (Last paid on: ${lastPaidDateStr})`;
                                     }
-                                    
-                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from ${customer.companyName},\n\nThis is a gentle payment reminder from ${adminUser.companyName || 'our company'}.\n\n📊 *Account Summary:*\n- Total Bill Amount: ₹${customer.totalAmount}\n- Total Amount Paid: ${paidText}\n- Current Outstanding Due: *₹${due}*\n\n${daysText ? '_' + daysText + '_\n\n' : ''}Please arrange the payment for the pending amount at your earliest convenience.\n\nThank you,\n${adminUser.companyName || 'Our Team'}`;
-                                    
+
+                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from
+                                    ${customer.companyName},\n\nThis is a gentle payment reminder from
+                                    ${adminUser.companyName || 'our company'}.\n\n📊 *Account Summary:*\n- Total Bill
+                                    Amount: ₹${customer.totalAmount}\n- Total Amount Paid: ${paidText}\n- Current
+                                    Outstanding Due: *₹${due}*\n\n${daysText ? '_' + daysText + '_\n\n' : ''}Please
+                                    arrange the payment for the pending amount at your earliest convenience.\n\nThank
+                                    you,\n${adminUser.companyName || 'Our Team'}`;
                                     const encodedMsg = encodeURIComponent(msg);
                                     %>
                                     <tr class="customer-row"
                                         data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
+
                                         <td class="desktop-only">
-                                            <input type="checkbox" class="customer-checkbox checkbox-custom" value="<%= customer._id %>">
+                                            <input type="checkbox" class="customer-checkbox checkbox-custom"
+                                                value="<%= customer._id %>">
                                         </td>
-                                        
+
                                         <td class="desktop-only">
                                             <strong>
                                                 <%= customer.companyName %>
@@ -891,20 +905,23 @@
                                         </td>
 
                                         <td class="mobile-only">
-                                            <div style="position: absolute; top: 15px; right: 15px;">
-                                                <input type="checkbox" class="customer-checkbox checkbox-custom" value="<%= customer._id %>">
-                                            </div>
                                             <div class="m-top">
-                                                <div class="m-name">
-                                                    <strong>
-                                                        <%= customer.companyName %>
-                                                    </strong>
-                                                    <span>
-                                                        <%= customer.contactPerson %>
-                                                    </span><br>
-                                                    <a href="tel:+<%= customer.phone %>"
-                                                        style="color:#3498db; text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:4px;">📞
-                                                        +<%= customer.phone %></a>
+                                                <div class="m-name"
+                                                    style="display: flex; gap: 10px; align-items: flex-start;">
+                                                    <input type="checkbox" class="customer-checkbox checkbox-custom"
+                                                        value="<%= customer._id %>"
+                                                        style="margin-top: 4px; flex-shrink: 0;">
+                                                    <div>
+                                                        <strong>
+                                                            <%= customer.companyName %>
+                                                        </strong><br>
+                                                        <span>
+                                                            <%= customer.contactPerson %>
+                                                        </span><br>
+                                                        <a href="tel:+<%= customer.phone %>"
+                                                            style="color:#3498db; text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:4px;">📞
+                                                            +<%= customer.phone %></a>
+                                                    </div>
                                                 </div>
                                                 <div class="m-fin">
                                                     <div class="m-fin-top">Total ₹<%= customer.totalAmount %>
@@ -984,6 +1001,7 @@
                         </tbody>
                     </table>
     </div>
+
     <% if (role==='admin' ) { %>
         <div id="bulkActionBar" class="bulk-action-bar">
             <span id="selectedCount" style="font-weight: bold; font-size: 14px;">0 Selected</span>
@@ -998,372 +1016,387 @@
         </div>
         <% } %>
 
-    <div id="addModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeAddModal()">&times;</span>
-            <h3 style="margin-top: 0;">Add New Party</h3>
-            <form action="/customers" method="POST">
-                <label class="trans-label">Company Name</label>
-                <input type="text" name="companyName" placeholder="Company Name" required class="input-style">
+            <div id="addModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeAddModal()">&times;</span>
+                    <h3 style="margin-top: 0;">Add New Party</h3>
+                    <form action="/customers" method="POST">
+                        <label class="trans-label">Company Name</label>
+                        <input type="text" name="companyName" placeholder="Company Name" required class="input-style">
 
-                <label class="trans-label">Contact Person</label>
-                <input type="text" name="contactPerson" placeholder="Contact Person" required class="input-style">
-
-                <label class="trans-label">Email Address</label>
-                <input type="email" name="email" placeholder="Email Address" class="input-style">
-
-                <label class="trans-label">Total Amount (₹)</label>
-                <input type="number" name="totalAmount" placeholder="Total Amount (₹)" required class="input-style">
-
-                <label class="trans-label">Primary Phone (with Code)</label>
-                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
-                    <select name="countryCode" id="countryCode" class="input-style"
-                        style="width: 80px; margin-bottom: 0;">
-                        <option value="91" selected>+91</option>
-                        <option value="1">+1</option>
-                        <option value="971">+971</option>
-                    </select>
-                    <input type="text" name="localPhone" placeholder="Calling Number" required class="input-style"
-                        style="margin-bottom: 0; width: 100%;">
-                </div>
-
-                <label class="trans-label">WhatsApp Number (with Code)</label>
-                <input type="text" name="whatsappNumber" placeholder="WhatsApp Number" required class="input-style">
-
-                <label class="trans-label">Other Numbers</label>
-                <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
-                    class="input-style">
-
-                <label class="trans-label">First Action Date</label>
-                <input type="text" name="nextActionDate" placeholder="Select Desire Date 📅" required
-                    class="input-style" onfocus="(this.type='date')" onblur="if(!this.value) this.type='text'">
-
-                <button type="submit" class="btn btn-green"
-                    style="width:100%; padding: 12px; font-size: 16px; margin-top: 10px;">Save Party</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="transactionModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeTransactionModal()">&times;</span>
-            <h3>Update Balance</h3>
-            <p id="transCompanyName" style="font-weight:bold; color:#3498db;"></p>
-            <form id="transactionForm" method="POST">
-                <div class="trans-group">
-                    <label class="trans-label">➕ Add New Purchase (Increases Debt)</label>
-                    <input type="number" name="newPurchase" placeholder="Amount (₹)" class="input-style">
-                </div>
-                <div class="trans-group">
-                    <label class="trans-label" style="color: green;">➖ Add Payment Received (Reduces Debt)</label>
-                    <input type="number" name="payment" placeholder="Amount (₹)" class="input-style">
-                </div>
-                <button type="submit" class="btn btn-blue" style="width:100%; padding:10px;">Update Account</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="actionModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeActionModal()">&times;</span>
-            <h3>Set Next Action Date</h3>
-            <p id="modalCompanyName" style="font-weight:bold;"></p>
-            <form id="updateDateForm" method="POST">
-                <label class="trans-label">Select New Date:</label>
-                <input type="date" name="nextDate" required class="input-style">
-                <button type="submit" class="btn btn-blue" style="width:100%; margin-top:10px;">Save Next Date</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeEditModal()">&times;</span>
-            <h3>Edit Customer Details</h3>
-            <form id="editForm" method="POST">
-                <label class="trans-label">Company Name</label>
-                <input type="text" name="companyName" id="editCompany" required class="input-style">
-
-                <label class="trans-label">Contact Person</label>
-                <input type="text" name="contactPerson" id="editContact" required class="input-style">
-
-                <label class="trans-label">Email</label>
-                <input type="email" name="email" id="editEmail" class="input-style">
-
-                <div class="form-row">
-                    <div style="flex:1">
-                        <label class="trans-label">Full Phone (with Code)</label>
-                        <input type="text" name="phone" id="editPhone" required class="input-style">
-                    </div>
-                    <div style="flex:1">
-                        <label class="trans-label">Full WhatsApp (with Code)</label>
-                        <input type="text" name="whatsappNumber" id="editWhatsapp" required class="input-style">
-                    </div>
-                </div>
-
-                <label class="trans-label">Other Numbers</label>
-                <input type="text" name="otherNumbers" id="editOther" class="input-style">
-
-                <button type="submit" class="btn btn-yellow" style="width:100%; padding:10px; font-weight:bold;">Save
-                    Changes</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
-            <h3 style="margin-top: 0;">⚙️ Company Profile (For Excel & Messages)</h3>
-            <p style="font-size: 12px; color: #666; margin-top: -10px;">Leave blank to omit from Excel exports.</p>
-
-            <form action="/settings?_method=PUT" method="POST">
-                <label class="trans-label">Company Name</label>
-                <input type="text" name="companyName" value="<%= adminUser.companyName || '' %>" class="input-style">
-
-                <label class="trans-label">Address Line 1</label>
-                <input type="text" name="addressLine1" value="<%= adminUser.addressLine1 || '' %>" class="input-style">
-
-                <label class="trans-label">Address Line 2</label>
-                <input type="text" name="addressLine2" value="<%= adminUser.addressLine2 || '' %>" class="input-style">
-
-                <label class="trans-label">Address Line 3</label>
-                <input type="text" name="addressLine3" value="<%= adminUser.addressLine3 || '' %>" class="input-style">
-
-                <div class="form-row">
-                    <div style="flex:1">
-                        <label class="trans-label">DL No.</label>
-                        <input type="text" name="dlNo" value="<%= adminUser.dlNo || '' %>" class="input-style">
-                    </div>
-                    <div style="flex:1">
-                        <label class="trans-label">MSME No.</label>
-                        <input type="text" name="msmeNo" value="<%= adminUser.msmeNo || '' %>" class="input-style">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div style="flex:1">
-                        <label class="trans-label">Contact No.</label>
-                        <input type="text" name="contactNo" value="<%= adminUser.contactNo || '' %>"
+                        <label class="trans-label">Contact Person</label>
+                        <input type="text" name="contactPerson" placeholder="Contact Person" required
                             class="input-style">
-                    </div>
-                    <div style="flex:1">
+
+                        <label class="trans-label">Email Address</label>
+                        <input type="email" name="email" placeholder="Email Address" class="input-style">
+
+                        <label class="trans-label">Total Amount (₹)</label>
+                        <input type="number" name="totalAmount" placeholder="Total Amount (₹)" required
+                            class="input-style">
+
+                        <label class="trans-label">Primary Phone (with Code)</label>
+                        <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                            <select name="countryCode" id="countryCode" class="input-style"
+                                style="width: 80px; margin-bottom: 0;">
+                                <option value="91" selected>+91</option>
+                                <option value="1">+1</option>
+                                <option value="971">+971</option>
+                            </select>
+                            <input type="text" name="localPhone" placeholder="Calling Number" required
+                                class="input-style" style="margin-bottom: 0; width: 100%;">
+                        </div>
+
+                        <label class="trans-label">WhatsApp Number (with Code)</label>
+                        <input type="text" name="whatsappNumber" placeholder="WhatsApp Number" required
+                            class="input-style">
+
+                        <label class="trans-label">Other Numbers</label>
+                        <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
+                            class="input-style">
+
+                        <label class="trans-label">First Action Date</label>
+                        <input type="text" name="nextActionDate" placeholder="Select Desire Date 📅" required
+                            class="input-style" onfocus="(this.type='date')" onblur="if(!this.value) this.type='text'">
+
+                        <button type="submit" class="btn btn-green"
+                            style="width:100%; padding: 12px; font-size: 16px; margin-top: 10px;">Save Party</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="transactionModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeTransactionModal()">&times;</span>
+                    <h3>Update Balance</h3>
+                    <p id="transCompanyName" style="font-weight:bold; color:#3498db;"></p>
+                    <form id="transactionForm" method="POST">
+                        <div class="trans-group">
+                            <label class="trans-label">➕ Add New Purchase (Increases Debt)</label>
+                            <input type="number" name="newPurchase" placeholder="Amount (₹)" class="input-style">
+                        </div>
+                        <div class="trans-group">
+                            <label class="trans-label" style="color: green;">➖ Add Payment Received (Reduces
+                                Debt)</label>
+                            <input type="number" name="payment" placeholder="Amount (₹)" class="input-style">
+                        </div>
+                        <button type="submit" class="btn btn-blue" style="width:100%; padding:10px;">Update
+                            Account</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="actionModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeActionModal()">&times;</span>
+                    <h3>Set Next Action Date</h3>
+                    <p id="modalCompanyName" style="font-weight:bold;"></p>
+                    <form id="updateDateForm" method="POST">
+                        <label class="trans-label">Select New Date:</label>
+                        <input type="date" name="nextDate" required class="input-style">
+                        <button type="submit" class="btn btn-blue" style="width:100%; margin-top:10px;">Save Next
+                            Date</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="editModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeEditModal()">&times;</span>
+                    <h3>Edit Customer Details</h3>
+                    <form id="editForm" method="POST">
+                        <label class="trans-label">Company Name</label>
+                        <input type="text" name="companyName" id="editCompany" required class="input-style">
+
+                        <label class="trans-label">Contact Person</label>
+                        <input type="text" name="contactPerson" id="editContact" required class="input-style">
+
                         <label class="trans-label">Email</label>
-                        <input type="email" name="companyEmail" value="<%= adminUser.companyEmail || '' %>"
-                            class="input-style">
-                    </div>
+                        <input type="email" name="email" id="editEmail" class="input-style">
+
+                        <div class="form-row">
+                            <div style="flex:1">
+                                <label class="trans-label">Full Phone (with Code)</label>
+                                <input type="text" name="phone" id="editPhone" required class="input-style">
+                            </div>
+                            <div style="flex:1">
+                                <label class="trans-label">Full WhatsApp (with Code)</label>
+                                <input type="text" name="whatsappNumber" id="editWhatsapp" required class="input-style">
+                            </div>
+                        </div>
+
+                        <label class="trans-label">Other Numbers</label>
+                        <input type="text" name="otherNumbers" id="editOther" class="input-style">
+
+                        <button type="submit" class="btn btn-yellow"
+                            style="width:100%; padding:10px; font-weight:bold;">Save Changes</button>
+                    </form>
                 </div>
+            </div>
 
-                <button type="submit" class="btn btn-blue"
-                    style="width:100%; padding:12px; font-weight:bold; margin-top:10px;">💾 Save Company
-                    Profile</button>
-            </form>
-        </div>
-    </div>
+            <div id="settingsModal" class="modal">
+                <div class="modal-content">
+                    <span class="close"
+                        onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
+                    <h3 style="margin-top: 0;">⚙️ Company Profile (For Excel & Messages)</h3>
+                    <p style="font-size: 12px; color: #666; margin-top: -10px;">Leave blank to omit from Excel exports.
+                    </p>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+                    <form action="/settings?_method=PUT" method="POST">
+                        <label class="trans-label">Company Name</label>
+                        <input type="text" name="companyName" value="<%= adminUser.companyName || '' %>"
+                            class="input-style">
 
-    <script>
-        // 🚨 CLICKABLE STAT CARD FILTER
-        let actionFilterActive = false;
-        function toggleActionRequiredFilter() {
-            actionFilterActive = !actionFilterActive;
-            const rows = document.querySelectorAll('.customer-row');
-            const card = document.getElementById('actionStatCard');
-            const searchInput = document.getElementById('searchInput');
+                        <label class="trans-label">Address Line 1</label>
+                        <input type="text" name="addressLine1" value="<%= adminUser.addressLine1 || '' %>"
+                            class="input-style">
 
-            if (actionFilterActive) {
-                card.style.background = '#fff3cd';
-                card.style.transform = 'scale(0.98)';
-                card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
-                searchInput.value = '';
+                        <label class="trans-label">Address Line 2</label>
+                        <input type="text" name="addressLine2" value="<%= adminUser.addressLine2 || '' %>"
+                            class="input-style">
 
-                rows.forEach(row => {
-                    if (row.getAttribute('data-action-req') === 'true') {
-                        row.style.display = '';
+                        <label class="trans-label">Address Line 3</label>
+                        <input type="text" name="addressLine3" value="<%= adminUser.addressLine3 || '' %>"
+                            class="input-style">
+
+                        <div class="form-row">
+                            <div style="flex:1">
+                                <label class="trans-label">DL No.</label>
+                                <input type="text" name="dlNo" value="<%= adminUser.dlNo || '' %>" class="input-style">
+                            </div>
+                            <div style="flex:1">
+                                <label class="trans-label">MSME No.</label>
+                                <input type="text" name="msmeNo" value="<%= adminUser.msmeNo || '' %>"
+                                    class="input-style">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div style="flex:1">
+                                <label class="trans-label">Contact No.</label>
+                                <input type="text" name="contactNo" value="<%= adminUser.contactNo || '' %>"
+                                    class="input-style">
+                            </div>
+                            <div style="flex:1">
+                                <label class="trans-label">Email</label>
+                                <input type="email" name="companyEmail" value="<%= adminUser.companyEmail || '' %>"
+                                    class="input-style">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-blue"
+                            style="width:100%; padding:12px; font-weight:bold; margin-top:10px;">💾 Save Company
+                            Profile</button>
+                    </form>
+                </div>
+            </div>
+
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+            <script>
+                // 🚨 CLICKABLE STAT CARD FILTER
+                let actionFilterActive = false;
+                function toggleActionRequiredFilter() {
+                    actionFilterActive = !actionFilterActive;
+                    const rows = document.querySelectorAll('.customer-row');
+                    const card = document.getElementById('actionStatCard');
+                    const searchInput = document.getElementById('searchInput');
+
+                    if (actionFilterActive) {
+                        card.style.background = '#fff3cd';
+                        card.style.transform = 'scale(0.98)';
+                        card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
+                        searchInput.value = '';
+
+                        rows.forEach(row => {
+                            if (row.getAttribute('data-action-req') === 'true') {
+                                row.style.display = '';
+                            } else {
+                                row.style.display = 'none';
+                            }
+                        });
                     } else {
-                        row.style.display = 'none';
+                        card.style.background = 'white';
+                        card.style.transform = 'none';
+                        card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
+
+                        rows.forEach(row => {
+                            row.style.display = '';
+                        });
                     }
-                });
-            } else {
-                card.style.background = 'white';
-                card.style.transform = 'none';
-                card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
-
-                rows.forEach(row => {
-                    row.style.display = '';
-                });
-            }
-        }
-
-        // 1. Transaction Logic
-        document.querySelectorAll('.transaction-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const id = this.getAttribute('data-id');
-                const company = this.getAttribute('data-company');
-
-                window.history.pushState({ modal: true }, '', '#pay');
-                document.getElementById('transactionModal').style.display = "block";
-                document.getElementById('transCompanyName').innerText = company;
-                document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
-            });
-        });
-
-        // 2. Reminder/Date Logic
-        document.querySelectorAll('.reminder-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const id = this.getAttribute('data-id');
-                const company = this.getAttribute('data-company');
-
-                window.history.pushState({ modal: true }, '', '#date');
-                document.getElementById('actionModal').style.display = "block";
-                document.getElementById('modalCompanyName').innerText = company;
-                document.getElementById('updateDateForm').action = `/customers/${id}/update-reminder?_method=PUT`;
-            });
-        });
-
-        // 3. Edit Logic
-        document.querySelectorAll('.edit-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const id = this.getAttribute('data-id');
-
-                document.getElementById('editCompany').value = this.getAttribute('data-company');
-                document.getElementById('editContact').value = this.getAttribute('data-contact');
-                document.getElementById('editEmail').value = this.getAttribute('data-email');
-                document.getElementById('editPhone').value = this.getAttribute('data-phone');
-                document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
-                document.getElementById('editOther').value = this.getAttribute('data-other');
-
-                window.history.pushState({ modal: true }, '', '#edit');
-                document.getElementById('editModal').style.display = "block";
-                document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
-            });
-        });
-
-        // 4. Add Party Modal
-        function openAddModal() {
-            window.history.pushState({ modal: true }, '', '#add');
-            document.getElementById('addModal').style.display = "block";
-        }
-
-        // 5. Native Close Functions
-        function closeAllModals() {
-            document.getElementById('transactionModal').style.display = "none";
-            document.getElementById('actionModal').style.display = "none";
-            document.getElementById('editModal').style.display = "none";
-            document.getElementById('addModal').style.display = "none";
-            document.getElementById('settingsModal').style.display = "none";
-        }
-
-        function closeTransactionModal() { window.history.back(); }
-        function closeActionModal() { window.history.back(); }
-        function closeEditModal() { window.history.back(); }
-        function closeAddModal() { window.history.back(); }
-
-        window.addEventListener('popstate', function (event) {
-            closeAllModals();
-        });
-
-        window.onclick = function (event) {
-            if (event.target == document.getElementById('actionModal')) closeActionModal();
-            if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
-            if (event.target == document.getElementById('editModal')) closeEditModal();
-            if (event.target == document.getElementById('addModal')) closeAddModal();
-            if (event.target == document.getElementById('settingsModal')) document.getElementById('settingsModal').style.display = "none";
-        }
-
-        // 🔍 REAL-TIME SEARCH FILTER
-        document.getElementById('searchInput').addEventListener('keyup', function () {
-            if (actionFilterActive) {
-                actionFilterActive = false;
-                const card = document.getElementById('actionStatCard');
-                card.style.background = 'white';
-                card.style.transform = 'none';
-                card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
-            }
-
-            let filter = this.value.toLowerCase();
-            let rows = document.querySelectorAll('.customer-row');
-
-            rows.forEach(row => {
-                let text = row.innerText.toLowerCase();
-                if (text.includes(filter)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
                 }
-            });
-        });
 
-        // 📄 PDF EXPORT LOGIC
-        function downloadPDF() {
-            const elementToPrint = document.createElement('div');
-            elementToPrint.innerHTML = `
+                // 1. Transaction Logic
+                document.querySelectorAll('.transaction-btn').forEach(button => {
+                    button.addEventListener('click', function () {
+                        const id = this.getAttribute('data-id');
+                        const company = this.getAttribute('data-company');
+
+                        window.history.pushState({ modal: true }, '', '#pay');
+                        document.getElementById('transactionModal').style.display = "block";
+                        document.getElementById('transCompanyName').innerText = company;
+                        document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
+                    });
+                });
+
+                // 2. Reminder/Date Logic
+                document.querySelectorAll('.reminder-btn').forEach(button => {
+                    button.addEventListener('click', function () {
+                        const id = this.getAttribute('data-id');
+                        const company = this.getAttribute('data-company');
+
+                        window.history.pushState({ modal: true }, '', '#date');
+                        document.getElementById('actionModal').style.display = "block";
+                        document.getElementById('modalCompanyName').innerText = company;
+                        document.getElementById('updateDateForm').action = `/customers/${id}/update-reminder?_method=PUT`;
+                    });
+                });
+
+                // 3. Edit Logic
+                document.querySelectorAll('.edit-btn').forEach(button => {
+                    button.addEventListener('click', function () {
+                        const id = this.getAttribute('data-id');
+
+                        document.getElementById('editCompany').value = this.getAttribute('data-company');
+                        document.getElementById('editContact').value = this.getAttribute('data-contact');
+                        document.getElementById('editEmail').value = this.getAttribute('data-email');
+                        document.getElementById('editPhone').value = this.getAttribute('data-phone');
+                        document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
+                        document.getElementById('editOther').value = this.getAttribute('data-other');
+
+                        window.history.pushState({ modal: true }, '', '#edit');
+                        document.getElementById('editModal').style.display = "block";
+                        document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
+                    });
+                });
+
+                // 4. Add Party Modal
+                function openAddModal() {
+                    window.history.pushState({ modal: true }, '', '#add');
+                    document.getElementById('addModal').style.display = "block";
+                }
+
+                // 5. Native Close Functions
+                function closeAllModals() {
+                    document.getElementById('transactionModal').style.display = "none";
+                    document.getElementById('actionModal').style.display = "none";
+                    document.getElementById('editModal').style.display = "none";
+                    document.getElementById('addModal').style.display = "none";
+                    document.getElementById('settingsModal').style.display = "none";
+                }
+
+                function closeTransactionModal() { window.history.back(); }
+                function closeActionModal() { window.history.back(); }
+                function closeEditModal() { window.history.back(); }
+                function closeAddModal() { window.history.back(); }
+
+                window.addEventListener('popstate', function (event) {
+                    closeAllModals();
+                });
+
+                window.onclick = function (event) {
+                    if (event.target == document.getElementById('actionModal')) closeActionModal();
+                    if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
+                    if (event.target == document.getElementById('editModal')) closeEditModal();
+                    if (event.target == document.getElementById('addModal')) closeAddModal();
+                    if (event.target == document.getElementById('settingsModal')) document.getElementById('settingsModal').style.display = "none";
+                }
+
+                // 🔍 REAL-TIME SEARCH FILTER
+                document.getElementById('searchInput').addEventListener('keyup', function () {
+                    if (actionFilterActive) {
+                        actionFilterActive = false;
+                        const card = document.getElementById('actionStatCard');
+                        card.style.background = 'white';
+                        card.style.transform = 'none';
+                        card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
+                    }
+
+                    let filter = this.value.toLowerCase();
+                    let rows = document.querySelectorAll('.customer-row');
+
+                    rows.forEach(row => {
+                        let text = row.innerText.toLowerCase();
+                        if (text.includes(filter)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+
+                // 📄 PDF EXPORT LOGIC
+                function downloadPDF() {
+                    const elementToPrint = document.createElement('div');
+                    elementToPrint.innerHTML = `
                 <h1 style="text-align: center; font-family: sans-serif;">Customer Financial Report</h1>
                 <h3 style="text-align: center; color: #555; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString()}</h3>
                 ${document.querySelector('.aging-card').outerHTML}
                 ${document.querySelector('table').outerHTML}
             `;
 
-            const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles, .action-buttons');
-            buttons.forEach(btn => btn.style.display = 'none');
+                    // Strips out the Checkboxes and the entire Checkbox column
+                    const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
+                    buttons.forEach(btn => btn.style.display = 'none');
 
-            const opt = {
-                margin: 0.5,
-                filename: 'Financial_Report.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
-            };
+                    const opt = {
+                        margin: 0.5,
+                        filename: 'Financial_Report.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2 },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+                    };
 
-            html2pdf().set(opt).from(elementToPrint).save();
-        }
-        // ==========================================
-            // ✅ BULK ACTION SELECTION LOGIC
-            // ==========================================
-            const selectAllBtn = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.customer-checkbox');
-            const bulkBar = document.getElementById('bulkActionBar');
-            const countText = document.getElementById('selectedCount');
-            const hiddenInputs = document.getElementById('hiddenInputs');
-
-            function updateBulkBar() {
-                const selected = Array.from(checkboxes).filter(cb => cb.checked);
-                if (selected.length > 0) {
-                    if (bulkBar) bulkBar.classList.add('visible');
-                    if (countText) countText.innerText = selected.length + ' Selected';
-                } else {
-                    if (bulkBar) bulkBar.classList.remove('visible');
+                    html2pdf().set(opt).from(elementToPrint).save();
                 }
-            }
 
-            if (selectAllBtn) {
-                selectAllBtn.addEventListener('change', function () {
-                    // Smart Select: Only select rows that are currently visible (not hidden by search!)
-                    const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
-                    visibleRows.forEach(cb => cb.checked = this.checked);
-                    updateBulkBar();
-                });
-            }
+                // ==========================================
+                // ✅ BULK ACTION SELECTION LOGIC
+                // ==========================================
+                const selectAllBtn = document.getElementById('selectAll');
+                const checkboxes = document.querySelectorAll('.customer-checkbox');
+                const bulkBar = document.getElementById('bulkActionBar');
+                const countText = document.getElementById('selectedCount');
+                const hiddenInputs = document.getElementById('hiddenInputs');
 
-            checkboxes.forEach(cb => {
-                cb.addEventListener('change', updateBulkBar);
-            });
+                function updateBulkBar() {
+                    const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                    if (selected.length > 0) {
+                        if (bulkBar) bulkBar.classList.add('visible');
+                        if (countText) countText.innerText = selected.length + ' Selected';
+                    } else {
+                        if (bulkBar) bulkBar.classList.remove('visible');
+                    }
+                }
 
-            function confirmBulkDelete() {
-                const selected = Array.from(checkboxes).filter(cb => cb.checked);
-                if (confirm(`⚠️ WARNING: You are about to permanently delete ${selected.length} parties. This cannot be undone. Proceed?`)) {
-                    hiddenInputs.innerHTML = '';
-                    selected.forEach(cb => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'customerIds';
-                        input.value = cb.value;
-                        hiddenInputs.appendChild(input);
+                if (selectAllBtn) {
+                    selectAllBtn.addEventListener('change', function () {
+                        // Smart Select: Only select rows that are currently visible
+                        const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
+                        visibleRows.forEach(cb => cb.checked = this.checked);
+                        updateBulkBar();
                     });
-                    document.getElementById('bulkForm').submit();
                 }
-            }
-    </script>
+
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', updateBulkBar);
+                });
+
+                function confirmBulkDelete() {
+                    const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                    if (confirm(`⚠️ WARNING: You are about to permanently delete ${selected.length} parties. This cannot be undone. Proceed?`)) {
+                        hiddenInputs.innerHTML = '';
+                        selected.forEach(cb => {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'customerIds';
+                            input.value = cb.value;
+                            hiddenInputs.appendChild(input);
+                        });
+                        document.getElementById('bulkForm').submit();
+                    }
+                }
+            </script>
 </body>
 
 </html>
