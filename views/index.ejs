@@ -551,34 +551,46 @@
             </div>
 
             <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h3>Excel Data Management</h3>
-
-                <a href="/export"
-                    style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-bottom: 10px;">
-                    📥 Download All to Excel
-                </a>
-
+                <h3>Data Management</h3>
+            
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <a href="/export"
+                        style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                        📥 Export to Excel
+                    </a>
+            
+                    <button onclick="downloadPDF()"
+                        style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px;">
+                        📄 Export to PDF
+                    </button>
+                </div>
+            
                 <hr style="border-top: 1px solid #ccc;">
-
+            
                 <form action="/import" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
-                    <label for="excelFile"><strong>Upload Excel File:</strong></label>
-                    <input type="file" name="excelFile" accept=".xlsx, .xls" required style="margin-right: 10px;">
+                    <label for="excelFile"><strong>Upload Tally/Busy Excel:</strong></label>
+                    <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required style="margin-right: 10px;">
                     <button type="submit"
                         style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer;">
                         📤 Import Data
                     </button>
-                    <br>
-                    <small style="color: #666;">Note: Columns must match: "Company Name", "Contact Person", "Phone
-                        Number", "Total Due", "Paid Amount"</small>
                 </form>
             </div>
 
-            <% let totalPending=0; let missingContactsCount=0; let highRiskAmount=0; let buckets={ u30: 0, d30_60: 0,
-                d60_90: 0, d90_120: 0, d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; customers.forEach(c=> {
-                // Subtracts what they paid so the dashboard shows the true Due Amount!
-                totalPending += (c.totalAmount - c.paidAmount);
-                if (!c.phone && !c.whatsappNumber) missingContactsCount++;
-
+            <% let totalPending=0; let actionRequiredCount=0; // New Counter let highRiskAmount=0; let buckets={ u30: 0, d30_60: 0,
+                d60_90: 0, d90_120: 0, d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; // Server time check for accurate counting
+                const nowServer=new Date(); const todayServer=new Date(nowServer.getFullYear(), nowServer.getMonth(),
+                nowServer.getDate()); customers.forEach(c=> {
+                const due = c.totalAmount - c.paidAmount;
+                totalPending += due; // Adjusted to reflect true pending
+            
+                // Check if Action is Required
+                const nextDate = c.nextActionDate ? new Date(c.nextActionDate) : new Date();
+                const target = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
+                if (due > 0 && todayServer >= target) {
+                actionRequiredCount++;
+                }
+            
                 // Add up company-wide aging
                 if (c.aging) {
                 buckets.u30 += (c.aging.under30 || 0);
@@ -591,16 +603,10 @@
                 buckets.onAcc += (c.aging.onAccount || 0);
                 }
                 });
-
-                // Anything older than 120 days is High Risk
+            
                 highRiskAmount = buckets.d120_150 + buckets.d150_180 + buckets.a180;
-
-                // Find the biggest bucket so we can scale the progress bars visually
-                const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120,
-                buckets.d120_150,
+                const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120, buckets.d120_150,
                 buckets.d150_180, buckets.a180) || 1;
-
-                // Helper to format money beautifully
                 const formatMoney = (amt) => 'INR ' + amt.toLocaleString('en-IN');
                 %>
 
@@ -615,9 +621,12 @@
                         <div class="stat-value">₹<%= totalPending.toLocaleString('en-IN') %>
                         </div>
                     </div>
-                    <div class="stat-card warning">
-                        <div class="stat-title">Missing Contacts</div>
-                        <div class="stat-value">⚠️ <%= missingContactsCount %>
+                    <div class="stat-card warning" id="actionStatCard" onclick="toggleActionRequiredFilter()"
+                        style="cursor: pointer; transition: 0.3s; position: relative;">
+                        <div class="stat-title">Action Required</div>
+                        <div class="stat-value">⚠️ <%= actionRequiredCount %>
+                        </div>
+                        <div style="font-size: 11px; color: #d35400; margin-top: 5px; font-weight: bold;">Click to view list &rarr;
                         </div>
                     </div>
                 </div>
@@ -734,7 +743,7 @@
                                     ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
                                     const encodedMsg = encodeURIComponent(msg);
                                     %>
-                                    <tr>
+                                    <tr data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
                                         <td class="desktop-only">
                                             <strong>
                                                 <%= customer.companyName %>
@@ -1140,6 +1149,83 @@
                 }
             });
         });
+        // 🚨 CLICKABLE STAT CARD FILTER
+        let actionFilterActive = false;
+        function toggleActionRequiredFilter() {
+            actionFilterActive = !actionFilterActive;
+            const rows = document.querySelectorAll('tbody tr');
+            const card = document.getElementById('actionStatCard');
+            const searchInput = document.getElementById('searchInput');
+
+            if (actionFilterActive) {
+                // Highlight the card to show filter is ON
+                card.style.background = '#fff3cd';
+                card.style.transform = 'scale(0.98)';
+                card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
+                
+                // Clear out the search bar
+                searchInput.value = '';
+
+                // Hide safe rows, show action rows
+                rows.forEach(row => {
+                    if (row.getAttribute('data-action-req') === 'true') {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            } else {
+                // Reset card and show everyone
+                card.style.background = 'white';
+                card.style.transform = 'none';
+                card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
+                
+                rows.forEach(row => {
+                    row.style.display = ''; 
+                });
+            }
+        }
+
+        // Smart Search Override: If they type in the search bar, turn off the action filter automatically
+        document.getElementById('searchInput').addEventListener('keyup', function () {
+            if (actionFilterActive) {
+                actionFilterActive = false;
+                const card = document.getElementById('actionStatCard');
+                card.style.background = 'white';
+                card.style.transform = 'none';
+                card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
+            }
+        });
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        function downloadPDF() {
+            // 1. Target the table and the aging buckets to capture
+            const elementToPrint = document.createElement('div');
+            elementToPrint.innerHTML = `
+                    <h1 style="text-align: center; font-family: sans-serif;">Customer Financial Report</h1>
+                    <h3 style="text-align: center; color: #555; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString()}</h3>
+                    ${document.querySelector('.aging-card').outerHTML}
+                    ${document.querySelector('table').outerHTML}
+                `;
+
+            // 2. Hide the action buttons in the PDF so it looks like a clean report
+            const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles');
+            buttons.forEach(btn => btn.style.display = 'none');
+
+            // 3. Configure PDF settings
+            const opt = {
+                margin: 0.5,
+                filename: 'Financial_Report.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            // 4. Generate and Download!
+            html2pdf().set(opt).from(elementToPrint).save();
+        }
     </script>
 </body>
 

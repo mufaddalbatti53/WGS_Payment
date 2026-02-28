@@ -293,71 +293,90 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
 });
 
 // --- EXPORT TO EXCEL ROUTE ---
+// --- EXPORT TO EXCEL ROUTE (EXACT TALLY FORMAT CLONE) ---
 app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Customer Master', {
-            views: [{ state: 'frozen', ySplit: 2 }]
+        const worksheet = workbook.addWorksheet('Sundry Debtors');
+
+        // 1. Tally Company Header Information (Rows 1 to 11)
+        worksheet.addRow(['Maktronic Medical LLP']);
+        worksheet.addRow(['Unit No.3,Retiwala Industrial Estate']);
+        worksheet.addRow(['H.A.Palav Marg,Chinchpokli Cross Lane,']);
+        worksheet.addRow(['Byculla,Mumbai -400027']);
+        worksheet.addRow(['DL NO.20B-223067/21B-223068']);
+        worksheet.addRow(['MSME UDYAM REG NO.UDYAM-MH-19-0119755']);
+        worksheet.addRow(['CONTACT NO: 022-23732271/022-23702278']);
+        worksheet.addRow(['E-Mail : maktronicmedical2017@gmail.com']);
+        worksheet.addRow(['Sundry Debtors']);
+        worksheet.addRow(['Group Outstandings']);
+
+        // Dynamic Date Range for the current financial year
+        const currentYear = new Date().getFullYear();
+        const dateRange = `1-Apr-${currentYear - 1} to 31-Mar-${currentYear}`;
+        worksheet.addRow([dateRange]);
+
+        // 2. The Multi-Layered Tally Headers (Rows 12 to 16)
+        worksheet.addRow(['', '', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors']);
+        worksheet.addRow(['', '', '', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', '', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP', 'Maktronic Medical LLP']);
+
+        // Row 14: Main Identifiers
+        worksheet.addRow(['Particulars', 'Contact Person', 'Telephone No.', dateRange, dateRange, dateRange, '', dateRange, dateRange, dateRange, dateRange, dateRange, dateRange]);
+
+        // Row 15: The Actual Bucket Names
+        worksheet.addRow(['', '', '', 'Pending Bills', '(< 30 days )', '30 to 60 days', '', '60 to 90 days', '90 to 120 days', '120 to 150 days', '150 to 180 days', '(> 180 days )', 'On Account']);
+
+        // Row 16: Debit/Credit Indicators
+        worksheet.addRow(['', '', '', 'Debit', 'Debit', 'Debit', 'Credit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit']);
+
+        // Row 17: Tally always leaves a blank spacer row before data
+        worksheet.addRow([]);
+
+        // 3. Match Tally's exact Column Widths
+        worksheet.getColumn(1).width = 45; // Particulars (Company Name)
+        worksheet.getColumn(2).width = 25; // Contact Person
+        worksheet.getColumn(3).width = 15; // Telephone No
+        for (let i = 4; i <= 13; i++) {
+            worksheet.getColumn(i).width = 15; // All financial columns
+        }
+
+        // 4. Populate the Data Rows
+        customers.forEach((c) => {
+            const aging = c.aging || {};
+
+            worksheet.addRow([
+                c.companyName || '',
+                c.contactPerson || '',
+                c.phone ? String(c.phone) : '',
+                c.totalAmount || 0,          // Pending Bills
+                aging.under30 || '',         // (< 30 days )
+                aging.days30to60 || '',      // 30 to 60 days
+                '',                          // Credit column (Empty gap in Tally)
+                aging.days60to90 || '',      // 60 to 90 days
+                aging.days90to120 || '',     // 90 to 120 days
+                aging.days120to150 || '',    // 120 to 150 days
+                aging.days150to180 || '',    // 150 to 180 days
+                aging.above180 || '',        // (> 180 days )
+                aging.onAccount || ''        // On Account
+            ]);
         });
 
-        worksheet.mergeCells('A1:H1');
-        const titleCell = worksheet.getCell('A1');
-        titleCell.value = '📊 CUSTOMER FINANCIAL STATEMENT  |  Generated on: ' + new Date().toLocaleDateString('en-IN');
-        titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-        titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
-        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-
-        worksheet.getRow(2).values = [
-            'Company Name', 'Contact Person', 'Email Address',
-            'Phone Number', 'WhatsApp Number', 'Total Due', 'Paid Amount', 'Next Action Date'
-        ];
-
-        worksheet.columns = [
-            { key: 'companyName', width: 30 },
-            { key: 'contactPerson', width: 25 },
-            { key: 'email', width: 35 },
-            { key: 'phone', width: 25, style: { numFmt: '@' } },
-            { key: 'whatsappNumber', width: 25, style: { numFmt: '@' } },
-            { key: 'totalAmount', width: 20, style: { numFmt: '₹#,##0.00' } },
-            { key: 'paidAmount', width: 20, style: { numFmt: '₹#,##0.00' } },
-            { key: 'nextActionDate', width: 20 }
-        ];
-
-        worksheet.getRow(2).eachCell((cell) => {
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF27AE60' } };
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-        });
-
-        customers.forEach((c, index) => {
-            const row = worksheet.addRow({
-                companyName: c.companyName || '',
-                contactPerson: c.contactPerson || '',
-                email: c.email || '',
-                phone: c.phone ? String(c.phone) : '',
-                whatsappNumber: c.whatsappNumber ? String(c.whatsappNumber) : '',
-                totalAmount: c.totalAmount || 0,
-                paidAmount: c.paidAmount || 0,
-                nextActionDate: c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : ''
-            });
-
-            const isEven = index % 2 === 0;
-            row.eachCell((cell, colNumber) => {
-                cell.border = { top: { style: 'thin', color: { argb: 'FFEEEEEE' } }, bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
-                if (isEven) {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9F9F9' } };
-                }
-                cell.alignment = { vertical: 'middle', horizontal: 'left' };
-                if (colNumber === 6 || colNumber === 7) {
-                    cell.alignment = { vertical: 'middle', horizontal: 'right' };
-                }
-            });
+        // 5. Apply basic text alignment (Numbers right, Text left)
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 17) {
+                row.eachCell((cell, colNumber) => {
+                    if (colNumber > 3) {
+                        cell.alignment = { horizontal: 'right' };
+                    } else {
+                        cell.alignment = { horizontal: 'left' };
+                    }
+                });
+            }
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="Customer_Master_List.xlsx"');
+        res.setHeader('Content-Disposition', 'attachment; filename="Sundry_Debtors_Export.xlsx"');
 
         await workbook.xlsx.write(res);
         res.end();
@@ -368,8 +387,8 @@ app.get('/export', requireLogin, async (req, res) => {
     }
 });
 
-
 // --- SMART ACCOUNTING IMPORTER (TALLY / BUSY COMPATIBLE) ---
+// --- SMART TALLY IMPORTER (ARRAY MAPPED) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -377,56 +396,61 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // 1. SMART SCAN: Find where the actual table headers start
+        // THE FIX: Read the Excel file purely as an Array of columns (header: 1), ignoring header names completely!
         const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-        let headerRowIndex = 0;
+        let importedCount = 0;
 
-        for (let i = 0; i < Math.min(20, rawData.length); i++) {
-            const rowString = JSON.stringify(rawData[i]).toLowerCase();
-            if (rowString.includes('particulars') || rowString.includes('party name') || rowString.includes('company')) {
-                headerRowIndex = i;
-                break;
+        for (let i = 0; i < rawData.length; i++) {
+            const row = rawData[i];
+
+            // Col 0 is the Company Name
+            const partyName = row[0] ? String(row[0]).trim() : '';
+
+            // Skip the top junk rows, empty rows, and Tally totals
+            if (!partyName ||
+                partyName.toLowerCase() === 'particulars' ||
+                partyName.toLowerCase() === 'grand total' ||
+                partyName.toLowerCase().includes('maktronic') ||
+                partyName === 'Sundry Debtors') {
+                continue;
             }
-        }
 
-        const importedData = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex });
-
-        for (let row of importedData) {
-            const partyName = row['Particulars'] || row['Party Name'] || row['Company Name'];
-            if (!partyName || String(partyName).trim().toLowerCase() === 'grand total') continue;
-
+            // Money Cleaner Helper
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
 
-            // THE FIX: Matches exact Tally export spacing
+            // THE COLUMN MAP: We grab exactly from the column numbers based on your Tally file
+            const contactPerson = row[1] ? String(row[1]).trim() : '';
+            const phone = row[2] ? String(row[2]).trim() : '';
+            const totalPending = cleanMoney(row[3]); // Column D (Index 3)
+
             const agingData = {
-                under30: cleanMoney(row['(< 30 days )'] || row['< 30 Days'] || row['0-30 Days']),
-                days30to60: cleanMoney(row['30 to 60 days'] || row['30-60 Days']),
-                days60to90: cleanMoney(row['60 to 90 days'] || row['60-90 Days']),
-                days90to120: cleanMoney(row['90 to 120 days'] || row['90-120 Days']),
-                days120to150: cleanMoney(row['120 to 150 days'] || row['120-150 Days']),
-                days150to180: cleanMoney(row['150 to 180 days'] || row['150-180 Days']),
-                above180: cleanMoney(row['(> 180 days )'] || row['> 180 Days']),
-                onAccount: cleanMoney(row['On Account'] || row['Unadjusted'])
+                under30: cleanMoney(row[4]),        // Column E (Index 4)
+                days30to60: cleanMoney(row[5]),     // Column F (Index 5)
+                // Index 6 is an empty gap column in Tally, so we skip it!
+                days60to90: cleanMoney(row[7]),     // Column H (Index 7)
+                days90to120: cleanMoney(row[8]),    // Column I (Index 8)
+                days120to150: cleanMoney(row[9]),   // Column J (Index 9)
+                days150to180: cleanMoney(row[10]),  // Column K (Index 10)
+                above180: cleanMoney(row[11]),      // Column L (Index 11)
+                onAccount: cleanMoney(row[12])      // Column M (Index 12)
             };
 
-            let totalPending = cleanMoney(row['Closing Balance'] || row['Pending Amount'] || row['Total Due']);
-            if (totalPending === 0) {
-                totalPending = Object.values(agingData).reduce((a, b) => a + b, 0);
-            }
-
+            // Save to Database
             await Customer.findOneAndUpdate(
                 { companyName: partyName, adminId: req.session.adminId },
                 {
-                    contactPerson: row['Contact Person'] || '',
-                    phone: String(row['Phone'] || row['Phone Number'] || ''),
+                    contactPerson: contactPerson,
+                    phone: phone,
                     totalAmount: totalPending,
                     aging: agingData
                 },
                 { upsert: true, returnDocument: 'after' }
             );
+
+            importedCount++;
         }
 
-        await logActivity(req, "Excel Import", `Imported ${importedData.length} records from Accounting Export.`);
+        await logActivity(req, "Excel Import", `Imported ${importedCount} records from Tally Array Map.`);
         res.redirect('/');
 
     } catch (err) {
