@@ -24,7 +24,6 @@
             align-items: center;
             margin-bottom: 25px;
             flex-wrap: wrap;
-            /* Safe on tiny mobile screens */
             gap: 15px;
         }
 
@@ -40,7 +39,6 @@
             font-size: 14px;
             border: 1px solid #cbd5e1;
             border-radius: 20px;
-            /* Premium pill shape */
             outline: none;
             width: 220px;
             background: #f8fafc;
@@ -62,7 +60,6 @@
             color: white;
             border: none;
             border-radius: 20px;
-            /* Matches the search bar */
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(39, 174, 96, 0.2);
             text-decoration: none;
@@ -505,7 +502,6 @@
                 justify-content: center;
             }
 
-            /* Mobile adjustment for new search header */
             .search-micro {
                 width: 100%;
             }
@@ -552,21 +548,21 @@
 
             <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                 <h3>Data Management</h3>
-            
+
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <a href="/export"
                         style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold;">
                         📥 Export to Excel
                     </a>
-            
+
                     <button onclick="downloadPDF()"
                         style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px;">
                         📄 Export to PDF
                     </button>
                 </div>
-            
+
                 <hr style="border-top: 1px solid #ccc;">
-            
+
                 <form action="/import" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
                     <label for="excelFile"><strong>Upload Tally/Busy Excel:</strong></label>
                     <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required style="margin-right: 10px;">
@@ -577,21 +573,21 @@
                 </form>
             </div>
 
-            <% let totalPending=0; let actionRequiredCount=0; // New Counter let highRiskAmount=0; let buckets={ u30: 0, d30_60: 0,
-                d60_90: 0, d90_120: 0, d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; // Server time check for accurate counting
-                const nowServer=new Date(); const todayServer=new Date(nowServer.getFullYear(), nowServer.getMonth(),
-                nowServer.getDate()); customers.forEach(c=> {
+            <% let totalPending=0; let actionRequiredCount=0; let highRiskAmount=0; let buckets={ u30: 0, d30_60: 0,
+                d60_90: 0, d90_120: 0, d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; const nowServer=new Date(); const
+                todayServer=new Date(nowServer.getFullYear(), nowServer.getMonth(), nowServer.getDate());
+                customers.forEach(c=> {
                 const due = c.totalAmount - c.paidAmount;
-                totalPending += due; // Adjusted to reflect true pending
-            
-                // Check if Action is Required
+                totalPending += due;
+
+                // Action Required Counter
                 const nextDate = c.nextActionDate ? new Date(c.nextActionDate) : new Date();
                 const target = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
                 if (due > 0 && todayServer >= target) {
                 actionRequiredCount++;
                 }
-            
-                // Add up company-wide aging
+
+                // Tally Aging Additions
                 if (c.aging) {
                 buckets.u30 += (c.aging.under30 || 0);
                 buckets.d30_60 += (c.aging.days30to60 || 0);
@@ -603,10 +599,10 @@
                 buckets.onAcc += (c.aging.onAccount || 0);
                 }
                 });
-            
+
                 highRiskAmount = buckets.d120_150 + buckets.d150_180 + buckets.a180;
-                const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120, buckets.d120_150,
-                buckets.d150_180, buckets.a180) || 1;
+                const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120,
+                buckets.d120_150, buckets.d150_180, buckets.a180) || 1;
                 const formatMoney = (amt) => 'INR ' + amt.toLocaleString('en-IN');
                 %>
 
@@ -626,8 +622,8 @@
                         <div class="stat-title">Action Required</div>
                         <div class="stat-value">⚠️ <%= actionRequiredCount %>
                         </div>
-                        <div style="font-size: 11px; color: #d35400; margin-top: 5px; font-weight: bold;">Click to view list &rarr;
-                        </div>
+                        <div style="font-size: 11px; color: #d35400; margin-top: 5px; font-weight: bold;">Click to view
+                            list &rarr;</div>
                     </div>
                 </div>
 
@@ -734,8 +730,7 @@
                                     const diffTime = Math.abs(today - target);
                                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                                     const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days past
-                                    the set action date.` :
-                                    "";
+                                    the set action date.` : "";
 
                                     const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from
                                     ${customer.companyName}. This is a gentle reminder. You have previously paid
@@ -743,7 +738,8 @@
                                     ₹${due}.${daysText} Please arrange the payment at your earliest convenience.`;
                                     const encodedMsg = encodeURIComponent(msg);
                                     %>
-                                    <tr data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
+                                    <tr class="customer-row"
+                                        data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
                                         <td class="desktop-only">
                                             <strong>
                                                 <%= customer.companyName %>
@@ -803,7 +799,8 @@
 
                                         <td class="desktop-only">
                                             <% if (due> 0 && isDueForReminder) { %>
-                                                <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                                                <div class="action-buttons"
+                                                    style="display:flex; gap:10px; margin-bottom: 10px;">
                                                     <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
                                                         target="_blank"
                                                         style="width:34px; height:34px; border-radius:50%; border:2px solid #e67e22; display:flex; align-items:center; justify-content:center; text-decoration:none;">
@@ -1055,14 +1052,51 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <script>
+        // 🚨 CLICKABLE STAT CARD FILTER
+        let actionFilterActive = false;
+        function toggleActionRequiredFilter() {
+            actionFilterActive = !actionFilterActive;
+            const rows = document.querySelectorAll('.customer-row');
+            const card = document.getElementById('actionStatCard');
+            const searchInput = document.getElementById('searchInput');
+
+            if (actionFilterActive) {
+                // Highlight the card
+                card.style.background = '#fff3cd';
+                card.style.transform = 'scale(0.98)';
+                card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
+                searchInput.value = '';
+
+                // Filter rows
+                rows.forEach(row => {
+                    if (row.getAttribute('data-action-req') === 'true') {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            } else {
+                // Reset card
+                card.style.background = 'white';
+                card.style.transform = 'none';
+                card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
+
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
+            }
+        }
+
         // 1. Transaction Logic
         document.querySelectorAll('.transaction-btn').forEach(button => {
             button.addEventListener('click', function () {
                 const id = this.getAttribute('data-id');
                 const company = this.getAttribute('data-company');
 
-                window.history.pushState({ modal: true }, '', '#pay'); // Drops the fake breadcrumb
+                window.history.pushState({ modal: true }, '', '#pay');
                 document.getElementById('transactionModal').style.display = "block";
                 document.getElementById('transCompanyName').innerText = company;
                 document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
@@ -1075,7 +1109,7 @@
                 const id = this.getAttribute('data-id');
                 const company = this.getAttribute('data-company');
 
-                window.history.pushState({ modal: true }, '', '#date'); // Drops the fake breadcrumb
+                window.history.pushState({ modal: true }, '', '#date');
                 document.getElementById('actionModal').style.display = "block";
                 document.getElementById('modalCompanyName').innerText = company;
                 document.getElementById('updateDateForm').action = `/customers/${id}/update-reminder?_method=PUT`;
@@ -1094,7 +1128,7 @@
                 document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
                 document.getElementById('editOther').value = this.getAttribute('data-other');
 
-                window.history.pushState({ modal: true }, '', '#edit'); // Drops the fake breadcrumb
+                window.history.pushState({ modal: true }, '', '#edit');
                 document.getElementById('editModal').style.display = "block";
                 document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
             });
@@ -1102,7 +1136,7 @@
 
         // 4. Add Party Modal
         function openAddModal() {
-            window.history.pushState({ modal: true }, '', '#add'); // Drops the fake breadcrumb
+            window.history.pushState({ modal: true }, '', '#add');
             document.getElementById('addModal').style.display = "block";
         }
 
@@ -1119,15 +1153,10 @@
         function closeEditModal() { window.history.back(); }
         function closeAddModal() { window.history.back(); }
 
-        // ==========================================
-        // 🚨 THE HIJACK: LISTENING FOR THE BACK BUTTON
-        // ==========================================
         window.addEventListener('popstate', function (event) {
-            // When the physical back button is pressed, instantly close all popups!
             closeAllModals();
         });
 
-        // Close on dark background click
         window.onclick = function (event) {
             if (event.target == document.getElementById('actionModal')) closeActionModal();
             if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
@@ -1137,57 +1166,7 @@
 
         // 🔍 REAL-TIME SEARCH FILTER
         document.getElementById('searchInput').addEventListener('keyup', function () {
-            let filter = this.value.toLowerCase();
-            let rows = document.querySelectorAll('tbody tr'); // Grabs all desktop & mobile rows
-
-            rows.forEach(row => {
-                let text = row.innerText.toLowerCase();
-                if (text.includes(filter)) {
-                    row.style.display = ''; // Show
-                } else {
-                    row.style.display = 'none'; // Hide
-                }
-            });
-        });
-        // 🚨 CLICKABLE STAT CARD FILTER
-        let actionFilterActive = false;
-        function toggleActionRequiredFilter() {
-            actionFilterActive = !actionFilterActive;
-            const rows = document.querySelectorAll('tbody tr');
-            const card = document.getElementById('actionStatCard');
-            const searchInput = document.getElementById('searchInput');
-
-            if (actionFilterActive) {
-                // Highlight the card to show filter is ON
-                card.style.background = '#fff3cd';
-                card.style.transform = 'scale(0.98)';
-                card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
-                
-                // Clear out the search bar
-                searchInput.value = '';
-
-                // Hide safe rows, show action rows
-                rows.forEach(row => {
-                    if (row.getAttribute('data-action-req') === 'true') {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            } else {
-                // Reset card and show everyone
-                card.style.background = 'white';
-                card.style.transform = 'none';
-                card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
-                
-                rows.forEach(row => {
-                    row.style.display = ''; 
-                });
-            }
-        }
-
-        // Smart Search Override: If they type in the search bar, turn off the action filter automatically
-        document.getElementById('searchInput').addEventListener('keyup', function () {
+            // Turn off action filter if they start typing
             if (actionFilterActive) {
                 actionFilterActive = false;
                 const card = document.getElementById('actionStatCard');
@@ -1195,26 +1174,34 @@
                 card.style.transform = 'none';
                 card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
             }
-        });
-    </script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script>
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll('.customer-row');
+
+            rows.forEach(row => {
+                let text = row.innerText.toLowerCase();
+                if (text.includes(filter)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        // 📄 PDF EXPORT LOGIC
         function downloadPDF() {
-            // 1. Target the table and the aging buckets to capture
             const elementToPrint = document.createElement('div');
             elementToPrint.innerHTML = `
-                    <h1 style="text-align: center; font-family: sans-serif;">Customer Financial Report</h1>
-                    <h3 style="text-align: center; color: #555; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString()}</h3>
-                    ${document.querySelector('.aging-card').outerHTML}
-                    ${document.querySelector('table').outerHTML}
-                `;
+                <h1 style="text-align: center; font-family: sans-serif;">Customer Financial Report</h1>
+                <h3 style="text-align: center; color: #555; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString()}</h3>
+                ${document.querySelector('.aging-card').outerHTML}
+                ${document.querySelector('table').outerHTML}
+            `;
 
-            // 2. Hide the action buttons in the PDF so it looks like a clean report
-            const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles');
+            // Hide action buttons in PDF
+            const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles, .action-buttons');
             buttons.forEach(btn => btn.style.display = 'none');
 
-            // 3. Configure PDF settings
             const opt = {
                 margin: 0.5,
                 filename: 'Financial_Report.pdf',
@@ -1223,7 +1210,6 @@
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
             };
 
-            // 4. Generate and Download!
             html2pdf().set(opt).from(elementToPrint).save();
         }
     </script>
