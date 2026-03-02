@@ -14,21 +14,13 @@
         /* ========================================= */
         :root {
             --primary: #27ae60;
-            /* Emerald Green */
             --primary-dark: #219653;
-            /* Deep Green */
             --primary-light: #eafff0;
-            /* Light Green */
             --secondary: #3498db;
-            /* Ocean Blue */
             --secondary-dark: #2980b9;
-            /* Deep Blue */
             --bg-color: #f4f6f9;
-            /* Cool Off-White */
             --text-dark: #2c3e50;
-            /* Slate Blue */
             --text-muted: #64748b;
-            /* Slate Gray */
             --card-bg: #ffffff;
             --shadow-soft: 0 10px 30px rgba(44, 62, 80, 0.06);
             --shadow-hover: 0 20px 40px rgba(44, 62, 80, 0.12);
@@ -895,13 +887,23 @@
 
                                             const adminCompany = adminUser.companyName || "our company";
                                             const contactName = customer.contactPerson || "Sir/Madam";
-                                            const msg = "Hello " + contactName + " from " + customer.companyName +
-                                            ",\n\nThis is a gentle payment reminder from " + adminCompany + ".\n\n📊
-                                            *Account Summary:*\n- Total Bill Amount: ₹" + customer.totalAmount + "\n-
-                                            Total Amount Paid: " + paidText + "\n- Current Outstanding Due: *₹" + due +
-                                            "*\n\n" + (daysText ? "_" + daysText + "_\n\n" : "") + "Please arrange the
-                                            payment for the pending amount at your earliest convenience.\n\nThank
-                                            you,\n" + adminCompany;
+
+                                            // 🚨 ERROR-FREE STRING GENERATION
+                                            let msgArray = [
+                                            "Hello " + contactName + " from " + customer.companyName + ",",
+                                            "",
+                                            "This is a gentle payment reminder from " + adminCompany + ".",
+                                            "",
+                                            "📊 *Account Summary:*",
+                                            "- Total Bill Amount: ₹" + customer.totalAmount,
+                                            "- Total Amount Paid: " + paidText,
+                                            "- Current Outstanding Due: *₹" + due + "*",
+                                            ""
+                                            ];
+                                            if (daysText) msgArray.push("_" + daysText + "_", "");
+                                            msgArray.push("Please arrange the payment for the pending amount at your
+                                            earliest convenience.", "", "Thank you,", adminCompany);
+                                            const msg = msgArray.join('\n');
                                             const encodedMsg = encodeURIComponent(msg);
                                             %>
                                             <tr class="customer-row"
@@ -993,12 +995,15 @@
                                                                         style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
                                                                         <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
                                                                             target="_blank"
+                                                                            onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                             style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
                                                                                 src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
                                                                                 width="16" height="16"></a>
                                                                         <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
+                                                                            onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                             style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
                                                                         <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                                            onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                             style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
                                                                     </div>
                                                                     <% } %>
@@ -1106,14 +1111,17 @@
                                                                                     <div class="m-circles">
                                                                                         <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
                                                                                             target="_blank"
+                                                                                            onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                             class="m-circle"
                                                                                             style="background: #dcfce7; border-color: #bbf7d0;"><img
                                                                                                 src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
                                                                                                 alt="WA" width="22"
                                                                                                 height="22"></a>
                                                                                         <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
+                                                                                            onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                             class="m-circle">💬</a>
                                                                                         <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                                                            onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                             class="m-circle">📧</a>
                                                                                     </div>
                                                                                     <% } %>
@@ -1221,7 +1229,7 @@
                 <div class="modal-content">
                     <span class="close" onclick="closeTransactionModal()">&times;</span>
                     <h3 style="margin-top: 0; color: var(--text-dark);">💳 Update Balance</h3>
-                    <p id="transCompanyName" style="font-weight:bold; color:var(--primary); margin-bottom: 20px;"></p>
+                    <p id="transCompanyName" style="font-weight:bold; color:var(--secondary); margin-bottom: 20px;"></p>
                     <form id="transactionForm" method="POST">
                         <div class="trans-group"
                             style="background: #fdf2f8; border-color: #fbcfe8; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid;">
@@ -1245,7 +1253,7 @@
                 <div class="modal-content">
                     <span class="close" onclick="closeActionModal()">&times;</span>
                     <h3 style="margin-top: 0; color: var(--text-dark);">📅 Snooze / Set Date</h3>
-                    <p id="modalCompanyName" style="font-weight:bold; color:var(--primary);"></p>
+                    <p id="modalCompanyName" style="font-weight:bold; color:var(--secondary);"></p>
                     <form id="updateDateForm" method="POST">
                         <label class="trans-label">Select Next Reminder Date:</label>
                         <input type="date" name="nextDate" required class="input-style">
@@ -1316,6 +1324,28 @@
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
+                // 🚨 NEW LOGIC: Instant UI Hide + Backend Ping
+                function triggerAutoSnooze(element, customerId) {
+                    // 1. Hide the icons container instantly
+                    const container1 = element.closest('.action-buttons');
+                    const container2 = element.closest('.m-circles');
+                    if (container1) container1.style.display = 'none';
+                    if (container2) container2.style.display = 'none';
+
+                    // 2. Hide the "Action Required" badge instantly
+                    const row = element.closest('tr');
+                    if (row) {
+                        const warnings = row.querySelectorAll('div, span');
+                        warnings.forEach(w => {
+                            if (w.innerText.includes('Action Required')) w.style.display = 'none';
+                        });
+                    }
+
+                    // 3. Ping the server to snooze by 10 days
+                    fetch(`/customers/${customerId}/auto-snooze`, { method: 'POST' })
+                        .catch(err => console.error("Snooze failed:", err));
+                }
+
                 let actionFilterActive = false;
                 function toggleActionRequiredFilter() {
                     actionFilterActive = !actionFilterActive;

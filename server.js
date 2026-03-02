@@ -154,41 +154,38 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-// 2. DASHBOARD (WITH SMART SCOPING)
+// 🚨 NEW ENDPOINT: Triggered when WhatsApp/SMS/Email is clicked
+app.post('/customers/:id/auto-snooze', async (req, res) => {
+    try {
+        const customer = await Customer.findById(req.params.id);
+        if (customer) {
+            const newDate = new Date();
+            newDate.setDate(newDate.getDate() + 10); // Add 10 days automatically
+            customer.nextActionDate = newDate;
+            await customer.save();
+
+            // Log this action so you know who sent the reminder
+            const Activity = require('./models/Activity');
+            await Activity.create({
+                adminId: req.session.adminId,
+                userId: req.session.userId,
+                username: req.session.role.toUpperCase(),
+                action: "Reminder Sent",
+                details: `Sent payment reminder to ${customer.companyName}. Auto-snoozed for 10 days.`
+            });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Auto-Snooze Error:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+// 🚨 UPDATED DASHBOARD (Removed the blind midnight auto-rollover)
 app.get('/', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
     try {
-        let allCustomers = [];
-
-        // 🚨 THE FIX: If it's a customer, ONLY load their own specific profile!
-        if (req.session.role === 'customer') {
-            const myCustomer = await Customer.findById(req.session.userId);
-            if (myCustomer) allCustomers = [myCustomer];
-        } else {
-            allCustomers = await Customer.find({ adminId: req.session.adminId });
-        }
-
-        const todayMidnight = new Date();
-        todayMidnight.setHours(0, 0, 0, 0);
-
-        // Auto-Rollover Engine
-        for (let c of allCustomers) {
-            const due = c.totalAmount - c.paidAmount;
-            if (due > 0 && c.nextActionDate) {
-                const actionDate = new Date(c.nextActionDate);
-                actionDate.setHours(0, 0, 0, 0);
-
-                if (todayMidnight > actionDate) {
-                    const newDate = new Date();
-                    newDate.setDate(newDate.getDate() + 10);
-                    c.nextActionDate = newDate;
-                    await c.save();
-                }
-            }
-        }
-
-        // Re-fetch the clean data for the UI
         let finalCustomers = [];
         if (req.session.role === 'customer') {
             finalCustomers = await Customer.find({ _id: req.session.userId }).lean();
