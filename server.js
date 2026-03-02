@@ -85,11 +85,34 @@ app.get('/login', (req, res) => {
 
 app.post('/login', async (req, res) => {
     try {
+        // 🚨 THE FIX: CUSTOMER LOGIN (No Password Needed)
+        if (req.body.type === 'customer') {
+            // Strip out any spaces or characters from the input
+            const phoneRaw = req.body.phone.replace(/[^0-9]/g, '');
+
+            // Search the Customer database for a matching phone number
+            const customer = await Customer.findOne({
+                phone: { $regex: new RegExp(phoneRaw + '$') }
+            });
+
+            if (!customer) {
+                return res.render('login', { error: "No account found with this phone number." });
+            }
+
+            // Log them in as a Customer!
+            req.session.userId = customer._id;
+            req.session.role = 'customer';
+            req.session.adminId = customer.adminId; // Needed to load your company logo/header
+
+            return res.redirect('/');
+        }
+
+        // 🚨 EXISTING STAFF/ADMIN LOGIN (Requires Password)
         const { username, password } = req.body;
         const user = await User.findOne({ username });
 
         if (!user) {
-            return res.send("Invalid username or password. Please try again.");
+            return res.render('login', { error: "Invalid username or password." });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -97,15 +120,10 @@ app.post('/login', async (req, res) => {
         if (isMatch) {
             req.session.userId = user._id;
             req.session.role = user.role;
-
-            if (user.role === 'admin') {
-                req.session.adminId = user._id;
-            } else if (user.role === 'staff') {
-                req.session.adminId = user.adminId;
-            }
-            res.redirect('/');
+            req.session.adminId = user.role === 'admin' ? user._id : user.adminId;
+            return res.redirect('/');
         } else {
-            res.send("Invalid username or password. Please try again.");
+            return res.render('login', { error: "Invalid username or password." });
         }
     } catch (error) {
         console.error("Login Error:", error);
@@ -136,42 +154,54 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-// 2. DASHBOARD (WITH SMART 1-DAY SNOOZE ENGINE)
+// 2. DASHBOARD (WITH SMART SCOPING)
 app.get('/', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
-    
+
     try {
-        // 1. Fetch all customers first to run the engine
-        const allCustomers = await Customer.find({ adminId: req.session.adminId });
-        
+        let allCustomers = [];
+
+        // 🚨 THE FIX: If it's a customer, ONLY load their own specific profile!
+        if (req.session.role === 'customer') {
+            const myCustomer = await Customer.findById(req.session.userId);
+            if (myCustomer) allCustomers = [myCustomer];
+        } else {
+            allCustomers = await Customer.find({ adminId: req.session.adminId });
+        }
+
         const todayMidnight = new Date();
         todayMidnight.setHours(0, 0, 0, 0);
 
-        // 2. THE AUTO-ROLLOVER ENGINE
-        // If an action date is 1 day in the past AND they still owe money, roll it forward 10 days.
+        // Auto-Rollover Engine
         for (let c of allCustomers) {
             const due = c.totalAmount - c.paidAmount;
             if (due > 0 && c.nextActionDate) {
                 const actionDate = new Date(c.nextActionDate);
                 actionDate.setHours(0, 0, 0, 0);
-                
+
                 if (todayMidnight > actionDate) {
                     const newDate = new Date();
-                    newDate.setDate(newDate.getDate() + 10); // Push 10 days into the future
+                    newDate.setDate(newDate.getDate() + 10);
                     c.nextActionDate = newDate;
-                    await c.save(); // Save the new snoozed date
+                    await c.save();
                 }
             }
         }
 
-        // 3. Re-fetch the clean, updated data to render the screen
-        const finalCustomers = await Customer.find({ adminId: req.session.adminId }).lean();
+        // Re-fetch the clean data for the UI
+        let finalCustomers = [];
+        if (req.session.role === 'customer') {
+            finalCustomers = await Customer.find({ _id: req.session.userId }).lean();
+        } else {
+            finalCustomers = await Customer.find({ adminId: req.session.adminId }).lean();
+        }
+
         const adminUser = await User.findById(req.session.adminId).lean() || {};
 
-        res.render('index', { 
-            customers: finalCustomers, 
+        res.render('index', {
+            customers: finalCustomers,
             role: req.session.role,
-            adminUser: adminUser 
+            adminUser: adminUser
         });
     } catch (err) {
         console.error("Dashboard Error:", err);
