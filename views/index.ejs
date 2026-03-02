@@ -378,17 +378,6 @@
                 padding: 10px 5px !important;
             }
 
-            .mobile-stack-buttons {
-                flex-direction: column !important;
-                width: 100%;
-            }
-
-            .mobile-stack-buttons a,
-            .mobile-stack-buttons button {
-                width: 100% !important;
-                margin-bottom: 10px;
-            }
-
             table,
             thead,
             tbody,
@@ -712,15 +701,15 @@
                 </form>
             </div>
 
-            <% let totalPending=0; let actionRequiredCount=0; let highRiskAmount=0; let buckets={ u30: 0, d30_60: 0,
-                d60_90: 0, d90_120: 0, d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; const nowServer=new Date(); const
-                todayServer=new Date(nowServer.getFullYear(), nowServer.getMonth(), nowServer.getDate());
-                customers.forEach(c=> {
-                const due = c.totalAmount - c.paidAmount;
-                totalPending += due;
-                const nextDate = c.nextActionDate ? new Date(c.nextActionDate) : new Date();
-                const target = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
-                if (due > 0 && todayServer >= target) { actionRequiredCount++; }
+            <% var totalPending=0; var actionRequiredCount=0; var buckets={ u30: 0, d30_60: 0, d60_90: 0, d90_120: 0,
+                d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; var td2=new Date(); td2.setHours(0,0,0,0);
+                customers.forEach(function(c) { var due=c.totalAmount - c.paidAmount; totalPending +=due; if
+                (c.nextActionDate) { var nd2=new Date(c.nextActionDate); nd2.setHours(0,0,0,0); if (due> 0 && td2 >=
+                nd2) { actionRequiredCount++; }
+                } else if (due > 0) {
+                actionRequiredCount++;
+                }
+
                 if (c.aging) {
                 buckets.u30 += (c.aging.under30 || 0); buckets.d30_60 += (c.aging.days30to60 || 0); buckets.d60_90 +=
                 (c.aging.days60to90 || 0);
@@ -729,10 +718,9 @@
                 buckets.a180 += (c.aging.above180 || 0); buckets.onAcc += (c.aging.onAccount || 0);
                 }
                 });
-                highRiskAmount = buckets.d120_150 + buckets.d150_180 + buckets.a180;
-                const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120,
-                buckets.d120_150, buckets.d150_180, buckets.a180) || 1;
-                const formatMoney = (amt) => '₹ ' + amt.toLocaleString('en-IN');
+                var maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120, buckets.d120_150,
+                buckets.d150_180, buckets.a180) || 1;
+                function formatMoney(amt) { return '₹ ' + amt.toLocaleString('en-IN'); }
                 %>
 
                 <div class="stats-grid">
@@ -745,7 +733,7 @@
                     <div class="stat-card alert">
                         <div class="stat-title">Total Pending Bills</div>
                         <div class="stat-value" style="color: #b91c1c;">
-                            <%= totalPending.toLocaleString('en-IN') %>
+                            <%= formatMoney(totalPending) %>
                         </div>
                     </div>
                     <div class="stat-card warning action-btn" id="actionStatCard"
@@ -863,48 +851,39 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% customers.forEach(customer=> {
-                                            const due = customer.totalAmount - customer.paidAmount;
-                                            const now = new Date();
-                                            const nextDate = customer.nextActionDate ? new Date(customer.nextActionDate)
-                                            : new Date();
-                                            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                                            const target = new Date(nextDate.getFullYear(), nextDate.getMonth(),
-                                            nextDate.getDate());
-                                            const isDueForReminder = today >= target;
-
-                                            const diffTime = Math.abs(today - target);
-                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                            const daysText = (isDueForReminder && diffDays > 0) ? " It is " + diffDays +
-                                            " days past the set action date." : "";
-
-                                            let paidText = "₹" + customer.paidAmount;
-                                            if (customer.paidAmount > 0 && customer.lastPaymentDate) {
-                                            const lastPaidDateStr = new
-                                            Date(customer.lastPaymentDate).toLocaleDateString('en-IN');
-                                            paidText += " (Last paid on: " + lastPaidDateStr + ")";
+                                        <% customers.forEach(function(customer) { var due=customer.totalAmount -
+                                            customer.paidAmount; var isDueForReminder=false; var daysText="" ; var
+                                            nextDateString="--" ; if (customer.nextActionDate) { var nd=new
+                                            Date(customer.nextActionDate); var td=new Date(); nd.setHours(0,0,0,0);
+                                            td.setHours(0,0,0,0); nextDateString=nd.toLocaleDateString('en-IN',
+                                            {day: 'numeric' , month: 'short' , year: 'numeric' }); if (td>= nd) {
+                                            isDueForReminder = true;
+                                            var diff = Math.floor((td - nd) / (1000 * 60 * 60 * 24));
+                                            if (diff > 0) {
+                                            daysText = " It is " + diff + " days past the set action date.";
+                                            }
+                                            }
+                                            } else {
+                                            isDueForReminder = true;
                                             }
 
-                                            const adminCompany = adminUser.companyName || "our company";
-                                            const contactName = customer.contactPerson || "Sir/Madam";
+                                            var paidText = "Rs " + customer.paidAmount;
+                                            if (customer.paidAmount > 0 && customer.lastPaymentDate) {
+                                            paidText += " (Last paid: " + new
+                                            Date(customer.lastPaymentDate).toLocaleDateString('en-IN') + ")";
+                                            }
 
-                                            // 🚨 ERROR-FREE STRING GENERATION
-                                            let msgArray = [
-                                            "Hello " + contactName + " from " + customer.companyName + ",",
-                                            "",
-                                            "This is a gentle payment reminder from " + adminCompany + ".",
-                                            "",
-                                            "📊 *Account Summary:*",
-                                            "- Total Bill Amount: ₹" + customer.totalAmount,
-                                            "- Total Amount Paid: " + paidText,
-                                            "- Current Outstanding Due: *₹" + due + "*",
-                                            ""
-                                            ];
-                                            if (daysText) msgArray.push("_" + daysText + "_", "");
-                                            msgArray.push("Please arrange the payment for the pending amount at your
-                                            earliest convenience.", "", "Thank you,", adminCompany);
-                                            const msg = msgArray.join('\n');
-                                            const encodedMsg = encodeURIComponent(msg);
+                                            var cName = customer.companyName || "Customer";
+                                            var pName = customer.contactPerson || "Sir/Madam";
+                                            var aName = adminUser.companyName || "Our Company";
+
+                                            var rawMsg = "Hello " + pName + " from " + cName + ",%0A%0AThis is a gentle payment reminder from " + aName + ".
+                                            %0A%0A*Account Summary:
+                                            *%0A- Bill Amount: Rs " + customer.totalAmount + "%0A- 
+                                            Paid: " + paidText + "%0A- 
+                                            Due: *Rs " + due + "*%0A%0A" + (daysText ? "_" + daysText + "_%0A%0A" : "") +
+                                            "Please arrange payment at your earliest convenience.%0A%0AThank you,%0A" +
+                                            aName;
                                             %>
                                             <tr class="customer-row"
                                                 data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
@@ -939,8 +918,7 @@
                                                                     <%= customer.whatsappNumber %></a><br>
                                                                 <% } %>
                                                                     <% if (customer.otherNumbers) { %>
-                                                                        <%
-                                                                            customer.otherNumbers.split(',').forEach(num=>
+                                                                        <% customer.otherNumbers.split(',').forEach(function(num)
                                                                             { %>
                                                                             <% if(num.trim() !=="" ) { %><strong
                                                                                     style="color: #cbd5e1;">O:</strong>
@@ -974,9 +952,7 @@
                                                             <td class="desktop-only">
                                                                 <% if (due> 0) { %>
                                                                     <div style="font-weight: 600;">
-                                                                        <%= nextDate.toLocaleDateString('en-IN',
-                                                                            {day: 'numeric' , month: 'short' ,
-                                                                            year: 'numeric' }) %>
+                                                                        <%= nextDateString %>
                                                                     </div>
                                                                     <% if (isDueForReminder) { %>
                                                                         <div
@@ -993,16 +969,16 @@
                                                                 <% if (due> 0 && isDueForReminder) { %>
                                                                     <div class="action-buttons"
                                                                         style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
-                                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
+                                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= rawMsg %>"
                                                                             target="_blank"
                                                                             onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                             style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
                                                                                 src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
                                                                                 width="16" height="16"></a>
-                                                                        <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
+                                                                        <a href="sms:+<%= customer.phone %>?body=<%= rawMsg %>"
                                                                             onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                             style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
-                                                                        <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                                        <a href="mailto:<%= customer.email %>?subject=Payment Reminder&body=<%= rawMsg %>"
                                                                             onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                             style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
                                                                     </div>
@@ -1096,9 +1072,7 @@
                                                                                 style="font-size: 13px; color: var(--text-muted); padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
                                                                                 📅 Action Date: <strong
                                                                                     style="color:var(--text-dark);">
-                                                                                    <%= nextDate.toLocaleDateString('en-IN',
-                                                                                        {day: 'numeric' , month: 'short'
-                                                                                        }) %>
+                                                                                    <%= nextDateString %>
                                                                                 </strong>
                                                                                 <% if (isDueForReminder) { %> <span
                                                                                         style="color:white; background: #ef4444; padding: 2px 8px; border-radius: 10px; font-weight:bold; float:right; font-size: 11px;">Action
@@ -1109,7 +1083,7 @@
 
                                                                                 <% if (due> 0 && isDueForReminder) { %>
                                                                                     <div class="m-circles">
-                                                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
+                                                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= rawMsg %>"
                                                                                             target="_blank"
                                                                                             onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                             class="m-circle"
@@ -1117,10 +1091,10 @@
                                                                                                 src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
                                                                                                 alt="WA" width="22"
                                                                                                 height="22"></a>
-                                                                                        <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
+                                                                                        <a href="sms:+<%= customer.phone %>?body=<%= rawMsg %>"
                                                                                             onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                             class="m-circle">💬</a>
-                                                                                        <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                                                        <a href="mailto:<%= customer.email %>?subject=Payment Reminder&body=<%= rawMsg %>"
                                                                                             onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                             class="m-circle">📧</a>
                                                                                     </div>
@@ -1324,34 +1298,30 @@
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
-                // 🚨 NEW LOGIC: Instant UI Hide + Backend Ping
                 function triggerAutoSnooze(element, customerId) {
-                    // 1. Hide the icons container instantly
-                    const container1 = element.closest('.action-buttons');
-                    const container2 = element.closest('.m-circles');
+                    var container1 = element.closest('.action-buttons');
+                    var container2 = element.closest('.m-circles');
                     if (container1) container1.style.display = 'none';
                     if (container2) container2.style.display = 'none';
 
-                    // 2. Hide the "Action Required" badge instantly
-                    const row = element.closest('tr');
+                    var row = element.closest('tr');
                     if (row) {
-                        const warnings = row.querySelectorAll('div, span');
-                        warnings.forEach(w => {
+                        var warnings = row.querySelectorAll('div, span');
+                        warnings.forEach(function (w) {
                             if (w.innerText.includes('Action Required')) w.style.display = 'none';
                         });
                     }
 
-                    // 3. Ping the server to snooze by 10 days
-                    fetch(`/customers/${customerId}/auto-snooze`, { method: 'POST' })
-                        .catch(err => console.error("Snooze failed:", err));
+                    fetch('/customers/' + customerId + '/auto-snooze', { method: 'POST' })
+                        .catch(function (err) { console.error("Snooze failed:", err); });
                 }
 
-                let actionFilterActive = false;
+                var actionFilterActive = false;
                 function toggleActionRequiredFilter() {
                     actionFilterActive = !actionFilterActive;
-                    const rows = document.querySelectorAll('.customer-row');
-                    const card = document.getElementById('actionStatCard');
-                    const searchInput = document.getElementById('searchInput');
+                    var rows = document.querySelectorAll('.customer-row');
+                    var card = document.getElementById('actionStatCard');
+                    var searchInput = document.getElementById('searchInput');
 
                     if (actionFilterActive) {
                         card.style.background = '#f0f9ff';
@@ -1359,7 +1329,7 @@
                         card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
                         if (searchInput) searchInput.value = '';
 
-                        rows.forEach(row => {
+                        rows.forEach(function (row) {
                             if (row.getAttribute('data-action-req') === 'true') row.style.display = '';
                             else row.style.display = 'none';
                         });
@@ -1367,29 +1337,29 @@
                         card.style.background = 'white';
                         card.style.transform = 'none';
                         card.style.boxShadow = 'var(--shadow-soft)';
-                        rows.forEach(row => row.style.display = '');
+                        rows.forEach(function (row) { row.style.display = ''; });
                     }
                 }
 
-                document.querySelectorAll('.transaction-btn').forEach(button => {
+                document.querySelectorAll('.transaction-btn').forEach(function (button) {
                     button.addEventListener('click', function () {
                         window.history.pushState({ modal: true }, '', '#pay');
                         document.getElementById('transactionModal').style.display = "block";
                         document.getElementById('transCompanyName').innerText = this.getAttribute('data-company');
-                        document.getElementById('transactionForm').action = `/customers/${this.getAttribute('data-id')}/transaction?_method=PUT`;
+                        document.getElementById('transactionForm').action = '/customers/' + this.getAttribute('data-id') + '/transaction?_method=PUT';
                     });
                 });
 
-                document.querySelectorAll('.reminder-btn').forEach(button => {
+                document.querySelectorAll('.reminder-btn').forEach(function (button) {
                     button.addEventListener('click', function () {
                         window.history.pushState({ modal: true }, '', '#date');
                         document.getElementById('actionModal').style.display = "block";
                         document.getElementById('modalCompanyName').innerText = this.getAttribute('data-company');
-                        document.getElementById('updateDateForm').action = `/customers/${this.getAttribute('data-id')}/update-reminder?_method=PUT`;
+                        document.getElementById('updateDateForm').action = '/customers/' + this.getAttribute('data-id') + '/update-reminder?_method=PUT';
                     });
                 });
 
-                document.querySelectorAll('.edit-btn').forEach(button => {
+                document.querySelectorAll('.edit-btn').forEach(function (button) {
                     button.addEventListener('click', function () {
                         document.getElementById('editCompany').value = this.getAttribute('data-company');
                         document.getElementById('editContact').value = this.getAttribute('data-contact');
@@ -1399,7 +1369,7 @@
                         document.getElementById('editOther').value = this.getAttribute('data-other');
                         window.history.pushState({ modal: true }, '', '#edit');
                         document.getElementById('editModal').style.display = "block";
-                        document.getElementById('editForm').action = `/customers/${this.getAttribute('data-id')}/edit?_method=PUT`;
+                        document.getElementById('editForm').action = '/customers/' + this.getAttribute('data-id') + '/edit?_method=PUT';
                     });
                 });
 
@@ -1409,7 +1379,7 @@
                 }
 
                 function closeAllModals() {
-                    document.querySelectorAll('.modal').forEach(m => m.style.display = "none");
+                    document.querySelectorAll('.modal').forEach(function (m) { m.style.display = "none"; });
                 }
 
                 function closeTransactionModal() { window.history.back(); }
@@ -1425,39 +1395,34 @@
                     }
                 }
 
-                const searchInput = document.getElementById('searchInput');
+                var searchInput = document.getElementById('searchInput');
                 if (searchInput) {
                     searchInput.addEventListener('keyup', function () {
                         if (actionFilterActive) toggleActionRequiredFilter();
-                        let filter = this.value.toLowerCase();
-                        document.querySelectorAll('.customer-row').forEach(row => {
-                            let text = row.innerText.toLowerCase();
+                        var filter = this.value.toLowerCase();
+                        document.querySelectorAll('.customer-row').forEach(function (row) {
+                            var text = row.innerText.toLowerCase();
                             row.style.display = text.includes(filter) ? '' : 'none';
                         });
                     });
                 }
 
                 function downloadPDF() {
-                    const elementToPrint = document.createElement('div');
-                    elementToPrint.innerHTML = `
-                <h1 style="text-align: center; font-family: sans-serif; color: #1e293b;">Customer Financial Report</h1>
-                <h3 style="text-align: center; color: #64748b; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString('en-IN')}</h3>
-                ${document.querySelector('.aging-card').outerHTML}
-                ${document.querySelector('table').outerHTML}
-            `;
-                    elementToPrint.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]').forEach(el => el.style.display = 'none');
+                    var elementToPrint = document.createElement('div');
+                    elementToPrint.innerHTML = '<h1 style="text-align: center; color: #1e293b;">Customer Financial Report</h1><h3 style="text-align: center; color: #64748b;">Generated: ' + new Date().toLocaleDateString('en-IN') + '</h3>' + document.querySelector('.aging-card').outerHTML + document.querySelector('table').outerHTML;
+                    elementToPrint.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]').forEach(function (el) { el.style.display = 'none'; });
                     html2pdf().set({ margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } }).from(elementToPrint).save();
                 }
 
                 // Bulk Delete Logic
-                const selectAllBtn = document.getElementById('selectAll');
-                const checkboxes = document.querySelectorAll('.customer-checkbox');
-                const bulkBar = document.getElementById('bulkActionBar');
-                const countText = document.getElementById('selectedCount');
-                const hiddenInputs = document.getElementById('hiddenInputs');
+                var selectAllBtn = document.getElementById('selectAll');
+                var checkboxes = document.querySelectorAll('.customer-checkbox');
+                var bulkBar = document.getElementById('bulkActionBar');
+                var countText = document.getElementById('selectedCount');
+                var hiddenInputs = document.getElementById('hiddenInputs');
 
                 function updateBulkBar() {
-                    const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                    var selected = Array.from(checkboxes).filter(function (cb) { return cb.checked; });
                     if (selected.length > 0) {
                         if (bulkBar) bulkBar.classList.add('visible');
                         if (countText) countText.innerText = selected.length + ' Selected';
@@ -1468,19 +1433,20 @@
 
                 if (selectAllBtn) {
                     selectAllBtn.addEventListener('change', function () {
-                        document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox').forEach(cb => cb.checked = this.checked);
+                        var checked = this.checked;
+                        document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox').forEach(function (cb) { cb.checked = checked; });
                         updateBulkBar();
                     });
                 }
 
-                checkboxes.forEach(cb => { cb.addEventListener('change', updateBulkBar); });
+                checkboxes.forEach(function (cb) { cb.addEventListener('change', updateBulkBar); });
 
                 function confirmBulkDelete() {
-                    const selected = Array.from(checkboxes).filter(cb => cb.checked);
-                    if (confirm(`⚠️ WARNING: You are about to permanently delete ${selected.length} parties. Proceed?`)) {
+                    var selected = Array.from(checkboxes).filter(function (cb) { return cb.checked; });
+                    if (confirm("⚠️ WARNING: You are about to permanently delete " + selected.length + " parties. Proceed?")) {
                         hiddenInputs.innerHTML = '';
-                        selected.forEach(cb => {
-                            const input = document.createElement('input');
+                        selected.forEach(function (cb) {
+                            var input = document.createElement('input');
                             input.type = 'hidden'; input.name = 'customerIds'; input.value = cb.value;
                             hiddenInputs.appendChild(input);
                         });
