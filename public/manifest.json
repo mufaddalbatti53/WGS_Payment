@@ -1,19 +1,16 @@
 {
     "name": "WGS Payment Manager",
-    "short_name": "WGS Payment Manager",
+    "short_name": "WGS Payment",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#27ae60",
+    "background_color": "#fdfbf7",
+    "theme_color": "#f97316",
     "icons": [
         {
             "src": "/images/WGS.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         }
     ]
-
 }
-
-
-

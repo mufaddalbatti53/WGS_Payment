@@ -3,49 +3,78 @@
 
 <head>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#27ae60">
+    <meta name="theme-color" content="#f97316">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="apple-touch-icon" href="/images/logo.png">
     <meta charset="UTF-8">
     <title>Login Portal</title>
     <style>
+        :root {
+            --primary: #f97316;
+            /* Bright Orange */
+            --primary-dark: #ea580c;
+            /* Deep Orange */
+            --bg-color: #fdfbf7;
+            /* Warm Off-White */
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --shadow-soft: 0 12px 35px rgba(234, 88, 12, 0.08);
+            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #2c3e50;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-color);
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .login-container {
             background: white;
-            width: 350px;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 380px;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid rgba(249, 115, 22, 0.1);
             text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--text-dark);
+            font-weight: 800;
+            font-size: 26px;
+            margin-bottom: 25px;
         }
 
         .tabs {
             display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f1f5f9;
         }
 
         .tab {
             cursor: pointer;
-            padding: 10px;
+            padding: 10px 0 12px 0;
             width: 50%;
-            color: #777;
+            color: var(--text-muted);
             font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s ease;
         }
 
         .tab.active {
-            border-bottom: 3px solid #27ae60;
-            color: #2c3e50;
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary-dark);
+            margin-bottom: -2px;
+            /* Keeps it flush with the border */
         }
 
         .form-box {
@@ -54,22 +83,45 @@
 
         .form-box.active {
             display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .input-group {
-            margin: 10px 0;
+            margin: 15px 0;
             position: relative;
         }
 
         input {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 14px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
             box-sizing: border-box;
+            font-size: 14px;
+            background: #f8fafc;
+            transition: all 0.3s ease;
+            outline: none;
+            color: var(--text-dark);
         }
 
-        /* The Eye Icon Style */
+        input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+        }
+
         .toggle-password {
             position: absolute;
             right: 15px;
@@ -77,40 +129,70 @@
             transform: translateY(-50%);
             cursor: pointer;
             font-size: 18px;
-            color: #777;
+            color: var(--text-muted);
             user-select: none;
-            /* Prevents highlighting the icon */
         }
 
         button {
             width: 100%;
-            padding: 12px;
-            background: #27ae60;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 25px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
-            margin-top: 10px;
+            margin-top: 15px;
+            box-shadow: var(--shadow-btn);
+            transition: all 0.2s ease;
         }
 
         button:hover {
-            background: #219150;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+        }
+
+        .btn-customer {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-customer:hover {
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
         }
 
         .alert {
-            color: red;
+            color: #ef4444;
             font-size: 13px;
-            margin-bottom: 10px;
+            font-weight: bold;
+            background: #fee2e2;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .link-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
         }
 
         .link {
-            display: block;
-            margin-top: 15px;
             font-size: 12px;
-            color: #3498db;
+            color: var(--text-muted);
             text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .link:hover {
+            color: var(--primary-dark);
+        }
+
+        .link-forgot {
+            color: var(--primary);
         }
     </style>
 </head>
@@ -118,17 +200,17 @@
 <body>
 
     <div class="login-container">
-        <h2>Login Portal</h2>
+        <h2>Welcome Back</h2>
 
         <div class="tabs">
             <div class="tab active" onclick="switchTab('staff')">Admin / Staff</div>
-            <div class="tab" onclick="switchTab('customer')">Customer</div>
+            <div class="tab" onclick="switchTab('customer')">Customer View</div>
         </div>
 
         <% if (error) { %>
-            <p class="alert">
-                <%= error %>
-            </p>
+            <div class="alert">
+                ⚠️ <%= error %>
+            </div>
             <% } %>
 
                 <div id="staff" class="form-box active">
@@ -144,22 +226,25 @@
                             <span class="toggle-password" onclick="togglePassword()">👁️</span>
                         </div>
 
-                        <button type="submit">Login</button>
-                        <a href="/forgot-password" style="font-size: 11px; float: right; margin-top: 5px; color: #777;">Forgot Password?</a>
+                        <button type="submit">Sign In</button>
+
+                        <div class="link-row">
+                            <a href="/register" class="link">Create Admin</a>
+                            <a href="/forgot-password" class="link link-forgot">Forgot Password?</a>
+                        </div>
                     </form>
-                    <a href="/register" class="link">Admin? Create Account</a>
                 </div>
 
                 <div id="customer" class="form-box">
                     <form action="/login" method="POST">
                         <input type="hidden" name="type" value="customer">
                         <div class="input-group">
-                            <input type="text" name="phone" placeholder="Enter Phone Number (e.g. 9198...)" required>
+                            <input type="text" name="phone" placeholder="Enter Phone (e.g. 9198...)" required>
                         </div>
-                        <button type="submit" style="background: #3498db;">Track My Payment</button>
+                        <button type="submit" class="btn-customer">Track My Payment</button>
                     </form>
-                    <p style="font-size: 11px; color: #777; margin-top: 10px;">
-                        *Enter number exactly as given to owner.
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; line-height: 1.5;">
+                        *Please enter the exact phone number registered with your vendor, including the country code.
                     </p>
                 </div>
 
@@ -173,22 +258,20 @@
             event.target.classList.add('active');
         }
 
-        // TOGGLE PASSWORD VISIBILITY
         function togglePassword() {
             const passwordInput = document.getElementById('passwordInput');
             const icon = document.querySelector('.toggle-password');
 
             if (passwordInput.type === 'password') {
-                passwordInput.type = 'text'; // Show Password
-                icon.innerText = '🔒'; // Change icon to Lock (or use '🙈')
+                passwordInput.type = 'text';
+                icon.innerText = '🔒';
             } else {
-                passwordInput.type = 'password'; // Hide Password
-                icon.innerText = '👁️'; // Change icon back to Eye
+                passwordInput.type = 'password';
+                icon.innerText = '👁️';
             }
         }
     </script>
 
 </body>
-
 
 </html>

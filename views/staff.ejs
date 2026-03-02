@@ -5,77 +5,206 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Manage Staff</title>
-    <meta name="theme-color" content="#27ae60">
+    <meta name="theme-color" content="#f97316">
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            padding: 20px;
-            background: #f4f4f9;
+        /* ========================================= */
+        /* 🎨 GLOBAL & THEME (ORANGE BASE)           */
+        /* ========================================= */
+        :root {
+            --primary: #f97316;
+            /* Bright Orange */
+            --primary-dark: #ea580c;
+            /* Deep Orange */
+            --primary-light: #fff7ed;
+            /* Very Light Orange background */
+            --bg-color: #fdfbf7;
+            /* Warm Off-White for body */
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --card-bg: #ffffff;
+            --shadow-soft: 0 10px 30px rgba(234, 88, 12, 0.06);
+            --shadow-hover: 0 20px 40px rgba(234, 88, 12, 0.12);
+            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
         }
 
-       .container { 
-            max-width: 800px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 16px; /* Much rounder */
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08); /* Deep, soft floating shadow */
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+        }
+
+        .main-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 50px;
+        }
+
+        /* The completely reimagined floating card class */
+        .floating-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 25px;
+            border: 1px solid rgba(249, 115, 22, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .back-link {
+            display: inline-block;
+            text-decoration: none;
+            color: var(--primary-dark);
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 8px 15px;
+            background: var(--primary-light);
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+
+        .back-link:hover {
+            background: #ffedd5;
         }
 
         h1 {
-            margin-top: 0;
+            margin-top: 10px;
+            margin-bottom: 25px;
+            color: var(--text-dark);
+            font-size: 28px;
+            font-weight: 800;
         }
 
-        .btn {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+        /* ========================================= */
+        /* 🟠 BUTTONS & INPUTS                       */
+        /* ========================================= */
+        .input-style {
+            padding: 12px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            font-size: 14px;
+            background: #f8fafc;
+            transition: all 0.2s;
+            outline: none;
+            color: var(--text-dark);
+        }
+
+        .input-style:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            text-decoration: none;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
             font-weight: bold;
+            cursor: pointer;
+            box-shadow: var(--shadow-btn);
+            transition: all 0.2s ease;
+            width: 100%;
+            font-size: 15px;
         }
 
-        .btn-blue {
-            background: #3498db;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
         }
 
         .btn-red {
-            background: #e74c3c;
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .btn-green {
-            background: #27ae60;
+        .btn-red:hover {
+            background: #dc2626;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
         }
 
-        .input-style {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
+        .btn-blue {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        /* Desktop Table */
+        .btn-blue:hover {
+            background: #2563eb;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+        }
+
+        /* ========================================= */
+        /* 📋 TABLE STYLING                          */
+        /* ========================================= */
         table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
         }
 
         th {
-            background: #eee;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: bold;
+            padding: 15px 12px;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
         }
 
-        /* Mobile Card View */
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        td {
+            padding: 15px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .role-badge {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid #fed7aa;
+            display: inline-block;
+        }
+
+        /* ========================================= */
+        /* 📱 MOBILE VIEW ("UTH KE AANA" EFFECT)     */
+        /* ========================================= */
         @media screen and (max-width: 768px) {
 
             table,
@@ -93,21 +222,6 @@
                 display: none;
             }
 
-            tr { 
-                background: #fff; 
-                border: 2px solid #3498db; 
-                border-radius: 16px; /* Much rounder */
-                margin-bottom: 20px; 
-                padding: 15px; 
-                position: relative; 
-                /* Tinted blue shadow to make the staff card float */
-                box-shadow: 0 8px 24px rgba(52, 152, 219, 0.15); 
-            }
-            td {
-                border: none !important;
-                padding: 5px 0 !important;
-            }
-
             .desktop-only {
                 display: none !important;
             }
@@ -116,19 +230,62 @@
                 display: block !important;
             }
 
+            .floating-card {
+                padding: 20px;
+            }
+
+            /* The Mobile "Floating" Staff Card */
+            tr {
+                background: #ffffff;
+                border-radius: 20px;
+                margin-bottom: 20px;
+                padding: 20px;
+                border: 1px solid rgba(249, 115, 22, 0.1);
+                box-shadow: 0 12px 35px rgba(234, 88, 12, 0.12);
+                /* Massive Orange Shadow */
+            }
+
+            td {
+                border: none !important;
+                padding: 0 !important;
+            }
+
             .staff-card-header {
                 font-size: 18px;
-                font-weight: bold;
-                color: #333;
-                margin-bottom: 10px;
-                border-bottom: 1px solid #eee;
-                padding-bottom: 5px;
+                font-weight: 800;
+                color: var(--text-dark);
+                margin-bottom: 15px;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 12px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .reset-form {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 15px;
+                background: #f8fafc;
+                padding: 15px;
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+            }
+
+            .reset-form .input-style {
+                margin-bottom: 0;
+                flex: 2;
+            }
+
+            .reset-form .btn-blue {
+                flex: 1;
+                padding: 12px 0;
+                border-radius: 10px;
             }
 
             .staff-actions {
                 display: flex;
                 gap: 10px;
-                margin-top: 15px;
             }
 
             .staff-actions form {
@@ -138,6 +295,9 @@
 
             .staff-actions button {
                 width: 100%;
+                padding: 12px 0;
+                font-size: 14px;
+                border-radius: 10px;
             }
         }
 
@@ -150,83 +310,88 @@
 </head>
 
 <body>
-    <div class="container">
-        <a href="/" style="text-decoration: none; color: #3498db; font-weight: bold;">&larr; Back to Dashboard</a>
-        <h1 style="margin-top: 15px;">👤 Manage Staff</h1>
+    <div class="main-wrapper">
+        <a href="/" class="back-link">&larr; Back to Dashboard</a>
+        <h1>👤 Manage Staff</h1>
 
-        <div
-            style="background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 1px solid #eee;">
-            <h3>Create New Staff Account</h3>
+        <div class="floating-card" style="background: #fffaf5; border-color: #ffedd5;">
+            <h3 style="margin-top: 0; color: var(--text-dark); font-size: 18px; margin-bottom: 15px;">Create New Staff
+                Account</h3>
             <form action="/create-staff" method="POST">
                 <input type="text" name="username" placeholder="Staff Username" required class="input-style">
-                <input type="text" name="password" placeholder="Staff Password" required class="input-style">
-                <button type="submit" class="btn btn-green" style="width: 100%;">Create Account</button>
+                <input type="text" name="password" placeholder="Staff Password" required class="input-style"
+                    style="margin-bottom: 20px;">
+                <button type="submit" class="btn-primary">Create Account</button>
             </form>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Reset Password</th>
-                    <th>Delete</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% staffMembers.forEach(staff=> { %>
+        <div class="floating-card" style="padding: 0; overflow-x: auto;">
+            <table style="margin-top: 0;">
+                <thead>
                     <tr>
-                        <td class="desktop-only"><strong>
-                                <%= staff.username %>
-                            </strong></td>
-                        <td class="desktop-only"><span
-                                style="background: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px;">
-                                <%= staff.role.toUpperCase() %>
-                            </span></td>
-                        <td class="desktop-only">
-                            <form action="/reset-staff-password" method="POST" style="display:flex; gap:5px;">
-                                <input type="hidden" name="staffId" value="<%= staff._id %>">
-                                <input type="text" name="newPassword" placeholder="New Password" required
-                                    style="padding:5px; border:1px solid #ccc; border-radius:4px;">
-                                <button type="submit" class="btn btn-blue" style="padding: 5px 10px;">Reset</button>
-                            </form>
-                        </td>
-                        <td class="desktop-only">
-                            <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST"
-                                onsubmit="return confirm('Delete this staff member permanently?');">
-                                <button type="submit" class="btn btn-red" style="padding: 5px 10px;">Delete</button>
-                            </form>
-                        </td>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Reset Password</th>
+                        <th style="text-align: right; padding-right: 20px;">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% staffMembers.forEach(staff=> { %>
+                        <tr>
+                            <td class="desktop-only">
+                                <strong style="font-size: 15px; color: var(--text-dark);">
+                                    <%= staff.username %>
+                                </strong>
+                            </td>
+                            <td class="desktop-only">
+                                <span class="role-badge">
+                                    <%= staff.role.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td class="desktop-only">
+                                <form action="/reset-staff-password" method="POST"
+                                    style="display:flex; gap:8px; align-items: center;">
+                                    <input type="hidden" name="staffId" value="<%= staff._id %>">
+                                    <input type="text" name="newPassword" placeholder="New Password" required
+                                        class="input-style" style="margin-bottom: 0; max-width: 200px;">
+                                    <button type="submit" class="btn-blue">Reset</button>
+                                </form>
+                            </td>
+                            <td class="desktop-only" style="text-align: right; padding-right: 20px;">
+                                <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST"
+                                    onsubmit="return confirm('Delete this staff member permanently?');"
+                                    style="margin: 0;">
+                                    <button type="submit" class="btn-red">🗑️</button>
+                                </form>
+                            </td>
 
-                        <td class="mobile-only">
-                            <div class="staff-card-header">
-                                👤 <%= staff.username %>
-                                    <span
-                                        style="float: right; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                            <td class="mobile-only">
+                                <div class="staff-card-header">
+                                    <span>👤 <%= staff.username %></span>
+                                    <span class="role-badge">
                                         <%= staff.role.toUpperCase() %>
                                     </span>
-                            </div>
+                                </div>
 
-                            <div style="margin-top: 10px;">
-                                <form action="/reset-staff-password" method="POST" style="display: flex; gap: 5px;">
+                                <form action="/reset-staff-password" method="POST" class="reset-form">
                                     <input type="hidden" name="staffId" value="<%= staff._id %>">
                                     <input type="text" name="newPassword" placeholder="Type new password..." required
-                                        class="input-style" style="margin-bottom: 0; flex: 2;">
-                                    <button type="submit" class="btn btn-blue" style="flex: 1;">Reset</button>
+                                        class="input-style">
+                                    <button type="submit" class="btn-blue">Reset</button>
                                 </form>
-                            </div>
 
-                            <div class="staff-actions">
-                                <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST"
-                                    onsubmit="return confirm('Delete this staff member permanently?');">
-                                    <button type="submit" class="btn btn-red">🗑️ Delete Account</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    <% }) %>
-            </tbody>
-        </table>
+                                <div class="staff-actions">
+                                    <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST"
+                                        onsubmit="return confirm('Delete this staff member permanently?');">
+                                        <button type="submit" class="btn-red">🗑️ Delete Account</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </body>
 

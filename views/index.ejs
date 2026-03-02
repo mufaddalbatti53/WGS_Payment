@@ -6,18 +6,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Payment Manager</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#27ae60">
+    <meta name="theme-color" content="#f97316">
     <link rel="apple-touch-icon" href="/images/logo.png">
     <style>
+        /* ========================================= */
+        /* 🎨 GLOBAL & THEME (ORANGE BASE)           */
+        /* ========================================= */
+        :root {
+            --primary: #f97316;
+            /* Bright Orange */
+            --primary-dark: #ea580c;
+            /* Deep Orange */
+            --primary-light: #fff7ed;
+            /* Very Light Orange background */
+            --bg-color: #fdfbf7;
+            /* Warm Off-White for body */
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --card-bg: #ffffff;
+            /* "Uth ke aana" Floating Shadows */
+            --shadow-soft: 0 10px 30px rgba(234, 88, 12, 0.06);
+            --shadow-hover: 0 20px 40px rgba(234, 88, 12, 0.12);
+            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             padding: 20px;
-            background: #f4f4f9;
+            background: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+        }
+
+        .main-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        .floating-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 25px;
+            border: 1px solid rgba(249, 115, 22, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .floating-card:hover {
+            box-shadow: var(--shadow-hover);
         }
 
         /* ========================================= */
-        /* 🎛️ COMPACT TOP HEADER                    */
+        /* 🎛️ NAVIGATION & HEADERS                  */
         /* ========================================= */
+        .role-nav {
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .btn-logout {
+            background: #ef4444;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+        }
+
         .top-header {
             display: flex;
             justify-content: space-between;
@@ -27,7 +92,44 @@
             gap: 15px;
         }
 
-        /* NEW: Table Toolbar (Search & Add) */
+        /* ========================================= */
+        /* 🟠 BUTTONS & INPUTS                       */
+        /* ========================================= */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: var(--shadow-btn);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border: 1px solid #fed7aa;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #ffedd5;
+        }
+
         .table-controls {
             display: flex;
             justify-content: space-between;
@@ -39,11 +141,10 @@
         .search-micro {
             padding: 10px 20px;
             font-size: 15px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid #fed7aa;
             border-radius: 25px;
             outline: none;
             flex: 1;
-            /* Makes the search bar stretch beautifully */
             max-width: 400px;
             background: #ffffff;
             transition: all 0.3s ease;
@@ -51,305 +152,221 @@
         }
 
         .search-micro:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-
-        .btn-add-micro {
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(39, 174, 96, 0.2);
-            text-decoration: none;
-            display: inline-block;
-            white-space: nowrap;
-            /* Prevents button text from breaking into two lines */
-        }
-
-        .btn-add-micro:hover {
-            background: #219653;
-            transform: translateY(-1px);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
         }
 
         /* ========================================= */
-        /* 📊 AGING BUCKETS UI                       */
+        /* 📊 DASHBOARD STATS                        */
         /* ========================================= */
-        .aging-card {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-bottom: 25px;
         }
 
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-soft);
+            text-align: center;
+            border: 1px solid rgba(249, 115, 22, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #fb923c);
+        }
+
+        .stat-card.alert::before {
+            background: #ef4444;
+        }
+
+        .stat-card.warning::before {
+            background: var(--primary-dark);
+        }
+
+        .stat-card.action-btn {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card.action-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .stat-title {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-dark);
+        }
+
+        /* ========================================= */
+        /* ⏳ AGING BUCKETS                          */
+        /* ========================================= */
         .aging-row {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
         }
 
         .aging-labels {
             display: flex;
             justify-content: space-between;
             font-size: 13px;
-            font-weight: bold;
-            color: #334155;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 6px;
         }
 
         .progress-bg {
             background: #f1f5f9;
-            height: 8px;
+            height: 10px;
             border-radius: 10px;
             overflow: hidden;
         }
 
         .progress-fill {
-            background: #3b82f6;
+            background: linear-gradient(90deg, #fb923c, var(--primary));
             height: 100%;
             border-radius: 10px;
-            transition: width 0.5s ease-in-out;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .fill-warning {
-            background: #f59e0b;
+            background: linear-gradient(90deg, var(--primary-dark), #c2410c);
         }
 
         .fill-danger {
-            background: #ef4444;
+            background: linear-gradient(90deg, #ef4444, #b91c1c);
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
-        }
-
+        /* ========================================= */
+        /* 📋 TABLE STYLING                          */
+        /* ========================================= */
         table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 14px;
         }
 
-        th,
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
+        th {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: bold;
+            padding: 15px 10px;
             text-align: left;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
         }
 
-        th {
-            background: #eee;
+        tr:last-child td {
+            border-bottom: none;
         }
 
         .badge-due {
-            background: #ffdddd;
-            color: #d00;
-            padding: 4px 8px;
-            border-radius: 4px;
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 5px 10px;
+            border-radius: 8px;
             font-weight: bold;
             display: inline-block;
-            margin-top: 5px;
+            font-size: 12px;
         }
 
         .badge-paid {
-            background: #ddffdd;
-            color: #008000;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 5px;
-        }
-
-        .btn {
+            background: #dcfce7;
+            color: #15803d;
             padding: 5px 10px;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
             display: inline-block;
             font-size: 12px;
         }
 
-        .btn-green {
-            background: #25D366;
-            color: white;
-            border: none;
-        }
-
-        .btn-blue {
-            background: #3498db;
-            color: white;
-            border: none;
-        }
-
-        .btn-orange {
-            background: #e67e22;
-            color: white;
-            border: none;
-        }
-
-        .btn-red {
-            background: #e74c3c;
-            color: white;
-            border: none;
-        }
-
-        .btn-yellow {
-            background: #f1c40f;
-            color: #333;
-            border: none;
-        }
-
-        .role-nav {
-            margin-bottom: 20px;
-            padding: 10px;
-            background: #333;
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 4px;
-        }
-
-        .role-nav a {
-            color: white;
-            text-decoration: none;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-content {
+        .btn-table {
             background: white;
-            margin: 10% auto;
-            padding: 20px;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
-        }
-
-        .close {
-            float: right;
-            font-size: 24px;
-            cursor: pointer;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-            text-align: center;
-            border-bottom: 4px solid #27ae60;
-        }
-
-        .stat-card.alert {
-            border-bottom-color: #e74c3c;
-        }
-
-        .stat-card.warning {
-            border-bottom-color: #f39c12;
-        }
-
-        .stat-title {
+            border: 1px solid #e2e8f0;
+            color: var(--text-dark);
+            padding: 6px 12px;
+            border-radius: 8px;
             font-size: 12px;
-            color: #777;
             font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .admin-menu {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .menu-btn {
-            padding: 10px 20px;
-            text-decoration: none;
-            color: white;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-
-        .btn-menu-blue {
-            background: #3498db;
-        }
-
-        .btn-menu-purple {
-            background: #9b59b6;
-        }
-
-        .input-style {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s;
             width: 100%;
-            box-sizing: border-box;
             margin-bottom: 5px;
-        }
-
-        .form-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .trans-group {
-            background: #f9f9f9;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            border: 1px solid #eee;
-        }
-
-        .trans-label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #555;
             display: block;
-            margin-bottom: 3px;
+            text-align: center;
+            text-decoration: none;
         }
 
+        .btn-table:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.1);
+        }
+
+        .btn-table-red {
+            color: #ef4444;
+        }
+
+        .btn-table-red:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.1);
+        }
+
+        /* ========================================= */
+        /* 📱 MOBILE VIEW ("UTH KE AANA" EFFECT)     */
+        /* ========================================= */
         @media screen and (max-width: 768px) {
+            .role-nav {
+                flex-direction: column;
+                gap: 15px;
+                border-radius: 20px;
+            }
+
+            .top-header h1 {
+                text-align: center;
+                width: 100%;
+            }
 
             table,
             thead,
@@ -366,49 +383,6 @@
                 display: none;
             }
 
-            .form-row {
-                flex-direction: column !important;
-                gap: 0 !important;
-                margin-bottom: 0 !important;
-            }
-
-            select[name="countryCode"] {
-                width: 100px !important;
-                display: inline-block !important;
-            }
-
-            input[name="localPhone"] {
-                width: calc(100% - 110px) !important;
-                display: inline-block !important;
-            }
-
-            .admin-menu {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .admin-menu a,
-            .admin-menu button {
-                text-align: center;
-                width: 100%;
-                box-sizing: border-box;
-            }
-
-            tr {
-                background: #fff;
-                border: 2px solid #e67e22;
-                border-radius: 16px;
-                margin-bottom: 20px;
-                padding: 15px;
-                box-shadow: 0 8px 24px rgba(230, 126, 34, 0.15);
-                position: relative;
-            }
-
-            td {
-                border: none !important;
-                padding: 0 !important;
-            }
-
             td.desktop-only {
                 display: none !important;
             }
@@ -417,97 +391,127 @@
                 display: block !important;
             }
 
+            tr.customer-row {
+                background: #ffffff;
+                border-radius: 20px;
+                margin-bottom: 20px;
+                padding: 20px;
+                border: 1px solid rgba(249, 115, 22, 0.1);
+                box-shadow: 0 12px 35px rgba(234, 88, 12, 0.12);
+                position: relative;
+            }
+
+            td {
+                border: none !important;
+                padding: 0 !important;
+            }
+
             .m-top {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
                 margin-bottom: 15px;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 15px;
             }
 
-            /* FIXED: Evenly splitting the top block so Checkbox fits nicely */
             .m-name {
-                width: 50%;
-                line-height: 1.3;
+                width: 60%;
+                line-height: 1.4;
+                display: flex;
+                gap: 12px;
+                align-items: flex-start;
             }
 
             .m-fin {
-                width: 50%;
+                width: 40%;
                 text-align: right;
                 line-height: 1.5;
             }
 
             .m-name strong {
                 font-size: 18px;
-                text-decoration: underline;
-                text-underline-offset: 4px;
-                color: #000;
+                color: var(--text-dark);
                 display: block;
             }
 
             .m-name span {
-                font-size: 14px;
-                color: #555;
+                font-size: 13px;
+                color: var(--text-muted);
             }
 
             .m-fin-top {
-                font-size: 13px;
-                color: #000;
+                font-size: 12px;
+                color: var(--text-muted);
                 display: block;
-            }
-
-            .m-fin-due {
-                color: #d00;
-                font-weight: bold;
-                display: block;
-                margin-top: 2px;
             }
 
             .m-fin-paid {
                 font-size: 13px;
-                color: #28a745;
+                color: #15803d;
                 display: block;
-                margin-top: 2px;
+                font-weight: bold;
+            }
+
+            .m-fin-due {
+                color: #b91c1c;
+                font-weight: 900;
+                font-size: 16px;
+                display: block;
+                margin-top: 4px;
             }
 
             .m-circles {
                 display: flex;
                 justify-content: flex-end;
-                gap: 12px;
+                gap: 15px;
                 margin-bottom: 15px;
             }
 
             .m-circle {
-                width: 38px;
-                height: 38px;
+                width: 42px;
+                height: 42px;
                 border-radius: 50%;
-                border: 2px solid #e67e22;
+                background: var(--primary-light);
+                border: 1px solid #fed7aa;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 text-decoration: none;
                 font-size: 18px;
+                color: var(--primary-dark);
+                box-shadow: 0 4px 10px rgba(249, 115, 22, 0.1);
+                transition: transform 0.2s;
+            }
+
+            .m-circle:active {
+                transform: scale(0.9);
             }
 
             .m-tools {
                 display: flex;
                 justify-content: space-between;
-                border-top: 1px solid #eee;
-                padding-top: 10px;
+                gap: 10px;
             }
 
             .m-tool-btn {
-                background: none;
-                border: none;
-                font-size: 20px;
-                padding: 5px 15px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 10px;
+                flex: 1;
+                text-align: center;
                 cursor: pointer;
-                color: #555;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                color: var(--text-dark);
+                font-size: 18px;
+                transition: all 0.2s;
             }
 
-            /* Mobile adjustment for new Table Controls */
+            .m-tool-btn:active {
+                background: #fed7aa;
+                border-color: var(--primary);
+            }
+
             .table-controls {
                 flex-direction: column;
             }
@@ -517,7 +521,7 @@
                 max-width: 100%;
             }
 
-            .btn-add-micro {
+            .btn-primary {
                 width: 100%;
                 text-align: center;
             }
@@ -530,26 +534,25 @@
         }
 
         /* ========================================= */
-        /* ✅ BULK ACTION BAR                        */
+        /* ✅ BULK ACTION BAR & MODALS               */
         /* ========================================= */
         .bulk-action-bar {
             position: fixed;
             bottom: -100px;
             left: 50%;
             transform: translateX(-50%);
-            background: #1e293b;
+            background: var(--text-dark);
             color: white;
             padding: 15px 25px;
             border-radius: 50px;
             display: flex;
             align-items: center;
             gap: 15px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
             transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000;
             width: max-content;
             max-width: 90%;
-            /* Prevents breaking on small phones */
         }
 
         .bulk-action-bar.visible {
@@ -557,61 +560,131 @@
         }
 
         .checkbox-custom {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             cursor: pointer;
-            accent-color: #27ae60;
+            accent-color: var(--primary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 10vh auto;
+            padding: 30px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: color 0.2s;
+        }
+
+        .close:hover {
+            color: #ef4444;
+        }
+
+        .input-style {
+            padding: 12px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            font-size: 14px;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .input-style:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+            outline: none;
+        }
+
+        .trans-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="role-nav">
-        <span>Logged in as: <strong>
-                <%= role.toUpperCase() %>
-            </strong></span>
-        <a href="/logout" style="background: red; padding: 5px 10px; border-radius: 4px;">Logout</a>
-    </div>
+    <div class="main-wrapper">
+        <div class="role-nav">
+            <span style="font-weight: 600;">
+                <span style="color: var(--text-muted);">Welcome,</span>
+                <span style="color: var(--primary-dark);">
+                    <%= role.toUpperCase() %>
+                </span>
+            </span>
+            <a href="/logout" class="btn-logout">Logout</a>
+        </div>
 
-    <div class="container">
         <div class="top-header">
-            <h1 style="margin: 0; font-size: 24px; color: #1e293b;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 800;">
                 Dashboard
-                <span style="font-size: 14px; color: #64748b; font-weight: normal; margin-left: 10px;">
+                <span style="font-size: 14px; color: var(--text-muted); font-weight: 600; margin-left: 10px;">
                     | <%= adminUser.companyName || 'Setup Your Profile' %>
                 </span>
             </h1>
         </div>
 
         <% if (role==='admin' ) { %>
-            <div class="admin-menu">
-                <a href="/staff" class="menu-btn btn-menu-blue">👤 Manage Staff</a>
-                <a href="/activity" class="menu-btn btn-menu-purple">📜 Activity Log</a>
-                <button onclick="document.getElementById('settingsModal').style.display='block'" class="menu-btn"
-                    style="background: #475569; border:none; cursor:pointer;">⚙️ Company Profile</button>
+            <div class="floating-card"
+                style="display: flex; gap: 10px; flex-wrap: wrap; background: #fffaf5; border-color: #ffedd5;">
+                <a href="/staff" class="btn-secondary">👤 Manage Staff</a>
+                <a href="/activity" class="btn-secondary">📜 Activity Log</a>
+                <button onclick="document.getElementById('settingsModal').style.display='block'" class="btn-secondary"
+                    style="margin-left: auto;">⚙️ Company Profile</button>
             </div>
 
-            <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h3>Data Management</h3>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div class="floating-card">
+                <h3 style="margin-top: 0; color: var(--text-dark); font-size: 16px;">Data Management</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <a href="/export"
-                        style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-                        📥 Export to Excel
+                        style="background: #10b981; color: white; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: bold; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);">
+                        📥 Export Excel
                     </a>
                     <button onclick="downloadPDF()"
-                        style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px;">
-                        📄 Export to PDF
+                        style="background: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);">
+                        📄 Export PDF
                     </button>
                 </div>
-                <hr style="border-top: 1px solid #ccc;">
-                <form action="/import" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
-                    <label for="excelFile"><strong>Upload Tally/Busy Excel:</strong></label>
-                    <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required style="margin-right: 10px;">
-                    <button type="submit"
-                        style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer;">
-                        📤 Import Data
-                    </button>
+
+                <form action="/import" method="POST" enctype="multipart/form-data"
+                    style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                    <strong style="font-size: 13px; color: var(--text-muted);">Upload Tally/Busy Excel:</strong>
+                    <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required style="font-size: 13px;">
+                    <button type="submit" class="btn-primary" style="padding: 8px 20px;">📤 Import</button>
                 </form>
             </div>
 
@@ -629,46 +702,49 @@
                 }
 
                 if (c.aging) {
-                buckets.u30 += (c.aging.under30 || 0);
-                buckets.d30_60 += (c.aging.days30to60 || 0);
-                buckets.d60_90 += (c.aging.days60to90 || 0);
-                buckets.d90_120 += (c.aging.days90to120 || 0);
-                buckets.d120_150 += (c.aging.days120to150 || 0);
+                buckets.u30 += (c.aging.under30 || 0); buckets.d30_60 += (c.aging.days30to60 || 0); buckets.d60_90 +=
+                (c.aging.days60to90 || 0);
+                buckets.d90_120 += (c.aging.days90to120 || 0); buckets.d120_150 += (c.aging.days120to150 || 0);
                 buckets.d150_180 += (c.aging.days150to180 || 0);
-                buckets.a180 += (c.aging.above180 || 0);
-                buckets.onAcc += (c.aging.onAccount || 0);
+                buckets.a180 += (c.aging.above180 || 0); buckets.onAcc += (c.aging.onAccount || 0);
                 }
                 });
 
                 highRiskAmount = buckets.d120_150 + buckets.d150_180 + buckets.a180;
                 const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120,
                 buckets.d120_150, buckets.d150_180, buckets.a180) || 1;
-                const formatMoney = (amt) => 'INR ' + amt.toLocaleString('en-IN');
+                const formatMoney = (amt) => '₹ ' + amt.toLocaleString('en-IN');
                 %>
 
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-title">Total Parties</div>
-                        <div class="stat-value">👥 <%= customers.length %>
+                        <div class="stat-value">
+                            <%= customers.length %>
                         </div>
                     </div>
                     <div class="stat-card alert">
                         <div class="stat-title">Total Pending Bills</div>
-                        <div class="stat-value">₹<%= totalPending.toLocaleString('en-IN') %>
+                        <div class="stat-value" style="color: #b91c1c;">
+                            <%= totalPending.toLocaleString('en-IN') %>
                         </div>
                     </div>
-                    <div class="stat-card warning" id="actionStatCard" onclick="toggleActionRequiredFilter()"
-                        style="cursor: pointer; transition: 0.3s; position: relative;">
-                        <div class="stat-title">Action Required</div>
-                        <div class="stat-value">⚠️ <%= actionRequiredCount %>
+                    <div class="stat-card warning action-btn" id="actionStatCard"
+                        onclick="toggleActionRequiredFilter()">
+                        <div class="stat-title" style="color: var(--primary-dark);">Action Required</div>
+                        <div class="stat-value" style="color: var(--primary-dark);">
+                            <%= actionRequiredCount %>
                         </div>
-                        <div style="font-size: 11px; color: #d35400; margin-top: 5px; font-weight: bold;">Click to view
-                            list &rarr;</div>
+                        <div
+                            style="font-size: 11px; color: #ea580c; margin-top: 8px; font-weight: bold; background: #ffedd5; padding: 4px; border-radius: 10px;">
+                            Click to filter &rarr;</div>
                     </div>
                 </div>
 
-                <div class="aging-card">
-                    <h2 style="margin-top: 0; color: #0f172a; font-size: 22px;">Aging Buckets</h2>
+                <div class="floating-card aging-card">
+                    <h2
+                        style="margin-top: 0; font-size: 20px; font-weight: 800; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px;">
+                        Aging Buckets</h2>
                     <div class="aging-row">
                         <div class="aging-labels"><span>
                                 < 30 DAYS</span><span>
@@ -733,8 +809,9 @@
                                 style="width: <%= (buckets.a180 / maxBucket) * 100 %>%"></div>
                         </div>
                     </div>
-                    <div class="aging-row" style="margin-bottom: 0;">
-                        <div class="aging-labels" style="color: #64748b;"><span>ON ACCOUNT</span><span>
+                    <div class="aging-row" style="margin-bottom: 0; padding-top: 15px; border-top: 1px dashed #e2e8f0;">
+                        <div class="aging-labels" style="color: var(--text-muted);"><span>ON ACCOUNT
+                                (ADVANCE)</span><span>
                                 <%= formatMoney(buckets.onAcc) %>
                             </span></div>
                     </div>
@@ -742,275 +819,296 @@
                 <% } %>
 
                     <div class="table-controls">
-                        <input type="text" id="searchInput" class="search-micro" placeholder="🔍 Search parties...">
-                        <button onclick="openAddModal()" class="btn-add-micro">➕ Add Party</button>
+                        <input type="text" id="searchInput" class="search-micro"
+                            placeholder="🔍 Search by company, contact, or phone...">
+                        <button onclick="openAddModal()" class="btn-primary">➕ Add Party</button>
                     </div>
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 30px;"><input type="checkbox" id="selectAll" class="checkbox-custom">
-                                </th>
-                                <th>Company / Contact</th>
-                                <th>Contact Info</th>
-                                <th>Financials</th>
-                                <th>Next Action Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% customers.forEach(customer=> { %>
-                                <% const due=customer.totalAmount - customer.paidAmount; const now=new Date(); const
-                                    nextDate=customer.nextActionDate ? new Date(customer.nextActionDate) : new Date();
-                                    const today=new Date(now.getFullYear(), now.getMonth(), now.getDate()); const
-                                    target=new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
-                                    const isDueForReminder=today>= target;
+                    <div class="floating-card" style="padding: 0; overflow-x: auto;">
+                        <table style="margin-top: 0;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll"
+                                            class="checkbox-custom"></th>
+                                    <th>Company / Contact</th>
+                                    <th>Contact Info</th>
+                                    <th>Financials</th>
+                                    <th>Next Action</th>
+                                    <th style="text-align: right; padding-right: 20px;">Manage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% customers.forEach(customer=> { %>
+                                    <% const due=customer.totalAmount - customer.paidAmount; const now=new Date(); const
+                                        nextDate=customer.nextActionDate ? new Date(customer.nextActionDate) : new
+                                        Date(); const today=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                        const target=new Date(nextDate.getFullYear(), nextDate.getMonth(),
+                                        nextDate.getDate()); const isDueForReminder=today>= target;
 
-                                    const diffTime = Math.abs(today - target);
-                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                    const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days past
-                                    the set action date.` : "";
+                                        const diffTime = Math.abs(today - target);
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                        const daysText = (isDueForReminder && diffDays > 0) ? ` It is ${diffDays} days
+                                        past the set action date.` : "";
 
-                                    let paidText = `₹${customer.paidAmount}`;
-                                    if (customer.paidAmount > 0 && customer.lastPaymentDate) {
-                                    const lastPaidDateStr = new
-                                    Date(customer.lastPaymentDate).toLocaleDateString('en-IN');
-                                    paidText += ` (Last paid on: ${lastPaidDateStr})`;
-                                    }
+                                        let paidText = `₹${customer.paidAmount}`;
+                                        if (customer.paidAmount > 0 && customer.lastPaymentDate) {
+                                        const lastPaidDateStr = new
+                                        Date(customer.lastPaymentDate).toLocaleDateString('en-IN');
+                                        paidText += ` (Last paid on: ${lastPaidDateStr})`;
+                                        }
 
-                                    const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from
-                                    ${customer.companyName},\n\nThis is a gentle payment reminder from
-                                    ${adminUser.companyName || 'our company'}.\n\n📊 *Account Summary:*\n- Total Bill
-                                    Amount: ₹${customer.totalAmount}\n- Total Amount Paid: ${paidText}\n- Current
-                                    Outstanding Due: *₹${due}*\n\n${daysText ? '_' + daysText + '_\n\n' : ''}Please
-                                    arrange the payment for the pending amount at your earliest convenience.\n\nThank
-                                    you,\n${adminUser.companyName || 'Our Team'}`;
-                                    const encodedMsg = encodeURIComponent(msg);
-                                    %>
-                                    <tr class="customer-row"
-                                        data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
+                                        const msg = `Hello ${customer.contactPerson || 'Sir/Madam'} from
+                                        ${customer.companyName},\n\nThis is a gentle payment reminder from
+                                        ${adminUser.companyName || 'our company'}.\n\n📊 *Account Summary:*\n- Total
+                                        Bill Amount: ₹${customer.totalAmount}\n- Total Amount Paid: ${paidText}\n-
+                                        Current Outstanding Due: *₹${due}*\n\n${daysText ? '_' + daysText + '_\n\n' :
+                                        ''}Please arrange the payment for the pending amount at your earliest
+                                        convenience.\n\nThank you,\n${adminUser.companyName || 'Our Team'}`;
+                                        const encodedMsg = encodeURIComponent(msg);
+                                        %>
+                                        <tr class="customer-row"
+                                            data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
 
-                                        <td class="desktop-only">
-                                            <input type="checkbox" class="customer-checkbox checkbox-custom"
-                                                value="<%= customer._id %>">
-                                        </td>
+                                            <td class="desktop-only" style="text-align: center;">
+                                                <input type="checkbox" class="customer-checkbox checkbox-custom"
+                                                    value="<%= customer._id %>">
+                                            </td>
 
-                                        <td class="desktop-only">
-                                            <strong>
-                                                <%= customer.companyName %>
-                                            </strong><br>
-                                            <span style="color:#555; font-size:12px;">
-                                                <%= customer.contactPerson %>
-                                            </span>
-                                        </td>
+                                            <td class="desktop-only">
+                                                <strong style="font-size: 15px; color: var(--text-dark);">
+                                                    <%= customer.companyName %>
+                                                </strong><br>
+                                                <span style="color: var(--text-muted); font-size:12px;">
+                                                    <%= customer.contactPerson %>
+                                                </span>
+                                            </td>
 
-                                        <td class="desktop-only">
-                                            📞 Phone: <a href="tel:+<%= customer.phone %>"
-                                                style="text-decoration:none; color:black;">+<%= customer.phone %>
-                                                    </a><br>
-
-                                            <% if (customer.whatsappNumber) { %>
-                                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-                                                    width="14" height="14" style="vertical-align: middle;"> WhatsApp: <a
-                                                    href="https://wa.me/<%= customer.whatsappNumber %>" target="_blank"
-                                                    style="text-decoration:none; color:green;">+<%=
-                                                        customer.whatsappNumber %></a><br>
-                                                <% } %>
-
-                                                    <% if (customer.otherNumbers) { %>
-                                                        <% customer.otherNumbers.split(',').forEach(num=> { %>
-                                                            <% if(num.trim() !=="" ) { %>
-                                                                📞 Other: <a href="tel:<%= num.trim() %>"
-                                                                    style="text-decoration:none; color:#555; font-size:12px;">
-                                                                    <%= num.trim() %>
-                                                                </a><br>
-                                                                <% } %>
-                                                                    <% }) %>
-                                                                        <% } %>
-
-                                                                            <% if (customer.email) { %>
-                                                                                📧 Email: <a
-                                                                                    href="mailto:<%= customer.email %>"
-                                                                                    style="color:blue; text-decoration:underline;">
-                                                                                    <%= customer.email %>
-                                                                                </a>
-                                                                                <% } %>
-                                        </td>
-
-                                        <td class="desktop-only">
-                                            Total: ₹<%= customer.totalAmount %><br>
-                                                Paid: ₹<%= customer.paidAmount %><br>
-                                                    <% if (due> 0) { %> <span class="badge-due">Due: ₹<%= due %></span>
-                                                        <% } else { %> <span class="badge-paid">Paid</span>
-                                                            <% } %>
-                                        </td>
-
-                                        <td class="desktop-only">
-                                            <%= nextDate.toDateString() %>
-                                                <% if (due> 0 && isDueForReminder) { %> <br><span
-                                                        style="color:red; font-weight:bold;">(Action Required)</span>
-                                                    <% } %>
-                                        </td>
-
-                                        <td class="desktop-only">
-                                            <% if (due> 0 && isDueForReminder) { %>
-                                                <div class="action-buttons"
-                                                    style="display:flex; gap:10px; margin-bottom: 10px;">
-                                                    <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
+                                            <td class="desktop-only" style="font-size: 13px; line-height: 1.6;">
+                                                <strong style="color: #cbd5e1;">P:</strong> <a
+                                                    href="tel:+<%= customer.phone %>"
+                                                    style="text-decoration:none; color:var(--text-dark); font-weight: 600;">+
+                                                    <%= customer.phone %></a><br>
+                                                <% if (customer.whatsappNumber) { %> <strong
+                                                        style="color: #cbd5e1;">W:</strong> <a
+                                                        href="https://wa.me/<%= customer.whatsappNumber %>"
                                                         target="_blank"
-                                                        style="width:34px; height:34px; border-radius:50%; border:2px solid #e67e22; display:flex; align-items:center; justify-content:center; text-decoration:none;">
-                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-                                                            width="18" height="18">
-                                                    </a>
-                                                    <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
-                                                        style="width:34px; height:34px; border-radius:50%; border:2px solid #e67e22; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:16px;">💬</a>
-                                                    <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
-                                                        style="width:34px; height:34px; border-radius:50%; border:2px solid #e67e22; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:16px;">📧</a>
-                                                </div>
-                                                <% } %>
-
-                                                    <% if (role==='admin' || role==='staff' ) { %>
-                                                        <button class="btn btn-blue transaction-btn"
-                                                            data-id="<%= customer._id %>"
-                                                            data-company="<%= customer.companyName %>"
-                                                            style="margin-bottom: 5px; width: 100%;">Update Balance
-                                                            💳</button>
-                                                        <button class="btn btn-orange reminder-btn"
-                                                            data-id="<%= customer._id %>"
-                                                            data-company="<%= customer.companyName %>"
-                                                            style="margin-bottom: 5px; width: 100%;">Set Action Date
-                                                            📅</button>
-                                                        <% } %>
-
-                                                            <% if (role==='admin' ) { %>
-                                                                <div style="display:flex; gap: 5px;">
-                                                                    <button class="btn btn-yellow edit-btn"
-                                                                        style="flex:1;" data-id="<%= customer._id %>"
-                                                                        data-company="<%= customer.companyName %>"
-                                                                        data-contact="<%= customer.contactPerson %>"
-                                                                        data-email="<%= customer.email %>"
-                                                                        data-phone="<%= customer.phone %>"
-                                                                        data-whatsapp="<%= customer.whatsappNumber %>"
-                                                                        data-other="<%= customer.otherNumbers %>">Edit
-                                                                        ✏️</button>
-                                                                    <form
-                                                                        action="/customers/<%= customer._id %>?_method=DELETE"
-                                                                        method="POST" style="margin:0;"
-                                                                        onsubmit="return confirm('Are you sure you want to permanently delete this customer?');">
-                                                                        <button type="submit" class="btn btn-red"
-                                                                            style="padding: 5px 12px;">🗑️</button>
-                                                                    </form>
-                                                                </div>
-                                                                <% } %>
-                                        </td>
-
-                                        <td class="mobile-only">
-                                            <div class="m-top">
-                                                <div class="m-name"
-                                                    style="display: flex; gap: 10px; align-items: flex-start;">
-                                                    <input type="checkbox" class="customer-checkbox checkbox-custom"
-                                                        value="<%= customer._id %>"
-                                                        style="margin-top: 4px; flex-shrink: 0;">
-                                                    <div>
-                                                        <strong>
-                                                            <%= customer.companyName %>
-                                                        </strong><br>
-                                                        <span>
-                                                            <%= customer.contactPerson %>
-                                                        </span><br>
-                                                        <a href="tel:+<%= customer.phone %>"
-                                                            style="color:#3498db; text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:4px;">📞
-                                                            +<%= customer.phone %></a>
-                                                    </div>
-                                                </div>
-                                                <div class="m-fin">
-                                                    <div class="m-fin-top">Total ₹<%= customer.totalAmount %>
-                                                    </div>
-                                                    <div class="m-fin-paid"
-                                                        style="font-weight:bold; font-size:13px; color:#28a745; margin-top:2px;">
-                                                        Paid ₹<%= customer.paidAmount %>
-                                                    </div>
-                                                    <% if (due> 0) { %><div class="m-fin-due"
-                                                            style="color:#d00; font-size:14px; margin-top:2px;">Due ₹<%=
-                                                                due %>
-                                                        </div>
-                                                        <% } %>
-                                                </div>
-                                            </div>
-
-                                            <div
-                                                style="font-size: 13px; color: #555; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #eee;">
-                                                📅 Action Date: <strong style="color:#000;">
-                                                    <%= nextDate.toDateString() %>
-                                                </strong>
-                                                <% if (due> 0 && isDueForReminder) { %>
-                                                    <span style="color:red; font-weight:bold; float:right;">(Action
-                                                        Required)</span>
+                                                        style="text-decoration:none; color:#15803d; font-weight: 600;">+
+                                                        <%= customer.whatsappNumber %></a><br>
                                                     <% } %>
-                                            </div>
+                                                        <% if (customer.otherNumbers) { %>
+                                                            <% customer.otherNumbers.split(',').forEach(num=> { %>
+                                                                <% if(num.trim() !=="" ) { %><strong
+                                                                        style="color: #cbd5e1;">O:</strong> <a
+                                                                        href="tel:<%= num.trim() %>"
+                                                                        style="text-decoration:none; color:var(--text-muted);">
+                                                                        <%= num.trim() %>
+                                                                    </a><br>
+                                                                    <% } %>
+                                                                        <% }) %>
+                                                                            <% } %>
+                                            </td>
 
-                                            <% if (due> 0 && isDueForReminder) { %>
-                                                <div class="m-circles">
-                                                    <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
-                                                        target="_blank" class="m-circle">
-                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-                                                            alt="WA" width="22" height="22">
-                                                    </a>
-                                                    <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
-                                                        class="m-circle">💬</a>
-                                                    <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
-                                                        class="m-circle">📧</a>
+                                            <td class="desktop-only">
+                                                <div style="color: var(--text-muted); font-size: 12px;">Total: ₹<%=
+                                                        customer.totalAmount %>
                                                 </div>
-                                                <% } %>
+                                                <div style="color: #15803d; font-size: 12px; font-weight: bold;">Paid: ₹
+                                                    <%= customer.paidAmount %>
+                                                </div>
+                                                <% if (due> 0) { %> <div
+                                                        style="color: #b91c1c; font-weight: 800; font-size: 15px; margin-top: 4px;">
+                                                        Due: ₹<%= due %>
+                                                    </div>
+                                                    <% } else { %> <span class="badge-paid"
+                                                            style="margin-top: 4px;">Fully Paid</span>
+                                                        <% } %>
+                                            </td>
 
-                                                    <div class="m-tools">
+                                            <td class="desktop-only">
+                                                <% if (due> 0) { %>
+                                                    <div style="font-weight: 600;">
+                                                        <%= nextDate.toLocaleDateString('en-IN', {day: 'numeric' ,
+                                                            month: 'short' , year: 'numeric' }) %>
+                                                    </div>
+                                                    <% if (isDueForReminder) { %>
+                                                        <div
+                                                            style="color: #ef4444; font-weight:bold; font-size: 11px; margin-top: 4px; background: #fee2e2; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                                                            ⚠️ Action Required</div>
+                                                        <% } %>
+                                                            <% } else { %>
+                                                                <span style="color: #cbd5e1;">--</span>
+                                                                <% } %>
+                                            </td>
+
+                                            <td class="desktop-only" style="text-align: right; padding-right: 20px;">
+                                                <% if (due> 0 && isDueForReminder) { %>
+                                                    <div class="action-buttons"
+                                                        style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
+                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
+                                                            target="_blank"
+                                                            style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
+                                                                src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                                                                width="16" height="16"></a>
+                                                        <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
+                                                            style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
+                                                        <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                            style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
+                                                    </div>
+                                                    <% } %>
+
                                                         <% if (role==='admin' || role==='staff' ) { %>
-                                                            <button class="m-tool-btn transaction-btn"
+                                                            <button class="btn-table transaction-btn"
                                                                 data-id="<%= customer._id %>"
-                                                                data-company="<%= customer.companyName %>"
-                                                                title="Update Payment">💳</button>
-                                                            <button class="m-tool-btn reminder-btn"
-                                                                data-id="<%= customer._id %>"
-                                                                data-company="<%= customer.companyName %>"
-                                                                title="Set Next Action Date">📅</button>
+                                                                data-company="<%= customer.companyName %>">💳 Update
+                                                                Balance</button>
+                                                            <% if (due> 0) { %>
+                                                                <button class="btn-table reminder-btn"
+                                                                    data-id="<%= customer._id %>"
+                                                                    data-company="<%= customer.companyName %>">📅 Set
+                                                                    Action Date</button>
+                                                                <% } %>
+                                                                    <% } %>
+
+                                                                        <% if (role==='admin' ) { %>
+                                                                            <div style="display:flex; gap: 5px;">
+                                                                                <button class="btn-table edit-btn"
+                                                                                    style="flex:1;"
+                                                                                    data-id="<%= customer._id %>"
+                                                                                    data-company="<%= customer.companyName %>"
+                                                                                    data-contact="<%= customer.contactPerson %>"
+                                                                                    data-email="<%= customer.email %>"
+                                                                                    data-phone="<%= customer.phone %>"
+                                                                                    data-whatsapp="<%= customer.whatsappNumber %>"
+                                                                                    data-other="<%= customer.otherNumbers %>">✏️
+                                                                                    Edit</button>
+                                                                                <form
+                                                                                    action="/customers/<%= customer._id %>?_method=DELETE"
+                                                                                    method="POST" style="margin:0;"
+                                                                                    onsubmit="return confirm('Permanently delete this customer?');">
+                                                                                    <button type="submit"
+                                                                                        class="btn-table btn-table-red">🗑️</button>
+                                                                                </form>
+                                                                            </div>
+                                                                            <% } %>
+                                            </td>
+
+                                            <td class="mobile-only">
+                                                <div class="m-top">
+                                                    <div class="m-name"
+                                                        style="display: flex; gap: 12px; align-items: flex-start;">
+                                                        <input type="checkbox" class="customer-checkbox checkbox-custom"
+                                                            value="<%= customer._id %>"
+                                                            style="margin-top: 4px; flex-shrink: 0;">
+                                                        <div>
+                                                            <strong>
+                                                                <%= customer.companyName %>
+                                                            </strong>
+                                                            <span>
+                                                                <%= customer.contactPerson %>
+                                                            </span><br>
+                                                            <a href="tel:+<%= customer.phone %>"
+                                                                style="color:var(--primary-dark); text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:6px;">📞
+                                                                +<%= customer.phone %></a>
+                                                        </div>
+                                                    </div>
+                                                    <div class="m-fin">
+                                                        <div class="m-fin-top">Total ₹<%= customer.totalAmount %>
+                                                        </div>
+                                                        <div class="m-fin-paid">Paid ₹<%= customer.paidAmount %>
+                                                        </div>
+                                                        <% if (due> 0) { %><div class="m-fin-due">Due ₹<%= due %>
+                                                            </div>
+                                                            <% } else { %>
+                                                                <div
+                                                                    style="color: #15803d; font-weight: bold; margin-top: 4px;">
+                                                                    Fully Paid 🎉</div>
+                                                                <% } %>
+                                                    </div>
+                                                </div>
+
+                                                <% if (due> 0) { %>
+                                                    <div
+                                                        style="font-size: 13px; color: var(--text-muted); padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
+                                                        📅 Action Date: <strong style="color:var(--text-dark);">
+                                                            <%= nextDate.toLocaleDateString('en-IN', {day: 'numeric' ,
+                                                                month: 'short' }) %>
+                                                        </strong>
+                                                        <% if (isDueForReminder) { %>
+                                                            <span
+                                                                style="color:white; background: #ef4444; padding: 2px 8px; border-radius: 10px; font-weight:bold; float:right; font-size: 11px;">Action
+                                                                Required</span>
+                                                            <% } %>
+                                                    </div>
+                                                    <% } %>
+
+                                                        <% if (due> 0 && isDueForReminder) { %>
+                                                            <div class="m-circles">
+                                                                <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= encodedMsg %>"
+                                                                    target="_blank" class="m-circle"
+                                                                    style="background: #dcfce7; border-color: #bbf7d0;"><img
+                                                                        src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                                                                        alt="WA" width="22" height="22"></a>
+                                                                <a href="sms:+<%= customer.phone %>?body=<%= encodedMsg %>"
+                                                                    class="m-circle">💬</a>
+                                                                <a href="mailto:<%= customer.email %>?subject=Payment Reminder: <%= encodeURIComponent(customer.companyName) %>&body=<%= encodedMsg %>"
+                                                                    class="m-circle">📧</a>
+                                                            </div>
                                                             <% } %>
 
-                                                                <% if (role==='admin' ) { %>
-                                                                    <button class="m-tool-btn edit-btn"
-                                                                        data-id="<%= customer._id %>"
-                                                                        data-company="<%= customer.companyName %>"
-                                                                        data-contact="<%= customer.contactPerson %>"
-                                                                        data-email="<%= customer.email %>"
-                                                                        data-phone="<%= customer.phone %>"
-                                                                        data-whatsapp="<%= customer.whatsappNumber %>"
-                                                                        data-other="<%= customer.otherNumbers %>"
-                                                                        title="Edit Customer Details">✏️</button>
-                                                                    <form
-                                                                        action="/customers/<%= customer._id %>?_method=DELETE"
-                                                                        method="POST" style="margin:0;"
-                                                                        onsubmit="return confirm('Are you sure you want to permanently delete this customer?');">
-                                                                        <button type="submit" class="m-tool-btn"
-                                                                            style="color:red;"
-                                                                            title="Delete Customer">🗑️</button>
-                                                                    </form>
-                                                                    <% } %>
-                                                    </div>
-                                        </td>
-                                    </tr>
-                                    <% }) %>
-                        </tbody>
-                    </table>
+                                                                <div class="m-tools">
+                                                                    <% if (role==='admin' || role==='staff' ) { %>
+                                                                        <button class="m-tool-btn transaction-btn"
+                                                                            data-id="<%= customer._id %>"
+                                                                            data-company="<%= customer.companyName %>"
+                                                                            title="Update Payment">💳</button>
+                                                                        <% if (due> 0) { %>
+                                                                            <button class="m-tool-btn reminder-btn"
+                                                                                data-id="<%= customer._id %>"
+                                                                                data-company="<%= customer.companyName %>"
+                                                                                title="Set Next Action Date">📅</button>
+                                                                            <% } %>
+                                                                                <% } %>
+
+                                                                                    <% if (role==='admin' ) { %>
+                                                                                        <button
+                                                                                            class="m-tool-btn edit-btn"
+                                                                                            data-id="<%= customer._id %>"
+                                                                                            data-company="<%= customer.companyName %>"
+                                                                                            data-contact="<%= customer.contactPerson %>"
+                                                                                            data-email="<%= customer.email %>"
+                                                                                            data-phone="<%= customer.phone %>"
+                                                                                            data-whatsapp="<%= customer.whatsappNumber %>"
+                                                                                            data-other="<%= customer.otherNumbers %>"
+                                                                                            title="Edit Customer Details">✏️</button>
+                                                                                        <form
+                                                                                            action="/customers/<%= customer._id %>?_method=DELETE"
+                                                                                            method="POST"
+                                                                                            style="margin:0; display: flex;"
+                                                                                            onsubmit="return confirm('Permanently delete this customer?');">
+                                                                                            <button type="submit"
+                                                                                                class="m-tool-btn"
+                                                                                                style="color:#ef4444;"
+                                                                                                title="Delete Customer">🗑️</button>
+                                                                                        </form>
+                                                                                        <% } %>
+                                                                </div>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
     </div>
 
     <% if (role==='admin' ) { %>
         <div id="bulkActionBar" class="bulk-action-bar">
-            <span id="selectedCount" style="font-weight: bold; font-size: 14px;">0 Selected</span>
+            <span id="selectedCount" style="font-weight: 700; font-size: 15px;">0 Selected</span>
             <form id="bulkForm" action="/customers/bulk" method="POST" style="margin: 0; display: flex; gap: 10px;">
                 <input type="hidden" name="action" value="delete">
                 <div id="hiddenInputs"></div>
                 <button type="button" onclick="confirmBulkDelete()"
-                    style="background: #ef4444; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);">
-                    🗑️ Delete Selected
+                    style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">
+                    🗑️ Delete All
                 </button>
             </form>
         </div>
@@ -1019,48 +1117,32 @@
             <div id="addModal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeAddModal()">&times;</span>
-                    <h3 style="margin-top: 0;">Add New Party</h3>
+                    <h3 style="margin-top: 0; color: var(--text-dark);">➕ Add New Party</h3>
                     <form action="/customers" method="POST">
                         <label class="trans-label">Company Name</label>
-                        <input type="text" name="companyName" placeholder="Company Name" required class="input-style">
-
+                        <input type="text" name="companyName" required class="input-style">
                         <label class="trans-label">Contact Person</label>
-                        <input type="text" name="contactPerson" placeholder="Contact Person" required
-                            class="input-style">
-
+                        <input type="text" name="contactPerson" required class="input-style">
                         <label class="trans-label">Email Address</label>
-                        <input type="email" name="email" placeholder="Email Address" class="input-style">
-
-                        <label class="trans-label">Total Amount (₹)</label>
-                        <input type="number" name="totalAmount" placeholder="Total Amount (₹)" required
-                            class="input-style">
-
-                        <label class="trans-label">Primary Phone (with Code)</label>
+                        <input type="email" name="email" class="input-style">
+                        <label class="trans-label">Total Due Amount (₹)</label>
+                        <input type="number" name="totalAmount" required class="input-style">
+                        <label class="trans-label">Primary Phone</label>
                         <div style="display: flex; gap: 5px; margin-bottom: 5px;">
-                            <select name="countryCode" id="countryCode" class="input-style"
-                                style="width: 80px; margin-bottom: 0;">
+                            <select name="countryCode" class="input-style" style="width: 80px; margin-bottom: 0;">
                                 <option value="91" selected>+91</option>
                                 <option value="1">+1</option>
                                 <option value="971">+971</option>
                             </select>
-                            <input type="text" name="localPhone" placeholder="Calling Number" required
-                                class="input-style" style="margin-bottom: 0; width: 100%;">
+                            <input type="text" name="localPhone" required class="input-style"
+                                style="margin-bottom: 0; width: 100%;">
                         </div>
-
                         <label class="trans-label">WhatsApp Number (with Code)</label>
-                        <input type="text" name="whatsappNumber" placeholder="WhatsApp Number" required
-                            class="input-style">
-
+                        <input type="text" name="whatsappNumber" required class="input-style">
                         <label class="trans-label">Other Numbers</label>
-                        <input type="text" name="otherNumbers" placeholder="Other Numbers (Comma separated)"
-                            class="input-style">
-
-                        <label class="trans-label">First Action Date</label>
-                        <input type="text" name="nextActionDate" placeholder="Select Desire Date 📅" required
-                            class="input-style" onfocus="(this.type='date')" onblur="if(!this.value) this.type='text'">
-
-                        <button type="submit" class="btn btn-green"
-                            style="width:100%; padding: 12px; font-size: 16px; margin-top: 10px;">Save Party</button>
+                        <input type="text" name="otherNumbers" placeholder="Comma separated" class="input-style">
+                        <button type="submit" class="btn-primary" style="width:100%; margin-top: 10px;">Save
+                            Party</button>
                     </form>
                 </div>
             </div>
@@ -1068,20 +1150,19 @@
             <div id="transactionModal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeTransactionModal()">&times;</span>
-                    <h3>Update Balance</h3>
-                    <p id="transCompanyName" style="font-weight:bold; color:#3498db;"></p>
+                    <h3 style="margin-top: 0; color: var(--text-dark);">💳 Update Balance</h3>
+                    <p id="transCompanyName" style="font-weight:bold; color:var(--primary); margin-bottom: 20px;"></p>
                     <form id="transactionForm" method="POST">
                         <div class="trans-group">
-                            <label class="trans-label">➕ Add New Purchase (Increases Debt)</label>
+                            <label class="trans-label" style="color: #b91c1c;">➕ Add New Purchase (Increases
+                                Debt)</label>
                             <input type="number" name="newPurchase" placeholder="Amount (₹)" class="input-style">
                         </div>
-                        <div class="trans-group">
-                            <label class="trans-label" style="color: green;">➖ Add Payment Received (Reduces
-                                Debt)</label>
+                        <div class="trans-group" style="background: #f0fdf4; border-color: #bbf7d0;">
+                            <label class="trans-label" style="color: #15803d;">➖ Payment Received (Reduces Debt)</label>
                             <input type="number" name="payment" placeholder="Amount (₹)" class="input-style">
                         </div>
-                        <button type="submit" class="btn btn-blue" style="width:100%; padding:10px;">Update
-                            Account</button>
+                        <button type="submit" class="btn-primary" style="width:100%;">Save Transaction</button>
                     </form>
                 </div>
             </div>
@@ -1089,13 +1170,12 @@
             <div id="actionModal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeActionModal()">&times;</span>
-                    <h3>Set Next Action Date</h3>
-                    <p id="modalCompanyName" style="font-weight:bold;"></p>
+                    <h3 style="margin-top: 0; color: var(--text-dark);">📅 Snooze / Set Date</h3>
+                    <p id="modalCompanyName" style="font-weight:bold; color:var(--primary);"></p>
                     <form id="updateDateForm" method="POST">
-                        <label class="trans-label">Select New Date:</label>
+                        <label class="trans-label">Select Next Reminder Date:</label>
                         <input type="date" name="nextDate" required class="input-style">
-                        <button type="submit" class="btn btn-blue" style="width:100%; margin-top:10px;">Save Next
-                            Date</button>
+                        <button type="submit" class="btn-primary" style="width:100%;">Save Date</button>
                     </form>
                 </div>
             </div>
@@ -1103,33 +1183,23 @@
             <div id="editModal" class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeEditModal()">&times;</span>
-                    <h3>Edit Customer Details</h3>
+                    <h3 style="margin-top: 0; color: var(--text-dark);">✏️ Edit Details</h3>
                     <form id="editForm" method="POST">
-                        <label class="trans-label">Company Name</label>
-                        <input type="text" name="companyName" id="editCompany" required class="input-style">
-
-                        <label class="trans-label">Contact Person</label>
-                        <input type="text" name="contactPerson" id="editContact" required class="input-style">
-
-                        <label class="trans-label">Email</label>
-                        <input type="email" name="email" id="editEmail" class="input-style">
-
+                        <label class="trans-label">Company</label><input type="text" name="companyName" id="editCompany"
+                            required class="input-style">
+                        <label class="trans-label">Contact</label><input type="text" name="contactPerson"
+                            id="editContact" required class="input-style">
+                        <label class="trans-label">Email</label><input type="email" name="email" id="editEmail"
+                            class="input-style">
                         <div class="form-row">
-                            <div style="flex:1">
-                                <label class="trans-label">Full Phone (with Code)</label>
-                                <input type="text" name="phone" id="editPhone" required class="input-style">
-                            </div>
-                            <div style="flex:1">
-                                <label class="trans-label">Full WhatsApp (with Code)</label>
-                                <input type="text" name="whatsappNumber" id="editWhatsapp" required class="input-style">
-                            </div>
+                            <div style="flex:1"><label class="trans-label">Phone</label><input type="text" name="phone"
+                                    id="editPhone" required class="input-style"></div>
+                            <div style="flex:1"><label class="trans-label">WhatsApp</label><input type="text"
+                                    name="whatsappNumber" id="editWhatsapp" required class="input-style"></div>
                         </div>
-
-                        <label class="trans-label">Other Numbers</label>
-                        <input type="text" name="otherNumbers" id="editOther" class="input-style">
-
-                        <button type="submit" class="btn btn-yellow"
-                            style="width:100%; padding:10px; font-weight:bold;">Save Changes</button>
+                        <label class="trans-label">Other</label><input type="text" name="otherNumbers" id="editOther"
+                            class="input-style">
+                        <button type="submit" class="btn-primary" style="width:100%;">Save Changes</button>
                     </form>
                 </div>
             </div>
@@ -1138,53 +1208,32 @@
                 <div class="modal-content">
                     <span class="close"
                         onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
-                    <h3 style="margin-top: 0;">⚙️ Company Profile (For Excel & Messages)</h3>
-                    <p style="font-size: 12px; color: #666; margin-top: -10px;">Leave blank to omit from Excel exports.
-                    </p>
-
+                    <h3 style="margin-top: 0; color: var(--text-dark);">⚙️ Company Profile</h3>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: -10px; margin-bottom: 20px;">Used
+                        for PDF/Excel Headers and WhatsApp Messages.</p>
                     <form action="/settings?_method=PUT" method="POST">
-                        <label class="trans-label">Company Name</label>
-                        <input type="text" name="companyName" value="<%= adminUser.companyName || '' %>"
-                            class="input-style">
-
-                        <label class="trans-label">Address Line 1</label>
-                        <input type="text" name="addressLine1" value="<%= adminUser.addressLine1 || '' %>"
-                            class="input-style">
-
-                        <label class="trans-label">Address Line 2</label>
-                        <input type="text" name="addressLine2" value="<%= adminUser.addressLine2 || '' %>"
-                            class="input-style">
-
-                        <label class="trans-label">Address Line 3</label>
-                        <input type="text" name="addressLine3" value="<%= adminUser.addressLine3 || '' %>"
-                            class="input-style">
-
+                        <label class="trans-label">Company Name</label><input type="text" name="companyName"
+                            value="<%= adminUser.companyName || '' %>" class="input-style">
+                        <label class="trans-label">Address Line 1</label><input type="text" name="addressLine1"
+                            value="<%= adminUser.addressLine1 || '' %>" class="input-style">
+                        <label class="trans-label">Address Line 2</label><input type="text" name="addressLine2"
+                            value="<%= adminUser.addressLine2 || '' %>" class="input-style">
+                        <label class="trans-label">Address Line 3</label><input type="text" name="addressLine3"
+                            value="<%= adminUser.addressLine3 || '' %>" class="input-style">
                         <div class="form-row">
-                            <div style="flex:1">
-                                <label class="trans-label">DL No.</label>
-                                <input type="text" name="dlNo" value="<%= adminUser.dlNo || '' %>" class="input-style">
-                            </div>
-                            <div style="flex:1">
-                                <label class="trans-label">MSME No.</label>
-                                <input type="text" name="msmeNo" value="<%= adminUser.msmeNo || '' %>"
-                                    class="input-style">
+                            <div style="flex:1"><label class="trans-label">DL No.</label><input type="text" name="dlNo"
+                                    value="<%= adminUser.dlNo || '' %>" class="input-style"></div>
+                            <div style="flex:1"><label class="trans-label">MSME No.</label><input type="text"
+                                    name="msmeNo" value="<%= adminUser.msmeNo || '' %>" class="input-style"></div>
+                        </div>
+                        <div class="form-row">
+                            <div style="flex:1"><label class="trans-label">Contact No.</label><input type="text"
+                                    name="contactNo" value="<%= adminUser.contactNo || '' %>" class="input-style"></div>
+                            <div style="flex:1"><label class="trans-label">Email</label><input type="email"
+                                    name="companyEmail" value="<%= adminUser.companyEmail || '' %>" class="input-style">
                             </div>
                         </div>
-
-                        <div class="form-row">
-                            <div style="flex:1">
-                                <label class="trans-label">Contact No.</label>
-                                <input type="text" name="contactNo" value="<%= adminUser.contactNo || '' %>"
-                                    class="input-style">
-                            </div>
-                            <div style="flex:1">
-                                <label class="trans-label">Email</label>
-                                <input type="email" name="companyEmail" value="<%= adminUser.companyEmail || '' %>"
-                                    class="input-style">
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-blue"
+                        <button type="submit" class="btn-primary"
                             style="width:100%; padding:12px; font-weight:bold; margin-top:10px;">💾 Save Company
                             Profile</button>
                     </form>
@@ -1192,9 +1241,7 @@
             </div>
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
             <script>
-                // 🚨 CLICKABLE STAT CARD FILTER
                 let actionFilterActive = false;
                 function toggleActionRequiredFilter() {
                     actionFilterActive = !actionFilterActive;
@@ -1203,86 +1250,62 @@
                     const searchInput = document.getElementById('searchInput');
 
                     if (actionFilterActive) {
-                        card.style.background = '#fff3cd';
+                        card.style.background = '#ffedd5';
                         card.style.transform = 'scale(0.98)';
                         card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
                         searchInput.value = '';
 
                         rows.forEach(row => {
-                            if (row.getAttribute('data-action-req') === 'true') {
-                                row.style.display = '';
-                            } else {
-                                row.style.display = 'none';
-                            }
+                            if (row.getAttribute('data-action-req') === 'true') row.style.display = '';
+                            else row.style.display = 'none';
                         });
                     } else {
                         card.style.background = 'white';
                         card.style.transform = 'none';
-                        card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
-
-                        rows.forEach(row => {
-                            row.style.display = '';
-                        });
+                        card.style.boxShadow = 'var(--shadow-soft)';
+                        rows.forEach(row => row.style.display = '');
                     }
                 }
 
-                // 1. Transaction Logic
                 document.querySelectorAll('.transaction-btn').forEach(button => {
                     button.addEventListener('click', function () {
-                        const id = this.getAttribute('data-id');
-                        const company = this.getAttribute('data-company');
-
                         window.history.pushState({ modal: true }, '', '#pay');
                         document.getElementById('transactionModal').style.display = "block";
-                        document.getElementById('transCompanyName').innerText = company;
-                        document.getElementById('transactionForm').action = `/customers/${id}/transaction?_method=PUT`;
+                        document.getElementById('transCompanyName').innerText = this.getAttribute('data-company');
+                        document.getElementById('transactionForm').action = `/customers/${this.getAttribute('data-id')}/transaction?_method=PUT`;
                     });
                 });
 
-                // 2. Reminder/Date Logic
                 document.querySelectorAll('.reminder-btn').forEach(button => {
                     button.addEventListener('click', function () {
-                        const id = this.getAttribute('data-id');
-                        const company = this.getAttribute('data-company');
-
                         window.history.pushState({ modal: true }, '', '#date');
                         document.getElementById('actionModal').style.display = "block";
-                        document.getElementById('modalCompanyName').innerText = company;
-                        document.getElementById('updateDateForm').action = `/customers/${id}/update-reminder?_method=PUT`;
+                        document.getElementById('modalCompanyName').innerText = this.getAttribute('data-company');
+                        document.getElementById('updateDateForm').action = `/customers/${this.getAttribute('data-id')}/update-reminder?_method=PUT`;
                     });
                 });
 
-                // 3. Edit Logic
                 document.querySelectorAll('.edit-btn').forEach(button => {
                     button.addEventListener('click', function () {
-                        const id = this.getAttribute('data-id');
-
                         document.getElementById('editCompany').value = this.getAttribute('data-company');
                         document.getElementById('editContact').value = this.getAttribute('data-contact');
                         document.getElementById('editEmail').value = this.getAttribute('data-email');
                         document.getElementById('editPhone').value = this.getAttribute('data-phone');
                         document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
                         document.getElementById('editOther').value = this.getAttribute('data-other');
-
                         window.history.pushState({ modal: true }, '', '#edit');
                         document.getElementById('editModal').style.display = "block";
-                        document.getElementById('editForm').action = `/customers/${id}/edit?_method=PUT`;
+                        document.getElementById('editForm').action = `/customers/${this.getAttribute('data-id')}/edit?_method=PUT`;
                     });
                 });
 
-                // 4. Add Party Modal
                 function openAddModal() {
                     window.history.pushState({ modal: true }, '', '#add');
                     document.getElementById('addModal').style.display = "block";
                 }
 
-                // 5. Native Close Functions
                 function closeAllModals() {
-                    document.getElementById('transactionModal').style.display = "none";
-                    document.getElementById('actionModal').style.display = "none";
-                    document.getElementById('editModal').style.display = "none";
-                    document.getElementById('addModal').style.display = "none";
-                    document.getElementById('settingsModal').style.display = "none";
+                    document.querySelectorAll('.modal').forEach(m => m.style.display = "none");
                 }
 
                 function closeTransactionModal() { window.history.back(); }
@@ -1290,69 +1313,36 @@
                 function closeEditModal() { window.history.back(); }
                 function closeAddModal() { window.history.back(); }
 
-                window.addEventListener('popstate', function (event) {
-                    closeAllModals();
-                });
+                window.addEventListener('popstate', function (event) { closeAllModals(); });
 
                 window.onclick = function (event) {
-                    if (event.target == document.getElementById('actionModal')) closeActionModal();
-                    if (event.target == document.getElementById('transactionModal')) closeTransactionModal();
-                    if (event.target == document.getElementById('editModal')) closeEditModal();
-                    if (event.target == document.getElementById('addModal')) closeAddModal();
-                    if (event.target == document.getElementById('settingsModal')) document.getElementById('settingsModal').style.display = "none";
+                    if (event.target.classList.contains('modal')) {
+                        if (window.location.hash) window.history.back(); else closeAllModals();
+                    }
                 }
 
-                // 🔍 REAL-TIME SEARCH FILTER
                 document.getElementById('searchInput').addEventListener('keyup', function () {
-                    if (actionFilterActive) {
-                        actionFilterActive = false;
-                        const card = document.getElementById('actionStatCard');
-                        card.style.background = 'white';
-                        card.style.transform = 'none';
-                        card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)';
-                    }
-
+                    if (actionFilterActive) toggleActionRequiredFilter();
                     let filter = this.value.toLowerCase();
-                    let rows = document.querySelectorAll('.customer-row');
-
-                    rows.forEach(row => {
+                    document.querySelectorAll('.customer-row').forEach(row => {
                         let text = row.innerText.toLowerCase();
-                        if (text.includes(filter)) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
+                        row.style.display = text.includes(filter) ? '' : 'none';
                     });
                 });
 
-                // 📄 PDF EXPORT LOGIC
                 function downloadPDF() {
                     const elementToPrint = document.createElement('div');
                     elementToPrint.innerHTML = `
-                <h1 style="text-align: center; font-family: sans-serif;">Customer Financial Report</h1>
-                <h3 style="text-align: center; color: #555; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString()}</h3>
+                <h1 style="text-align: center; font-family: sans-serif; color: #1e293b;">Customer Financial Report</h1>
+                <h3 style="text-align: center; color: #64748b; font-family: sans-serif;">Generated: ${new Date().toLocaleDateString('en-IN')}</h3>
                 ${document.querySelector('.aging-card').outerHTML}
                 ${document.querySelector('table').outerHTML}
             `;
-
-                    // Strips out the Checkboxes and the entire Checkbox column
-                    const buttons = elementToPrint.querySelectorAll('.btn, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
-                    buttons.forEach(btn => btn.style.display = 'none');
-
-                    const opt = {
-                        margin: 0.5,
-                        filename: 'Financial_Report.pdf',
-                        image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2 },
-                        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
-                    };
-
-                    html2pdf().set(opt).from(elementToPrint).save();
+                    elementToPrint.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]').forEach(el => el.style.display = 'none');
+                    html2pdf().set({ margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } }).from(elementToPrint).save();
                 }
 
-                // ==========================================
-                // ✅ BULK ACTION SELECTION LOGIC
-                // ==========================================
+                // Bulk Delete Logic
                 const selectAllBtn = document.getElementById('selectAll');
                 const checkboxes = document.querySelectorAll('.customer-checkbox');
                 const bulkBar = document.getElementById('bulkActionBar');
@@ -1371,26 +1361,20 @@
 
                 if (selectAllBtn) {
                     selectAllBtn.addEventListener('change', function () {
-                        // Smart Select: Only select rows that are currently visible
-                        const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
-                        visibleRows.forEach(cb => cb.checked = this.checked);
+                        document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox').forEach(cb => cb.checked = this.checked);
                         updateBulkBar();
                     });
                 }
 
-                checkboxes.forEach(cb => {
-                    cb.addEventListener('change', updateBulkBar);
-                });
+                checkboxes.forEach(cb => { cb.addEventListener('change', updateBulkBar); });
 
                 function confirmBulkDelete() {
                     const selected = Array.from(checkboxes).filter(cb => cb.checked);
-                    if (confirm(`⚠️ WARNING: You are about to permanently delete ${selected.length} parties. This cannot be undone. Proceed?`)) {
+                    if (confirm(`⚠️ WARNING: You are about to permanently delete ${selected.length} parties. Proceed?`)) {
                         hiddenInputs.innerHTML = '';
                         selected.forEach(cb => {
                             const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = 'customerIds';
-                            input.value = cb.value;
+                            input.type = 'hidden'; input.name = 'customerIds'; input.value = cb.value;
                             hiddenInputs.appendChild(input);
                         });
                         document.getElementById('bulkForm').submit();

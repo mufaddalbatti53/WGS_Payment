@@ -2,38 +2,59 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 
-mongoose.connect('mongodb://127.0.0.1:27017/paymentApp')
-    .then(() => console.log("Connected to DB"))
-    .catch(err => console.log(err));
+// 🚨 THE FIX 1: Use your LIVE MongoDB Atlas connection!
+const dbURI = 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+
+mongoose.connect(dbURI)
+    .then(() => console.log("✅ Live Database Connected for Seeding..."))
+    .catch(err => console.log("❌ DB Connection Error: ", err));
 
 const seedDB = async () => {
-    // 1. Delete existing users to avoid duplicates
-    await User.deleteMany({});
+    try {
+        // 1. Delete existing users to avoid duplicates (Be careful with this on a live app!)
+        console.log("⚠️ Wiping existing users...");
+        await User.deleteMany({});
 
-    // 2. Hash the password "admin123"
-    const hashedPassword = await bcrypt.hash('admin123', 12);
+        // Use 10 salt rounds to match server.js perfectly
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        const hashedAnswer = await bcrypt.hash('dog', 10); // Answer to "first pet's name"
 
-    // 3. Create the Admin
-    const admin = new User({
-        username: 'admin',
-        password: hashedPassword,
-        role: 'admin'
-    });
+        // 2. Create the Admin
+        const admin = new User({
+            username: 'admin',
+            password: hashedPassword,
+            role: 'admin',
+            securityQuestion: 'pet', // matches the HTML dropdown
+            securityAnswer: hashedAnswer
+        });
 
-    // 4. Create a Staff member (Optional)
-    const staffPassword = await bcrypt.hash('staff123', 12);
-    const staff = new User({
-        username: 'staff',
-        password: staffPassword,
-        role: 'staff'
-    });
+        // Save admin first so we can grab their ID!
+        await admin.save();
+        console.log(`✅ Admin created! (Username: admin, Password: admin123)`);
 
-    await admin.save();
-    await staff.save();
-    console.log("Database Seeded! You can now login.");
+        // 3. Create a Staff member
+        const staffPassword = await bcrypt.hash('staff123', 10);
+        const staff = new User({
+            username: 'staff',
+            password: staffPassword,
+            role: 'staff',
+            adminId: admin._id, // 🚨 THE FIX 2: Correctly links this staff to the admin!
+            securityQuestion: 'pet',
+            securityAnswer: hashedAnswer
+        });
+
+        await staff.save();
+        console.log(`✅ Staff created! (Username: staff, Password: staff123)`);
+
+        console.log("🎉 Database Seeded Successfully! You can now login.");
+
+    } catch (error) {
+        console.error("❌ Seeding Error:", error);
+    } finally {
+        // Always close the connection
+        mongoose.connection.close();
+        console.log("🔌 Connection closed.");
+    }
 };
 
-seedDB().then(() => {
-    mongoose.connection.close();
-
-});
+seedDB();

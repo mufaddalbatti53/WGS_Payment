@@ -5,47 +5,120 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Recover Password</title>
+    <meta name="theme-color" content="#f97316">
     <style>
+        :root {
+            --primary: #f97316;
+            /* Bright Orange */
+            --primary-dark: #ea580c;
+            /* Deep Orange */
+            --bg-color: #fdfbf7;
+            /* Warm Off-White */
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --shadow-soft: 0 12px 35px rgba(234, 88, 12, 0.08);
+            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #2c3e50;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-color);
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-        }
-
-        .box {
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            width: 350px;
-            text-align: center;
-        }
-
-        input,
-        select {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            margin: 0;
+            padding: 20px;
             box-sizing: border-box;
         }
 
-        button {
+        /* The Premium Floating Card */
+        .box {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
             width: 100%;
-            padding: 10px;
-            background: #e67e22;
-            color: white;
-            border: none;
-            cursor: pointer;
-            margin-top: 10px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid rgba(249, 115, 22, 0.1);
         }
 
+        h2 {
+            margin-top: 0;
+            color: var(--text-dark);
+            font-weight: 800;
+            font-size: 26px;
+            margin-bottom: 25px;
+        }
+
+        /* Modern Input Fields */
+        input,
+        select {
+            width: 100%;
+            padding: 14px 15px;
+            margin: 8px 0 15px 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 14px;
+            background: #f8fafc;
+            transition: all 0.3s ease;
+            outline: none;
+            color: var(--text-dark);
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+        }
+
+        /* Premium Floating Button */
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 15px;
+            box-shadow: var(--shadow-btn);
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+        }
+
+        /* Styled Error Message */
         .alert {
-            color: red;
+            color: #ef4444;
             font-size: 13px;
+            font-weight: bold;
+            background: #fee2e2;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--primary-dark);
         }
     </style>
 </head>
@@ -53,17 +126,19 @@
 <body>
     <div class="box">
         <h2>Reset Password</h2>
+
         <% if (error) { %>
-            <p class="alert">
-                <%= error %>
-            </p>
+            <div class="alert">
+                ⚠️ <%= error %>
+            </div>
             <% } %>
 
                 <form action="/forgot-password" method="POST">
                     <input type="text" name="username" placeholder="Enter your Username" required>
 
-                    <label style="display:block; text-align:left; font-size:12px; color:#555;">Select your Security
-                        Question:</label>
+                    <label
+                        style="display:block; text-align:left; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:5px;">Select
+                        your Security Question:</label>
                     <select name="securityQuestion">
                         <option value="pet">What is your first pet's name?</option>
                         <option value="school">What is your first school name?</option>
@@ -75,9 +150,9 @@
 
                     <button type="submit">Reset Password</button>
                 </form>
-                <a href="/login" style="display:block; margin-top:15px; font-size:12px; color:#333;">Back to Login</a>
+
+                <a href="/login" class="back-link">&larr; Back to Login</a>
     </div>
 </body>
-
 
 </html>

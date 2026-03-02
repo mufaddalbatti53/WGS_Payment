@@ -136,21 +136,42 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-// 2. DASHBOARD
+// 2. DASHBOARD (WITH SMART 1-DAY SNOOZE ENGINE)
 app.get('/', async (req, res) => {
-    if (!req.session.userId) {
-        return res.redirect('/login');
-    }
+    if (!req.session.userId) return res.redirect('/login');
+    
     try {
-        const customers = await Customer.find({ adminId: req.session.adminId }).lean();
+        // 1. Fetch all customers first to run the engine
+        const allCustomers = await Customer.find({ adminId: req.session.adminId });
+        
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
 
-        // NEW: Fetch Admin's Company Profile to pass to the frontend
+        // 2. THE AUTO-ROLLOVER ENGINE
+        // If an action date is 1 day in the past AND they still owe money, roll it forward 10 days.
+        for (let c of allCustomers) {
+            const due = c.totalAmount - c.paidAmount;
+            if (due > 0 && c.nextActionDate) {
+                const actionDate = new Date(c.nextActionDate);
+                actionDate.setHours(0, 0, 0, 0);
+                
+                if (todayMidnight > actionDate) {
+                    const newDate = new Date();
+                    newDate.setDate(newDate.getDate() + 10); // Push 10 days into the future
+                    c.nextActionDate = newDate;
+                    await c.save(); // Save the new snoozed date
+                }
+            }
+        }
+
+        // 3. Re-fetch the clean, updated data to render the screen
+        const finalCustomers = await Customer.find({ adminId: req.session.adminId }).lean();
         const adminUser = await User.findById(req.session.adminId).lean() || {};
 
-        res.render('index', {
-            customers: customers,
+        res.render('index', { 
+            customers: finalCustomers, 
             role: req.session.role,
-            adminUser: adminUser
+            adminUser: adminUser 
         });
     } catch (err) {
         console.error("Dashboard Error:", err);
@@ -395,8 +416,7 @@ app.get('/export', requireLogin, async (req, res) => {
 });
 
 
-// --- SMART TALLY IMPORTER (STRICT TABLE SCANNER) ---
-// --- SMART TALLY IMPORTER (WITH SMART PHONE PARSER) ---
+// --- SMART TALLY IMPORTER (AUTO-10-DAY ASSIGNMENT) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -404,28 +424,22 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // Read the Excel file purely as an Array of columns
         const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         let importedCount = 0;
 
-        // 1. STRICT SCAN: Find the exact row where the table headers start
         let dataStartIndex = 0;
         for (let i = 0; i < rawData.length; i++) {
             const firstColumn = rawData[i][0] ? String(rawData[i][0]).trim().toLowerCase() : '';
-
-            // Once we find "Particulars", we tell the importer to start reading FROM HERE
             if (firstColumn === 'particulars') {
                 dataStartIndex = i + 1;
                 break;
             }
         }
 
-        // 2. Loop through ONLY the real data rows
         for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
             const partyName = row[0] ? String(row[0]).trim() : '';
 
-            // If the row has no name in Column A or if it is "Grand Total", SKIP IT!
             if (!partyName || partyName.toLowerCase() === 'grand total') {
                 continue;
             }
@@ -433,12 +447,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
             const contactPerson = row[1] ? String(row[1]).trim() : '';
 
-            // ==========================================
-            // 🚨 THE SMART PHONE PARSER
-            // ==========================================
             const rawPhoneStr = row[2] ? String(row[2]).trim() : '';
-
-            // Split by comma, remove extra spaces, and filter out empty items
             const phoneArray = rawPhoneStr.split(',').map(n => n.trim()).filter(n => n);
 
             let finalPhone = '';
@@ -446,54 +455,57 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             let finalOther = '';
 
             if (phoneArray.length > 0) {
-                // Helper function: Cleans junk and perfectly applies '91'
                 const formatNum = (num) => {
-                    let cleaned = num.replace(/[^0-9]/g, ''); // Strip hyphens, spaces, text
-                    if (cleaned.length === 10) return '91' + cleaned; // Standard 10 digit
-                    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned; // Already has 91
-                    return cleaned ? '91' + cleaned : ''; // Fallback for weird lengths
+                    let cleaned = num.replace(/[^0-9]/g, '');
+                    if (cleaned.length === 10) return '91' + cleaned;
+                    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned;
+                    return cleaned ? '91' + cleaned : '';
                 };
 
-                // 1st number is the Calling Number
                 finalPhone = formatNum(phoneArray[0]);
-
-                // If there's no specific WhatsApp column in Tally, use Calling Number for WhatsApp
                 finalWhatsapp = finalPhone;
 
-                // Any extra numbers after the comma go to Other Numbers
                 if (phoneArray.length > 1) {
                     finalOther = phoneArray.slice(1).map(formatNum).join(', ');
                 }
             }
-            // ==========================================
 
-            const totalPending = cleanMoney(row[3]); // Column D (Index 3)
+            const totalPending = cleanMoney(row[3]); 
 
             const agingData = {
-                under30: cleanMoney(row[4]),        // Column E (Index 4)
-                days30to60: cleanMoney(row[5]),     // Column F (Index 5)
-                days60to90: cleanMoney(row[7]),     // Column H (Index 7)
-                days90to120: cleanMoney(row[8]),    // Column I (Index 8)
-                days120to150: cleanMoney(row[9]),   // Column J (Index 9)
-                days150to180: cleanMoney(row[10]),  // Column K (Index 10)
-                above180: cleanMoney(row[11]),      // Column L (Index 11)
-                onAccount: cleanMoney(row[12])      // Column M (Index 12)
+                under30: cleanMoney(row[4]),        
+                days30to60: cleanMoney(row[5]),     
+                days60to90: cleanMoney(row[7]),     
+                days90to120: cleanMoney(row[8]),    
+                days120to150: cleanMoney(row[9]),   
+                days150to180: cleanMoney(row[10]),  
+                above180: cleanMoney(row[11]),      
+                onAccount: cleanMoney(row[12])      
             };
 
-            // Save to Database
-            await Customer.findOneAndUpdate(
-                { companyName: partyName, adminId: req.session.adminId },
-                {
-                    contactPerson: contactPerson,
-                    phone: finalPhone,
-                    whatsappNumber: finalWhatsapp, // Set from Primary
-                    otherNumbers: finalOther,      // The comma-separated extras
-                    totalAmount: totalPending,
-                    aging: agingData
-                },
-                { upsert: true, returnDocument: 'after' }
-            );
+            // 🚨 THE FIX: Look up customer to smartly manage their Action Date
+            let cust = await Customer.findOne({ companyName: partyName, adminId: req.session.adminId });
+            
+            if (!cust) {
+                // New customer: Create and set 10 days from now
+                cust = new Customer({ companyName: partyName, adminId: req.session.adminId });
+                let d = new Date(); d.setDate(d.getDate() + 10);
+                cust.nextActionDate = d;
+            } else if (!cust.nextActionDate) {
+                // Existing customer missing a date: Give them 10 days
+                let d = new Date(); d.setDate(d.getDate() + 10);
+                cust.nextActionDate = d;
+            }
 
+            // Update everything else
+            cust.contactPerson = contactPerson;
+            cust.phone = finalPhone;
+            cust.whatsappNumber = finalWhatsapp;
+            cust.otherNumbers = finalOther;
+            cust.totalAmount = totalPending;
+            cust.aging = agingData;
+            
+            await cust.save();
             importedCount++;
         }
 
@@ -505,13 +517,18 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         res.status(500).send("Failed to import. Please check file format.");
     }
 });
-// 5. CUSTOMER ACTIONS
+
+// 5. CUSTOMER ACTIONS (AUTO-ASSIGNS 10 DAYS)
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
     try {
         const fullPhoneNumber = req.body.countryCode + req.body.localPhone;
         const initialAmount = Number(req.body.totalAmount) || 0;
+
+        // 🚨 THE FIX: Auto-generate date 10 days into the future
+        const autoDate = new Date();
+        autoDate.setDate(autoDate.getDate() + 10);
 
         await Customer.create({
             companyName: req.body.companyName,
@@ -521,7 +538,7 @@ app.post('/customers', async (req, res) => {
             whatsappNumber: req.body.whatsappNumber,
             totalAmount: initialAmount,
             adminId: req.session.adminId,
-            nextActionDate: req.body.nextActionDate,
+            nextActionDate: autoDate, // Uses the smart 10-day logic
             aging: {
                 under30: initialAmount,
                 days30to60: 0, days60to90: 0, days90to120: 0,
@@ -573,7 +590,6 @@ app.delete('/customers/:id', requireLogin, async (req, res) => {
 });
 
 // FIFO Payment Engine
-// --- THE FIX: BULLETPROOF FIFO PAYMENT ENGINE ---
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
@@ -582,26 +598,22 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
         const newPurchase = Number(req.body.newPurchase) || 0;
         const payment = Number(req.body.payment) || 0;
 
-        // Log the date of the payment for the WhatsApp receipt!
         if (payment > 0) customer.lastPaymentDate = new Date();
 
         customer.totalAmount = (Number(customer.totalAmount) || 0) + newPurchase;
         customer.paidAmount = (Number(customer.paidAmount) || 0) + payment;
 
-        // Safety check: ensure aging object exists
         if (!customer.aging) {
             customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
         }
 
-        // 1. Add new purchases to the < 30 days bucket
         customer.aging.under30 = (Number(customer.aging.under30) || 0) + newPurchase;
 
-        // 2. FIFO Payment Engine: Pay off the oldest debt buckets first
         let remainingPayment = payment;
         const bucketOrder = ['above180', 'days150to180', 'days120to150', 'days90to120', 'days60to90', 'days30to60', 'under30', 'onAccount'];
 
         for (let bucket of bucketOrder) {
-            if (remainingPayment <= 0) break; // Stop when payment is fully applied
+            if (remainingPayment <= 0) break;
 
             let currentBucketVal = Number(customer.aging[bucket]) || 0;
 
@@ -616,12 +628,10 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
             }
         }
 
-        // 3. THE MATH FIX: If they overpay, ADD the extra into On Account (Advance Payment)
         if (remainingPayment > 0) {
             customer.aging.onAccount = (Number(customer.aging.onAccount) || 0) + remainingPayment;
         }
 
-        // 🚨 THE MONGOOSE FIX: Force the database to recognize the aging buckets changed!
         customer.markModified('aging');
 
         await customer.save();
@@ -653,13 +663,13 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName} set to ${req.body.nextDate}`);
     res.redirect('/');
 });
+
 // --- BULK CUSTOMER ACTIONS ---
 app.post('/customers/bulk', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
 
     const { action, customerIds } = req.body;
 
-    // Safety check: ensure customerIds is converted to an array (a list)
     let ids = [];
     if (Array.isArray(customerIds)) ids = customerIds;
     else if (customerIds) ids = [customerIds];
@@ -668,7 +678,6 @@ app.post('/customers/bulk', requireLogin, async (req, res) => {
 
     try {
         if (action === 'delete') {
-            // Delete all customers whose ID is in that list
             const result = await Customer.deleteMany({ _id: { $in: ids }, adminId: req.session.adminId });
             await logActivity(req, "Bulk Delete", `Permanently deleted ${result.deletedCount} parties at once.`);
         }

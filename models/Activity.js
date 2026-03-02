@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
 
 const activitySchema = new mongoose.Schema({
-    username: String,       // Who did it? (e.g., "Staff_Ali" or "Admin")
-    action: String,         // What did they do? (e.g., "Updated Payment")
-    details: String,        // Extra info (e.g., "Added ₹500 to Customer X")
-    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Add this line!
-    date: { type: Date, default: Date.now }
+    adminId: { type: String, required: true },      // Links log to the specific company/admin
+    userId: { type: String, required: true },       // Exact ID of the staff/admin who did it
+    username: { type: String, required: true },     // Who did it? (e.g., "Staff_Ali" or "Admin")
+    action: { type: String, required: true },       // What did they do? (e.g., "Payment Updated")
+    details: { type: String, required: true },      // Extra info (e.g., "Added ₹500 to Customer X")
+    createdAt: { type: Date, default: Date.now }    // Crucial: Must be 'createdAt' for Bulk Delete to work
 });
 
 module.exports = mongoose.model('Activity', activitySchema);
