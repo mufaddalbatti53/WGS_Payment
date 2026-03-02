@@ -5,26 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Activity Log</title>
-    <meta name="theme-color" content="#f97316">
+    <meta name="theme-color" content="#2c3e50">
     <style>
-        /* ========================================= */
-        /* 🎨 GLOBAL & THEME (ORANGE BASE)           */
-        /* ========================================= */
         :root {
-            --primary: #f97316;
-            /* Bright Orange */
-            --primary-dark: #ea580c;
-            /* Deep Orange */
-            --primary-light: #fff7ed;
-            /* Very Light Orange background */
-            --bg-color: #fdfbf7;
-            /* Warm Off-White for body */
-            --text-dark: #1e293b;
+            --primary: #27ae60;
+            --primary-dark: #219653;
+            --secondary: #3498db;
+            --bg-color: #f4f6f9;
+            --text-dark: #2c3e50;
             --text-muted: #64748b;
             --card-bg: #ffffff;
-            --shadow-soft: 0 10px 30px rgba(234, 88, 12, 0.06);
-            --shadow-hover: 0 20px 40px rgba(234, 88, 12, 0.12);
-            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
+            --shadow-soft: 0 10px 30px rgba(44, 62, 80, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -41,43 +36,40 @@
             padding-bottom: 50px;
         }
 
-        /* The completely reimagined floating card class */
         .floating-card {
             background: var(--card-bg);
             border-radius: 20px;
             padding: 25px;
             box-shadow: var(--shadow-soft);
             margin-bottom: 25px;
-            border: 1px solid rgba(249, 115, 22, 0.05);
+            border: 1px solid rgba(44, 62, 80, 0.05);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .back-link {
             display: inline-block;
             text-decoration: none;
-            color: var(--primary-dark);
+            color: var(--secondary);
             font-weight: bold;
             margin-bottom: 15px;
             padding: 8px 15px;
-            background: var(--primary-light);
+            background: #f0f7ff;
             border-radius: 20px;
             transition: background 0.2s;
         }
 
         .back-link:hover {
-            background: #ffedd5;
+            background: #e0f2fe;
         }
 
         h1 {
-            margin-top: 0;
+            margin-top: 10px;
+            margin-bottom: 20px;
             color: var(--text-dark);
             font-size: 28px;
             font-weight: 800;
         }
 
-        /* ========================================= */
-        /* 🟠 BUTTONS & INPUTS                       */
-        /* ========================================= */
         .input-style {
             padding: 12px 15px;
             border: 1px solid #cbd5e1;
@@ -93,7 +85,7 @@
         .input-style:focus {
             border-color: var(--primary);
             background: white;
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
         }
 
         .btn-red {
@@ -114,9 +106,6 @@
             transform: translateY(-2px);
         }
 
-        /* ========================================= */
-        /* 📋 TABLE STYLING                          */
-        /* ========================================= */
         table {
             width: 100%;
             border-collapse: separate;
@@ -125,8 +114,8 @@
         }
 
         th {
-            background: var(--primary-light);
-            color: var(--primary-dark);
+            background: #f8fafc;
+            color: var(--text-dark);
             font-weight: bold;
             padding: 15px 12px;
             text-align: left;
@@ -157,12 +146,9 @@
 
         .action-text {
             font-weight: 800;
-            color: var(--primary);
+            color: var(--secondary);
         }
 
-        /* ========================================= */
-        /* 📱 MOBILE VIEW ("UTH KE AANA" EFFECT)     */
-        /* ========================================= */
         @media screen and (max-width: 768px) {
 
             table,
@@ -171,28 +157,25 @@
             th,
             td,
             tr {
-                display: block;
+                display: block !important;
                 width: 100%;
-                box-sizing: border-box;
             }
 
             thead tr {
-                display: none;
+                display: none !important;
             }
 
             .floating-card {
                 padding: 15px;
             }
 
-            /* The Mobile "Floating" Log Card */
             tr {
                 background: #ffffff;
                 border-radius: 20px;
                 margin-bottom: 20px;
                 padding: 20px;
-                border: 1px solid rgba(249, 115, 22, 0.1);
-                box-shadow: 0 12px 35px rgba(234, 88, 12, 0.12);
-                /* Massive Orange Shadow */
+                border: 1px solid rgba(44, 62, 80, 0.1);
+                box-shadow: 0 12px 35px rgba(44, 62, 80, 0.08);
             }
 
             td {
@@ -218,7 +201,7 @@
             .log-action {
                 font-size: 16px;
                 font-weight: 800;
-                color: var(--primary-dark);
+                color: var(--secondary);
             }
 
             .log-date {
@@ -279,7 +262,6 @@
                     <strong
                         style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 10px; text-transform: uppercase;">🗑️
                         Bulk Clear Logs</strong>
-
                     <div id="bulkFormContainer" style="display: flex; gap: 10px; align-items: center;">
                         <select name="filterType" id="filterType" class="input-style"
                             style="flex: 1; min-width: 180px; margin-bottom: 0;" onchange="toggleCustomDates()">
@@ -288,13 +270,11 @@
                             <option value="custom">Custom Date Range</option>
                             <option value="all">Delete ALL Logs</option>
                         </select>
-
                         <div id="customDateBoxes" style="display: none; flex: 2; gap: 10px; align-items: center;">
                             <input type="date" name="startDate" class="input-style" style="margin-bottom: 0;">
                             <span style="color: var(--text-muted); font-weight: bold;">to</span>
                             <input type="date" name="endDate" class="input-style" style="margin-bottom: 0;">
                         </div>
-
                         <button type="submit" class="btn-red">Clear Now</button>
                     </div>
                 </form>
@@ -302,18 +282,10 @@
         </div>
 
         <script>
-            function toggleCustomDates() {
-                const type = document.getElementById('filterType').value;
-                document.getElementById('customDateBoxes').style.display = (type === 'custom') ? 'flex' : 'none';
-            }
-
+            function toggleCustomDates() { document.getElementById('customDateBoxes').style.display = (document.getElementById('filterType').value === 'custom') ? 'flex' : 'none'; }
             document.getElementById('activitySearch').addEventListener('keyup', function () {
                 let filter = this.value.toLowerCase();
-                let rows = document.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    let text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(filter) ? '' : 'none';
-                });
+                document.querySelectorAll('tbody tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none'; });
             });
         </script>
 
@@ -328,60 +300,57 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <% activities.forEach(log=> { %>
-                        <% const rawDate=log.createdAt || log.date || log.timestamp; const hasValidDate=rawDate ? true :
-                            false; const validDate=hasValidDate ? new Date(rawDate) : null; %>
-                            <tr>
-                                <td class="desktop-only"
-                                    style="white-space: nowrap; color: var(--text-muted); font-size: 13px;">
-                                    <% if (hasValidDate) { %>
-                                        <%= validDate.toLocaleDateString('en-IN') %><br>
-                                            <span style="font-weight: bold; color: var(--text-dark);">
-                                                <%= validDate.toLocaleTimeString('en-IN', { hour: '2-digit' ,
-                                                    minute: '2-digit' }) %>
-                                            </span>
-                                            <% } else { %>
-                                                <span style="color:#cbd5e1;">Unknown</span>
-                                                <% } %>
-                                </td>
-                                <td class="desktop-only" style="font-weight: 600; color: var(--text-dark);">
-                                    <%= log.username || 'Admin' %>
-                                </td>
-                                <td class="desktop-only action-text">
-                                    <%= log.action %>
-                                </td>
-                                <td class="desktop-only" style="color: var(--text-muted); line-height: 1.4;">
+                    <% activities.forEach(log=> {
+                        const rawDate = log.createdAt || log.date || log.timestamp;
+                        const hasValidDate = rawDate ? true : false;
+                        const validDate = hasValidDate ? new Date(rawDate) : null;
+                        %>
+                        <tr>
+                            <td class="desktop-only"
+                                style="white-space: nowrap; color: var(--text-muted); font-size: 13px;">
+                                <% if (hasValidDate) { %>
+                                    <%= validDate.toLocaleDateString('en-IN') %><br><span
+                                            style="font-weight: bold; color: var(--text-dark);">
+                                            <%= validDate.toLocaleTimeString('en-IN', { hour: '2-digit' ,
+                                                minute: '2-digit' }) %>
+                                        </span>
+                                        <% } else { %><span style="color:#cbd5e1;">Unknown</span>
+                                            <% } %>
+                            </td>
+                            <td class="desktop-only" style="font-weight: 600; color: var(--text-dark);">
+                                <%= log.username || 'Admin' %>
+                            </td>
+                            <td class="desktop-only action-text">
+                                <%= log.action %>
+                            </td>
+                            <td class="desktop-only" style="color: var(--text-muted); line-height: 1.4;">
+                                <%= log.details %>
+                            </td>
+                            <td class="mobile-only">
+                                <div class="log-header">
+                                    <div class="log-action">
+                                        <%= log.action %>
+                                    </div>
+                                    <div class="log-date">
+                                        <% if (hasValidDate) { %>
+                                            <%= validDate.toLocaleDateString('en-IN') %><br><strong
+                                                    style="color: var(--text-dark);">
+                                                    <%= validDate.toLocaleTimeString('en-IN', { hour: '2-digit' ,
+                                                        minute: '2-digit' }) %>
+                                                </strong>
+                                                <% } else { %><span style="color:#cbd5e1;">Date Unknown</span>
+                                                    <% } %>
+                                    </div>
+                                </div>
+                                <div class="log-user">👤 <strong>
+                                        <%= log.username || 'Admin' %>
+                                    </strong></div>
+                                <div class="log-details">
                                     <%= log.details %>
-                                </td>
-
-                                <td class="mobile-only">
-                                    <div class="log-header">
-                                        <div class="log-action">
-                                            <%= log.action %>
-                                        </div>
-                                        <div class="log-date">
-                                            <% if (hasValidDate) { %>
-                                                <%= validDate.toLocaleDateString('en-IN') %><br>
-                                                    <strong style="color: var(--text-dark);">
-                                                        <%= validDate.toLocaleTimeString('en-IN', { hour: '2-digit' ,
-                                                            minute: '2-digit' }) %>
-                                                    </strong>
-                                                    <% } else { %>
-                                                        <span style="color:#cbd5e1;">Date Unknown</span>
-                                                        <% } %>
-                                        </div>
-                                    </div>
-                                    <div class="log-user">
-                                        👤 <strong>
-                                            <%= log.username || 'Admin' %>
-                                        </strong>
-                                    </div>
-                                    <div class="log-details">
-                                        <%= log.details %>
-                                    </div>
-                                </td>
-                            </tr>
-                            <% }) %>
+                                </div>
+                            </td>
+                        </tr>
+                        <% }) %>
                 </tbody>
             </table>
         </div>

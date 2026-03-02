@@ -3,8 +3,8 @@
     "short_name": "WGS Payment",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#fdfbf7",
-    "theme_color": "#f97316",
+    "background_color": "#f4f6f9",
+    "theme_color": "#2c3e50",
     "icons": [
         {
             "src": "/images/WGS.png",

@@ -3,23 +3,25 @@
 
 <head>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#f97316">
+    <meta name="theme-color" content="#2c3e50">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="apple-touch-icon" href="/images/logo.png">
     <meta charset="UTF-8">
     <title>Login Portal</title>
     <style>
         :root {
-            --primary: #f97316;
-            /* Bright Orange */
-            --primary-dark: #ea580c;
-            /* Deep Orange */
-            --bg-color: #fdfbf7;
-            /* Warm Off-White */
-            --text-dark: #1e293b;
+            --primary: #27ae60;
+            --primary-dark: #219653;
+            --secondary: #3498db;
+            --bg-color: #f4f6f9;
+            --text-dark: #2c3e50;
             --text-muted: #64748b;
-            --shadow-soft: 0 12px 35px rgba(234, 88, 12, 0.08);
-            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
+            --shadow-soft: 0 12px 35px rgba(44, 62, 80, 0.08);
+            --shadow-btn: 0 6px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -31,7 +33,6 @@
             height: 100vh;
             margin: 0;
             padding: 20px;
-            box-sizing: border-box;
         }
 
         .login-container {
@@ -41,7 +42,7 @@
             padding: 40px;
             border-radius: 24px;
             box-shadow: var(--shadow-soft);
-            border: 1px solid rgba(249, 115, 22, 0.1);
+            border: 1px solid rgba(44, 62, 80, 0.1);
             text-align: center;
         }
 
@@ -74,7 +75,6 @@
             border-bottom: 3px solid var(--primary);
             color: var(--primary-dark);
             margin-bottom: -2px;
-            /* Keeps it flush with the border */
         }
 
         .form-box {
@@ -108,7 +108,6 @@
             padding: 14px 15px;
             border: 1px solid #cbd5e1;
             border-radius: 12px;
-            box-sizing: border-box;
             font-size: 14px;
             background: #f8fafc;
             transition: all 0.3s ease;
@@ -119,7 +118,7 @@
         input:focus {
             border-color: var(--primary);
             background: white;
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
         }
 
         .toggle-password {
@@ -150,16 +149,16 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
         }
 
         .btn-customer {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.3);
+            background: linear-gradient(135deg, var(--secondary), #2980b9);
+            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
         }
 
         .btn-customer:hover {
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
         }
 
         .alert {
@@ -192,13 +191,12 @@
         }
 
         .link-forgot {
-            color: var(--primary);
+            color: var(--secondary);
         }
     </style>
 </head>
 
 <body>
-
     <div class="login-container">
         <h2>Welcome Back</h2>
 
@@ -208,26 +206,20 @@
         </div>
 
         <% if (error) { %>
-            <div class="alert">
-                ⚠️ <%= error %>
+            <div class="alert">⚠️ <%= error %>
             </div>
             <% } %>
 
                 <div id="staff" class="form-box active">
                     <form action="/login" method="POST">
                         <input type="hidden" name="type" value="staff">
-
-                        <div class="input-group">
-                            <input type="text" name="username" placeholder="Username" required>
+                        <div class="input-group"><input type="text" name="username" placeholder="Username" required>
                         </div>
-
                         <div class="input-group">
                             <input type="password" name="password" id="passwordInput" placeholder="Password" required>
                             <span class="toggle-password" onclick="togglePassword()">👁️</span>
                         </div>
-
                         <button type="submit">Sign In</button>
-
                         <div class="link-row">
                             <a href="/register" class="link">Create Admin</a>
                             <a href="/forgot-password" class="link link-forgot">Forgot Password?</a>
@@ -247,7 +239,6 @@
                         *Please enter the exact phone number registered with your vendor, including the country code.
                     </p>
                 </div>
-
     </div>
 
     <script>
@@ -261,17 +252,10 @@
         function togglePassword() {
             const passwordInput = document.getElementById('passwordInput');
             const icon = document.querySelector('.toggle-password');
-
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                icon.innerText = '🔒';
-            } else {
-                passwordInput.type = 'password';
-                icon.innerText = '👁️';
-            }
+            if (passwordInput.type === 'password') { passwordInput.type = 'text'; icon.innerText = '🔒'; }
+            else { passwordInput.type = 'password'; icon.innerText = '👁️'; }
         }
     </script>
-
 </body>
 
 </html>

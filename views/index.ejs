@@ -6,23 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Payment Manager</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#f97316">
+    <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="/images/logo.png">
     <style>
         /* ========================================= */
-        /* 🎨 GLOBAL & THEME (ORANGE BASE)           */
+        /* 🎨 GLOBAL & THEME (BLUE & GREEN BASE)     */
         /* ========================================= */
         :root {
-            --primary: #f97316;
-            --primary-dark: #ea580c;
-            --primary-light: #fff7ed;
-            --bg-color: #fdfbf7;
-            --text-dark: #1e293b;
+            --primary: #27ae60;
+            /* Emerald Green */
+            --primary-dark: #219653;
+            /* Deep Green */
+            --primary-light: #eafff0;
+            /* Light Green */
+            --secondary: #3498db;
+            /* Ocean Blue */
+            --secondary-dark: #2980b9;
+            /* Deep Blue */
+            --bg-color: #f4f6f9;
+            /* Cool Off-White */
+            --text-dark: #2c3e50;
+            /* Slate Blue */
             --text-muted: #64748b;
+            /* Slate Gray */
             --card-bg: #ffffff;
-            --shadow-soft: 0 10px 30px rgba(234, 88, 12, 0.06);
-            --shadow-hover: 0 20px 40px rgba(234, 88, 12, 0.12);
-            --shadow-btn: 0 6px 15px rgba(249, 115, 22, 0.3);
+            --shadow-soft: 0 10px 30px rgba(44, 62, 80, 0.06);
+            --shadow-hover: 0 20px 40px rgba(44, 62, 80, 0.12);
+            --shadow-btn: 0 6px 15px rgba(39, 174, 96, 0.25);
         }
 
         * {
@@ -50,7 +60,7 @@
             padding: 25px;
             box-shadow: var(--shadow-soft);
             margin-bottom: 25px;
-            border: 1px solid rgba(249, 115, 22, 0.05);
+            border: 1px solid rgba(44, 62, 80, 0.05);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
@@ -105,13 +115,13 @@
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
         }
 
         .btn-secondary {
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            border: 1px solid #fed7aa;
+            background: #f0f7ff;
+            color: var(--secondary-dark);
+            border: 1px solid #bae6fd;
             padding: 10px 20px;
             border-radius: 25px;
             font-weight: bold;
@@ -122,14 +132,14 @@
         }
 
         .btn-secondary:hover {
-            background: #ffedd5;
+            background: #e0f2fe;
         }
 
         .admin-controls-card {
             display: flex;
             gap: 10px;
-            background: #fffaf5;
-            border-color: #ffedd5;
+            background: #f8fafc;
+            border-color: #e2e8f0;
             justify-content: space-between;
             align-items: center;
         }
@@ -150,7 +160,7 @@
         .search-micro {
             padding: 10px 20px;
             font-size: 15px;
-            border: 1px solid #fed7aa;
+            border: 1px solid #cbd5e1;
             border-radius: 25px;
             outline: none;
             flex: 1;
@@ -161,8 +171,8 @@
         }
 
         .search-micro:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
         }
 
         .stats-grid {
@@ -178,7 +188,7 @@
             border-radius: 20px;
             box-shadow: var(--shadow-soft);
             text-align: center;
-            border: 1px solid rgba(249, 115, 22, 0.05);
+            border: 1px solid rgba(44, 62, 80, 0.05);
             position: relative;
             overflow: hidden;
         }
@@ -190,7 +200,7 @@
             left: 0;
             width: 100%;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary), #fb923c);
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
         }
 
         .stat-card.alert::before {
@@ -198,7 +208,7 @@
         }
 
         .stat-card.warning::before {
-            background: var(--primary-dark);
+            background: var(--secondary-dark);
         }
 
         .stat-card.action-btn {
@@ -247,18 +257,18 @@
         }
 
         .progress-fill {
-            background: linear-gradient(90deg, #fb923c, var(--primary));
+            background: linear-gradient(90deg, #2ecc71, var(--primary));
             height: 100%;
             border-radius: 10px;
             transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .fill-warning {
-            background: linear-gradient(90deg, var(--primary-dark), #c2410c);
+            background: linear-gradient(90deg, #f39c12, #d68910);
         }
 
         .fill-danger {
-            background: linear-gradient(90deg, #ef4444, #b91c1c);
+            background: linear-gradient(90deg, #ef4444, #c0392b);
         }
 
         table {
@@ -269,8 +279,8 @@
         }
 
         th {
-            background: var(--primary-light);
-            color: var(--primary-dark);
+            background: #f8fafc;
+            color: var(--text-dark);
             font-weight: bold;
             padding: 15px 10px;
             text-align: left;
@@ -338,9 +348,9 @@
         }
 
         .btn-table:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.1);
+            border-color: var(--secondary);
+            color: var(--secondary);
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.1);
         }
 
         .btn-table-red {
@@ -416,8 +426,8 @@
                 border-radius: 20px !important;
                 margin-bottom: 20px !important;
                 padding: 20px !important;
-                border: 1px solid rgba(249, 115, 22, 0.2) !important;
-                box-shadow: 0 12px 35px rgba(234, 88, 12, 0.12) !important;
+                border: 1px solid rgba(44, 62, 80, 0.1) !important;
+                box-shadow: 0 12px 35px rgba(44, 62, 80, 0.08) !important;
                 position: relative !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -496,15 +506,15 @@
                 width: 42px;
                 height: 42px;
                 border-radius: 50%;
-                background: var(--primary-light);
-                border: 1px solid #fed7aa;
+                background: #f8fafc;
+                border: 1px solid #cbd5e1;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 text-decoration: none;
                 font-size: 18px;
-                color: var(--primary-dark);
-                box-shadow: 0 4px 10px rgba(249, 115, 22, 0.1);
+                color: var(--secondary-dark);
+                box-shadow: 0 4px 10px rgba(44, 62, 80, 0.05);
                 transition: transform 0.2s;
             }
 
@@ -533,8 +543,8 @@
             }
 
             .m-tool-btn:active {
-                background: #fed7aa;
-                border-color: var(--primary);
+                background: #e0f2fe;
+                border-color: var(--secondary);
             }
 
             .table-controls {
@@ -641,9 +651,9 @@
         }
 
         .input-style:focus {
-            border-color: var(--primary);
+            border-color: var(--secondary);
             background: white;
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
         }
 
         .trans-label {
@@ -664,7 +674,7 @@
         <div class="role-nav">
             <span style="font-weight: 600;">
                 <span style="color: var(--text-muted);">Welcome,</span>
-                <span style="color: var(--primary-dark);">
+                <span style="color: var(--secondary);">
                     <%= role.toUpperCase() %>
                 </span>
             </span>
@@ -693,9 +703,9 @@
             <div class="floating-card">
                 <h3 style="margin-top: 0; color: var(--text-dark); font-size: 16px;">Data Management</h3>
 
-                <div class="mobile-stack-buttons" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                     <a href="/export" class="btn-primary"
-                        style="background: #10b981; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);">📥 Export Excel</a>
+                        style="background: #3498db; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);">📥 Export Excel</a>
                     <button onclick="downloadPDF()" class="btn-primary"
                         style="background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);">📄 Export
                         PDF</button>
@@ -703,8 +713,7 @@
 
                 <form action="/import" method="POST" enctype="multipart/form-data"
                     style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1;">
-                    <strong style="font-size: 13px; color: var(--text-muted); width: 100%;">Upload Tally/Busy
-                        Excel:</strong>
+                    <strong style="font-size: 13px; color: var(--text-muted);">Upload Tally/Busy Excel:</strong>
                     <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required
                         style="font-size: 13px; flex: 1;">
                     <button type="submit" class="btn-primary" style="padding: 10px 20px;">📤 Import Data</button>
@@ -728,7 +737,6 @@
                 buckets.a180 += (c.aging.above180 || 0); buckets.onAcc += (c.aging.onAccount || 0);
                 }
                 });
-
                 highRiskAmount = buckets.d120_150 + buckets.d150_180 + buckets.a180;
                 const maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120,
                 buckets.d120_150, buckets.d150_180, buckets.a180) || 1;
@@ -750,12 +758,12 @@
                     </div>
                     <div class="stat-card warning action-btn" id="actionStatCard"
                         onclick="toggleActionRequiredFilter()">
-                        <div class="stat-title" style="color: var(--primary-dark);">Action Required</div>
-                        <div class="stat-value" style="color: var(--primary-dark);">
+                        <div class="stat-title" style="color: var(--secondary-dark);">Action Required</div>
+                        <div class="stat-value" style="color: var(--secondary-dark);">
                             <%= actionRequiredCount %>
                         </div>
                         <div
-                            style="font-size: 11px; color: #ea580c; margin-top: 8px; font-weight: bold; background: #ffedd5; padding: 4px; border-radius: 10px;">
+                            style="font-size: 11px; color: #2980b9; margin-top: 8px; font-weight: bold; background: #f0f7ff; padding: 4px; border-radius: 10px;">
                             Click to filter &rarr;</div>
                     </div>
                 </div>
@@ -1055,7 +1063,7 @@
                                                                                                 %>
                                                                                         </span><br>
                                                                                         <a href="tel:+<%= customer.phone %>"
-                                                                                            style="color:var(--primary-dark); text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:6px;">📞
+                                                                                            style="color:var(--secondary); text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:6px;">📞
                                                                                             +<%= customer.phone %></a>
                                                                                     </div>
                                                                         </div>
@@ -1316,7 +1324,7 @@
                     const searchInput = document.getElementById('searchInput');
 
                     if (actionFilterActive) {
-                        card.style.background = '#ffedd5';
+                        card.style.background = '#f0f9ff';
                         card.style.transform = 'scale(0.98)';
                         card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
                         if (searchInput) searchInput.value = '';
