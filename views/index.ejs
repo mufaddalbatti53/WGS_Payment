@@ -9,9 +9,6 @@
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="/images/logo.png">
     <style>
-        /* ========================================= */
-        /* 🎨 GLOBAL & THEME (BLUE & GREEN BASE)     */
-        /* ========================================= */
         :root {
             --primary: #27ae60;
             --primary-dark: #219653;
@@ -702,9 +699,9 @@
             </div>
 
             <% var totalPending=0; var actionRequiredCount=0; var buckets={ u30: 0, d30_60: 0, d60_90: 0, d90_120: 0,
-                d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; var td2=new Date(); td2.setHours(0,0,0,0);
-                customers.forEach(function(c) { var due=c.totalAmount - c.paidAmount; totalPending +=due; if
-                (c.nextActionDate) { var nd2=new Date(c.nextActionDate); nd2.setHours(0,0,0,0); if (due> 0 && td2 >=
+                d120_150: 0, d150_180: 0, a180: 0, onAcc: 0 }; var td2=new Date(); td2.setHours(0,0,0,0); for(var i=0; i
+                < customers.length; i++) { var c=customers[i]; var due=c.totalAmount - c.paidAmount; totalPending +=due;
+                if (c.nextActionDate) { var nd2=new Date(c.nextActionDate); nd2.setHours(0,0,0,0); if (due> 0 && td2 >=
                 nd2) { actionRequiredCount++; }
                 } else if (due > 0) {
                 actionRequiredCount++;
@@ -717,10 +714,10 @@
                 buckets.d150_180 += (c.aging.days150to180 || 0);
                 buckets.a180 += (c.aging.above180 || 0); buckets.onAcc += (c.aging.onAccount || 0);
                 }
-                });
+                }
                 var maxBucket = Math.max(buckets.u30, buckets.d30_60, buckets.d60_90, buckets.d90_120, buckets.d120_150,
                 buckets.d150_180, buckets.a180) || 1;
-                function formatMoney(amt) { return '₹ ' + amt.toLocaleString('en-IN'); }
+                function formatMoney(amt) { return 'Rs ' + amt.toLocaleString('en-IN'); }
                 %>
 
                 <div class="stats-grid">
@@ -851,17 +848,15 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% customers.forEach(function(customer) { var due=customer.totalAmount -
-                                            customer.paidAmount; var isDueForReminder=false; var daysText="" ; var
-                                            nextDateString="--" ; if (customer.nextActionDate) { var nd=new
-                                            Date(customer.nextActionDate); var td=new Date(); nd.setHours(0,0,0,0);
-                                            td.setHours(0,0,0,0); nextDateString=nd.toLocaleDateString('en-IN',
-                                            {day: 'numeric' , month: 'short' , year: 'numeric' }); if (td>= nd) {
+                                        <% for(var j=0; j < customers.length; j++) { var customer=customers[j]; var
+                                            due=customer.totalAmount - customer.paidAmount; var isDueForReminder=false;
+                                            var diffDays=0; var nextDateString="--" ; if (customer.nextActionDate) { var
+                                            nd=new Date(customer.nextActionDate); var td=new Date();
+                                            nd.setHours(0,0,0,0); td.setHours(0,0,0,0);
+                                            nextDateString=nd.toLocaleDateString('en-IN', {day: 'numeric' ,
+                                            month: 'short' , year: 'numeric' }); if (td>= nd) {
                                             isDueForReminder = true;
-                                            var diff = Math.floor((td - nd) / (1000 * 60 * 60 * 24));
-                                            if (diff > 0) {
-                                            daysText = " It is " + diff + " days past the set action date.";
-                                            }
+                                            diffDays = Math.floor((td - nd) / (1000 * 60 * 60 * 24));
                                             }
                                             } else {
                                             isDueForReminder = true;
@@ -876,14 +871,12 @@
                                             var cName = customer.companyName || "Customer";
                                             var pName = customer.contactPerson || "Sir/Madam";
                                             var aName = adminUser.companyName || "Our Company";
-
-                                            var rawMsg = "Hello " + pName + " from " + cName + ",%0A%0AThis is a gentle payment reminder from " + aName + ".
-                                            %0A%0A*Account Summary:
-                                            *%0A- Bill Amount: Rs " + customer.totalAmount + "%0A- 
-                                            Paid: " + paidText + "%0A- 
-                                            Due: *Rs " + due + "*%0A%0A" + (daysText ? "_" + daysText + "_%0A%0A" : "") +
-                                            "Please arrange payment at your earliest convenience.%0A%0AThank you,%0A" +
-                                            aName;
+                                            var rawMsg = "Hello " + pName + " from " + cName + ",%0A%0AThis is a gentle
+                                            payment reminder from " + aName + ".%0A%0A*Account Summary:*%0A- Bill
+                                            Amount: Rs " + customer.totalAmount + "%0A- Paid: " + paidText + "%0A- Due:
+                                            *Rs " + due + "*%0A%0A" + (diffDays > 0 ? "_It is " + diffDays + " days past
+                                            the set action date._%0A%0A" : "") + "Please arrange payment at your
+                                            earliest convenience.%0A%0AThank you,%0A" + aName;
                                             %>
                                             <tr class="customer-row"
                                                 data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
@@ -918,17 +911,16 @@
                                                                     <%= customer.whatsappNumber %></a><br>
                                                                 <% } %>
                                                                     <% if (customer.otherNumbers) { %>
-                                                                        <% customer.otherNumbers.split(',').forEach(function(num)
-                                                                            { %>
-                                                                            <% if(num.trim() !=="" ) { %><strong
-                                                                                    style="color: #cbd5e1;">O:</strong>
-                                                                                <a href="tel:<%= num.trim() %>"
-                                                                                    style="text-decoration:none; color:var(--text-muted);">
-                                                                                    <%= num.trim() %>
-                                                                                </a><br>
+                                                                        <% var others=customer.otherNumbers.split(',');
+                                                                            for(var k=0; k < others.length; k++) {
+                                                                            if(others[k].trim() !=="" ) { %>
+                                                                            <strong style="color: #cbd5e1;">O:</strong>
+                                                                            <a href="tel:<%= others[k].trim() %>"
+                                                                                style="text-decoration:none; color:var(--text-muted);">
+                                                                                <%= others[k].trim() %>
+                                                                            </a><br>
+                                                                            <% } } %>
                                                                                 <% } %>
-                                                                                    <% }) %>
-                                                                                        <% } %>
                                                         </td>
 
                                                         <td class="desktop-only">
@@ -1146,7 +1138,7 @@
                                                                                         <% } %>
                                                                 </td>
                                             </tr>
-                                            <% }) %>
+                                            <% } %>
                                     </tbody>
                                 </table>
                             </div>
@@ -1307,9 +1299,9 @@
                     var row = element.closest('tr');
                     if (row) {
                         var warnings = row.querySelectorAll('div, span');
-                        warnings.forEach(function (w) {
-                            if (w.innerText.includes('Action Required')) w.style.display = 'none';
-                        });
+                        for (var i = 0; i < warnings.length; i++) {
+                            if (warnings[i].innerText.includes('Action Required')) warnings[i].style.display = 'none';
+                        }
                     }
 
                     fetch('/customers/' + customerId + '/auto-snooze', { method: 'POST' })
@@ -1329,38 +1321,41 @@
                         card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
                         if (searchInput) searchInput.value = '';
 
-                        rows.forEach(function (row) {
-                            if (row.getAttribute('data-action-req') === 'true') row.style.display = '';
-                            else row.style.display = 'none';
-                        });
+                        for (var i = 0; i < rows.length; i++) {
+                            if (rows[i].getAttribute('data-action-req') === 'true') rows[i].style.display = '';
+                            else rows[i].style.display = 'none';
+                        }
                     } else {
                         card.style.background = 'white';
                         card.style.transform = 'none';
                         card.style.boxShadow = 'var(--shadow-soft)';
-                        rows.forEach(function (row) { row.style.display = ''; });
+                        for (var j = 0; j < rows.length; j++) { rows[j].style.display = ''; }
                     }
                 }
 
-                document.querySelectorAll('.transaction-btn').forEach(function (button) {
-                    button.addEventListener('click', function () {
+                var transBtns = document.querySelectorAll('.transaction-btn');
+                for (var i = 0; i < transBtns.length; i++) {
+                    transBtns[i].addEventListener('click', function () {
                         window.history.pushState({ modal: true }, '', '#pay');
                         document.getElementById('transactionModal').style.display = "block";
                         document.getElementById('transCompanyName').innerText = this.getAttribute('data-company');
                         document.getElementById('transactionForm').action = '/customers/' + this.getAttribute('data-id') + '/transaction?_method=PUT';
                     });
-                });
+                }
 
-                document.querySelectorAll('.reminder-btn').forEach(function (button) {
-                    button.addEventListener('click', function () {
+                var remBtns = document.querySelectorAll('.reminder-btn');
+                for (var j = 0; j < remBtns.length; j++) {
+                    remBtns[j].addEventListener('click', function () {
                         window.history.pushState({ modal: true }, '', '#date');
                         document.getElementById('actionModal').style.display = "block";
                         document.getElementById('modalCompanyName').innerText = this.getAttribute('data-company');
                         document.getElementById('updateDateForm').action = '/customers/' + this.getAttribute('data-id') + '/update-reminder?_method=PUT';
                     });
-                });
+                }
 
-                document.querySelectorAll('.edit-btn').forEach(function (button) {
-                    button.addEventListener('click', function () {
+                var editBtns = document.querySelectorAll('.edit-btn');
+                for (var k = 0; k < editBtns.length; k++) {
+                    editBtns[k].addEventListener('click', function () {
                         document.getElementById('editCompany').value = this.getAttribute('data-company');
                         document.getElementById('editContact').value = this.getAttribute('data-contact');
                         document.getElementById('editEmail').value = this.getAttribute('data-email');
@@ -1371,7 +1366,7 @@
                         document.getElementById('editModal').style.display = "block";
                         document.getElementById('editForm').action = '/customers/' + this.getAttribute('data-id') + '/edit?_method=PUT';
                     });
-                });
+                }
 
                 function openAddModal() {
                     window.history.pushState({ modal: true }, '', '#add');
@@ -1379,7 +1374,8 @@
                 }
 
                 function closeAllModals() {
-                    document.querySelectorAll('.modal').forEach(function (m) { m.style.display = "none"; });
+                    var modals = document.querySelectorAll('.modal');
+                    for (var i = 0; i < modals.length; i++) { modals[i].style.display = "none"; }
                 }
 
                 function closeTransactionModal() { window.history.back(); }
@@ -1400,21 +1396,23 @@
                     searchInput.addEventListener('keyup', function () {
                         if (actionFilterActive) toggleActionRequiredFilter();
                         var filter = this.value.toLowerCase();
-                        document.querySelectorAll('.customer-row').forEach(function (row) {
-                            var text = row.innerText.toLowerCase();
-                            row.style.display = text.includes(filter) ? '' : 'none';
-                        });
+                        var rows = document.querySelectorAll('.customer-row');
+                        for (var i = 0; i < rows.length; i++) {
+                            var text = rows[i].innerText.toLowerCase();
+                            rows[i].style.display = text.includes(filter) ? '' : 'none';
+                        }
                     });
                 }
 
                 function downloadPDF() {
                     var elementToPrint = document.createElement('div');
-                    elementToPrint.innerHTML = '<h1 style="text-align: center; color: #1e293b;">Customer Financial Report</h1><h3 style="text-align: center; color: #64748b;">Generated: ' + new Date().toLocaleDateString('en-IN') + '</h3>' + document.querySelector('.aging-card').outerHTML + document.querySelector('table').outerHTML;
-                    elementToPrint.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]').forEach(function (el) { el.style.display = 'none'; });
+                    var d = new Date().toLocaleDateString('en-IN');
+                    elementToPrint.innerHTML = '<h1 style="text-align: center; font-family: sans-serif; color: #1e293b;">Customer Financial Report</h1><h3 style="text-align: center; color: #64748b; font-family: sans-serif;">Generated: ' + d + '</h3>' + document.querySelector('.aging-card').outerHTML + document.querySelector('table').outerHTML;
+                    var toHide = elementToPrint.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
+                    for (var i = 0; i < toHide.length; i++) { toHide[i].style.display = 'none'; }
                     html2pdf().set({ margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } }).from(elementToPrint).save();
                 }
 
-                // Bulk Delete Logic
                 var selectAllBtn = document.getElementById('selectAll');
                 var checkboxes = document.querySelectorAll('.customer-checkbox');
                 var bulkBar = document.getElementById('bulkActionBar');
@@ -1422,10 +1420,11 @@
                 var hiddenInputs = document.getElementById('hiddenInputs');
 
                 function updateBulkBar() {
-                    var selected = Array.from(checkboxes).filter(function (cb) { return cb.checked; });
-                    if (selected.length > 0) {
+                    var count = 0;
+                    for (var i = 0; i < checkboxes.length; i++) { if (checkboxes[i].checked) count++; }
+                    if (count > 0) {
                         if (bulkBar) bulkBar.classList.add('visible');
-                        if (countText) countText.innerText = selected.length + ' Selected';
+                        if (countText) countText.innerText = count + ' Selected';
                     } else {
                         if (bulkBar) bulkBar.classList.remove('visible');
                     }
@@ -1434,22 +1433,26 @@
                 if (selectAllBtn) {
                     selectAllBtn.addEventListener('change', function () {
                         var checked = this.checked;
-                        document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox').forEach(function (cb) { cb.checked = checked; });
+                        var visibleBoxes = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
+                        for (var i = 0; i < visibleBoxes.length; i++) { visibleBoxes[i].checked = checked; }
                         updateBulkBar();
                     });
                 }
 
-                checkboxes.forEach(function (cb) { cb.addEventListener('change', updateBulkBar); });
+                for (var i = 0; i < checkboxes.length; i++) {
+                    checkboxes[i].addEventListener('change', updateBulkBar);
+                }
 
                 function confirmBulkDelete() {
-                    var selected = Array.from(checkboxes).filter(function (cb) { return cb.checked; });
+                    var selected = [];
+                    for (var i = 0; i < checkboxes.length; i++) { if (checkboxes[i].checked) selected.push(checkboxes[i]); }
                     if (confirm("⚠️ WARNING: You are about to permanently delete " + selected.length + " parties. Proceed?")) {
                         hiddenInputs.innerHTML = '';
-                        selected.forEach(function (cb) {
+                        for (var j = 0; j < selected.length; j++) {
                             var input = document.createElement('input');
-                            input.type = 'hidden'; input.name = 'customerIds'; input.value = cb.value;
+                            input.type = 'hidden'; input.name = 'customerIds'; input.value = selected[j].value;
                             hiddenInputs.appendChild(input);
-                        });
+                        }
                         document.getElementById('bulkForm').submit();
                     }
                 }
