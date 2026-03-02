@@ -85,35 +85,31 @@ app.get('/login', (req, res) => {
 
 app.post('/login', async (req, res) => {
     try {
-        // 🚨 THE FIX: CUSTOMER LOGIN (No Password Needed)
         if (req.body.type === 'customer') {
-            // Strip out any spaces or characters from the input
             const phoneRaw = req.body.phone.replace(/[^0-9]/g, '');
 
-            // Search the Customer database for a matching phone number
+            // 🚨 FIX: Sort by -1 to guarantee we grab the NEWEST Excel import for this phone
             const customer = await Customer.findOne({
                 phone: { $regex: new RegExp(phoneRaw + '$') }
-            });
+            }).sort({ _id: -1 });
 
             if (!customer) {
                 return res.render('login', { error: "No account found with this phone number." });
             }
 
-            // Log them in as a Customer!
+            // 🚨 FIX: Store the phone number in the session!
+            req.session.userPhone = phoneRaw;
             req.session.userId = customer._id;
             req.session.role = 'customer';
-            req.session.adminId = customer.adminId; // Needed to load your company logo/header
+            req.session.adminId = customer.adminId;
 
             return res.redirect('/');
         }
 
-        // 🚨 EXISTING STAFF/ADMIN LOGIN (Requires Password)
         const { username, password } = req.body;
         const user = await User.findOne({ username });
 
-        if (!user) {
-            return res.render('login', { error: "Invalid username or password." });
-        }
+        if (!user) return res.render('login', { error: "Invalid username or password." });
 
         const isMatch = await bcrypt.compare(password, user.password);
 
@@ -187,8 +183,16 @@ app.get('/', async (req, res) => {
 
     try {
         let finalCustomers = [];
+
         if (req.session.role === 'customer') {
-            finalCustomers = await Customer.find({ _id: req.session.userId }).lean();
+            // 🚨 FIX: Always fetch the customer by Phone so it survives Excel re-imports!
+            if (req.session.userPhone) {
+                finalCustomers = await Customer.find({
+                    phone: { $regex: new RegExp(req.session.userPhone + '$') }
+                }).sort({ _id: -1 }).limit(1).lean();
+            } else {
+                finalCustomers = await Customer.find({ _id: req.session.userId }).lean();
+            }
         } else {
             finalCustomers = await Customer.find({ adminId: req.session.adminId }).lean();
         }

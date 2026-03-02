@@ -27,6 +27,7 @@
         * {
             box-sizing: border-box;
         }
+        .d-none { display: none !important; }
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -1423,30 +1424,32 @@
                 }
 
                 var actionFilterActive = false;
-                function toggleActionRequiredFilter() {
-                    actionFilterActive = !actionFilterActive;
-                    var rows = document.querySelectorAll('.customer-row');
-                    var card = document.getElementById('actionStatCard');
-                    var searchInput = document.getElementById('searchInput');
+                    function toggleActionRequiredFilter() {
+                        actionFilterActive = !actionFilterActive;
+                        var rows = document.querySelectorAll('.customer-row');
+                        var card = document.getElementById('actionStatCard');
+                        var searchInput = document.getElementById('searchInput');
 
-                    if (actionFilterActive) {
-                        card.style.background = '#f0f9ff';
-                        card.style.transform = 'scale(0.98)';
-                        card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
-                        if (searchInput) searchInput.value = '';
+                        if (actionFilterActive) {
+                            card.style.background = '#f0f9ff';
+                            card.style.transform = 'scale(0.98)';
+                            card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
+                            if (searchInput) searchInput.value = '';
 
-                        for (var i = 0; i < rows.length; i++) {
-                            if (rows[i].getAttribute('data-action-req') === 'true') rows[i].style.display = '';
-                            else rows[i].style.display = 'none';
+                            for (var i = 0; i < rows.length; i++) {
+                                if (rows[i].getAttribute('data-action-req') === 'true') {
+                                    rows[i].classList.remove('d-none');
+                                } else {
+                                    rows[i].classList.add('d-none');
+                                }
+                            }
+                        } else {
+                            card.style.background = 'white';
+                            card.style.transform = 'none';
+                            card.style.boxShadow = 'var(--shadow-soft)';
+                            for (var j = 0; j < rows.length; j++) { rows[j].classList.remove('d-none'); }
                         }
-                    } else {
-                        card.style.background = 'white';
-                        card.style.transform = 'none';
-                        card.style.boxShadow = 'var(--shadow-soft)';
-                        for (var j = 0; j < rows.length; j++) { rows[j].style.display = ''; }
                     }
-                }
-
                 var transBtns = document.querySelectorAll('.transaction-btn');
                 for (var i = 0; i < transBtns.length; i++) {
                     transBtns[i].addEventListener('click', function () {
@@ -1506,18 +1509,31 @@
                 }
 
                 var searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                    searchInput.addEventListener('keyup', function () {
-                        if (actionFilterActive) toggleActionRequiredFilter();
-                        var filter = this.value.toLowerCase();
-                        var rows = document.querySelectorAll('.customer-row');
-                        for (var i = 0; i < rows.length; i++) {
-                            var text = rows[i].innerText.toLowerCase();
-                            rows[i].style.display = text.includes(filter) ? '' : 'none';
-                        }
-                    });
-                }
+                    if (searchInput) {
+                        searchInput.addEventListener('keyup', function () {
+                            var filter = this.value.toLowerCase();
+                            var rows = document.querySelectorAll('.customer-row');
 
+                            // If they start searching, disable the Action Required filter
+                            if (actionFilterActive && filter.length > 0) {
+                                actionFilterActive = false;
+                                var card = document.getElementById('actionStatCard');
+                                card.style.background = 'white';
+                                card.style.transform = 'none';
+                                card.style.boxShadow = 'var(--shadow-soft)';
+                            }
+
+                            for (var i = 0; i < rows.length; i++) {
+                                var text = rows[i].innerText.toLowerCase();
+                                // 🚨 FIX: Use the classList so it overpowers the mobile CSS
+                                if (text.includes(filter)) {
+                                    rows[i].classList.remove('d-none');
+                                } else {
+                                    rows[i].classList.add('d-none');
+                                }
+                            }
+                        });
+                    }
                 function downloadPDF() {
                     var elementToPrint = document.createElement('div');
                     var d = new Date().toLocaleDateString('en-IN');
