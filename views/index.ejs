@@ -27,7 +27,6 @@
         * {
             box-sizing: border-box;
         }
-        .d-none { display: none !important; }
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -139,12 +138,21 @@
             text-align: center;
         }
 
+        /* Filter & Search Layout */
+        .toolbar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
         .table-controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            gap: 15px;
+            gap: 10px;
+            flex-wrap: wrap;
+            width: 100%;
         }
 
         .search-micro {
@@ -154,7 +162,7 @@
             border-radius: 25px;
             outline: none;
             flex: 1;
-            max-width: 400px;
+            min-width: 200px;
             background: #ffffff;
             transition: all 0.3s ease;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
@@ -163,6 +171,22 @@
         .search-micro:focus {
             border-color: var(--secondary);
             box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
+        }
+
+        /* Advanced Filter Panel */
+        .filter-panel {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #cbd5e1;
+            box-shadow: var(--shadow-soft);
+            display: none;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
         }
 
         .stats-grid {
@@ -299,6 +323,16 @@
             border-bottom: none;
         }
 
+        .badge-due {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: inline-block;
+            font-size: 12px;
+        }
+
         .badge-paid {
             background: #dcfce7;
             color: #15803d;
@@ -356,7 +390,6 @@
                 font-size: 24px;
             }
 
-            /* PERFECT 1-LINE MOBILE ADMIN BUTTONS */
             .admin-controls-card {
                 padding: 15px !important;
                 gap: 8px !important;
@@ -522,18 +555,8 @@
                 border-color: var(--secondary);
             }
 
-            .table-controls {
-                flex-direction: column;
-            }
-
-            .search-micro {
-                width: 100%;
-                max-width: 100%;
-            }
-
-            .btn-primary {
-                width: 100%;
-                text-align: center;
+            .table-controls button {
+                flex: 1;
             }
         }
 
@@ -640,9 +663,10 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        /* 🚨 THIS GUARANTEES CARDS HIDE DURING SEARCH */
-        tr.customer-row.d-none { 
-            display: none !important; 
+
+        /* 🚨 Guaranteed Hide Class for JS Search/Filter */
+        tr.customer-row.d-none {
+            display: none !important;
         }
     </style>
 </head>
@@ -737,8 +761,7 @@
                             <%= fMoney(totalPending) %>
                         </div>
                     </div>
-                    <div class="stat-card warning action-btn" id="actionStatCard"
-                        onclick="toggleActionRequiredFilter()">
+                    <div class="stat-card warning action-btn" id="actionStatCard" onclick="runAllFilters('action')">
                         <div class="stat-title" style="color: var(--secondary-dark);">Action Required</div>
                         <div class="stat-value" style="color: var(--secondary-dark);">
                             <%= actionRequiredCount %>
@@ -827,15 +850,62 @@
                 <% } %>
 
                     <% if (role !=='customer' ) { %>
-                        <div class="table-controls">
-                            <input type="text" id="searchInput" class="search-micro"
-                                placeholder="🔍 Search by company, contact, or phone...">
-                            <button onclick="openAddModal()" class="btn-primary">➕ Add Party</button>
+                        <div class="toolbar-wrapper">
+                            <div class="table-controls">
+                                <button id="toggleFilterBtn" class="btn-secondary"
+                                    style="margin: 0; padding: 10px 15px; border-radius: 12px; font-size: 15px;"
+                                    onclick="toggleFilterPanel()">⚙️ Filters</button>
+                                <input type="text" id="searchInput" class="search-micro"
+                                    placeholder="🔍 Search by company, contact, or phone...">
+                                <button onclick="openAddModal()" class="btn-primary" style="margin: 0;">➕ Add
+                                    Party</button>
+                            </div>
+
+                            <div id="filterPanel" class="filter-panel">
+                                <div class="filter-grid">
+                                    <div>
+                                        <label class="trans-label">Aging Bucket</label>
+                                        <select id="filterAging" class="input-style" style="margin-bottom: 0;">
+                                            <option value="all">All (Total Due)</option>
+                                            <option value="u30">&lt; 30 Days</option>
+                                            <option value="d30_60">30-60 Days</option>
+                                            <option value="d60_90">60-90 Days</option>
+                                            <option value="d90_120">90-120 Days</option>
+                                            <option value="d120_150">120-150 Days</option>
+                                            <option value="d150_180">150-180 Days</option>
+                                            <option value="a180">&gt; 180 Days</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="trans-label">Amount Type</label>
+                                        <select id="filterAmtType" class="input-style" style="margin-bottom: 0;">
+                                            <option value="due">Total Due</option>
+                                            <option value="total">Total Bill Amount</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="trans-label">Min Amount (₹)</label>
+                                        <input type="number" id="filterMin" class="input-style"
+                                            style="margin-bottom: 0;" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="trans-label">Max Amount (₹)</label>
+                                        <input type="number" id="filterMax" class="input-style"
+                                            style="margin-bottom: 0;" placeholder="Any">
+                                    </div>
+                                </div>
+                                <div style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+                                    <button onclick="clearFilters()" class="btn-secondary"
+                                        style="padding: 8px 15px;">Clear</button>
+                                    <button onclick="runAllFilters('standard')" class="btn-primary"
+                                        style="padding: 8px 15px;">Apply Filters</button>
+                                </div>
+                            </div>
                         </div>
                         <% } %>
 
                             <div class="floating-card" style="padding: 0; overflow-x: auto;">
-                                <table style="margin-top: 0;">
+                                <table style="margin-top: 0;" id="mainTable">
                                     <thead>
                                         <tr>
                                             <% if (role==='admin' ) { %>
@@ -871,10 +941,24 @@
                                                 var rawCname = customer.companyName || "Customer";
                                                 var rawPname = customer.contactPerson || "Sir/Madam";
                                                 var rawAname = adminUser.companyName || "Our Company";
+
+                                                var ag = customer.aging || {};
+                                                var ag_u30 = ag.under30 || 0;
+                                                var ag_d30 = ag.days30to60 || 0;
+                                                var ag_d60 = ag.days60to90 || 0;
+                                                var ag_d90 = ag.days90to120 || 0;
+                                                var ag_d120 = ag.days120to150 || 0;
+                                                var ag_d150 = ag.days150to180 || 0;
+                                                var ag_a180 = ag.above180 || 0;
                                                 %>
 
                                                 <tr class="customer-row"
-                                                    data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>">
+                                                    data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>"
+                                                    data-total="<%= customer.totalAmount %>" data-due="<%= due %>"
+                                                    data-u30="<%= ag_u30 %>" data-d30_60="<%= ag_d30 %>"
+                                                    data-d60_90="<%= ag_d60 %>" data-d90_120="<%= ag_d90 %>"
+                                                    data-d120_150="<%= ag_d120 %>" data-d150_180="<%= ag_d150 %>"
+                                                    data-a180="<%= ag_a180 %>">
 
                                                     <% if (role==='admin' ) { %>
                                                         <td class="desktop-only" style="text-align: center;">
@@ -933,11 +1017,13 @@
                                                                     style="color: #15803d; font-size: 12px; font-weight: bold;">
                                                                     Paid: ₹<%= customer.paidAmount %>
                                                                 </div>
-                                                                <% if (due> 0) { %> <div
+                                                                <% if (due> 0) { %>
+                                                                    <div class="dynamic-due"
                                                                         style="color: #b91c1c; font-weight: 800; font-size: 15px; margin-top: 4px;">
                                                                         Due: ₹<%= due %>
                                                                     </div>
-                                                                    <% } else { %> <span class="badge-paid"
+                                                                    <% } else { %>
+                                                                        <span class="badge-paid"
                                                                             style="margin-top: 4px;">Fully Paid</span>
                                                                         <% } %>
                                                             </td>
@@ -963,7 +1049,6 @@
                                                                     <% if (due> 0 && isDueForReminder) { %>
                                                                         <div class="action-buttons"
                                                                             style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
-
                                                                             <a href="javascript:void(0)"
                                                                                 onclick="sendMsg(this, 'wa')"
                                                                                 data-id="<%= customer._id %>"
@@ -981,7 +1066,6 @@
                                                                                 style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
                                                                                     src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
                                                                                     width="16" height="16"></a>
-
                                                                             <a href="javascript:void(0)"
                                                                                 onclick="sendMsg(this, 'sms')"
                                                                                 data-id="<%= customer._id %>"
@@ -997,7 +1081,6 @@
                                                                                 data-diff="<%= diffDays %>"
                                                                                 data-admin="<%= rawAname %>"
                                                                                 style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
-
                                                                             <a href="javascript:void(0)"
                                                                                 onclick="sendMsg(this, 'email')"
                                                                                 data-id="<%= customer._id %>"
@@ -1013,7 +1096,6 @@
                                                                                 data-diff="<%= diffDays %>"
                                                                                 data-admin="<%= rawAname %>"
                                                                                 style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
-
                                                                         </div>
                                                                         <% } %>
 
@@ -1092,9 +1174,10 @@
                                                                                 <div class="m-fin-paid">Paid ₹<%=
                                                                                         customer.paidAmount %>
                                                                                 </div>
-                                                                                <% if (due> 0) { %><div
-                                                                                        class="m-fin-due">Due ₹<%= due
-                                                                                            %>
+                                                                                <% if (due> 0) { %>
+                                                                                    <div
+                                                                                        class="m-fin-due dynamic-due-m">
+                                                                                        Due ₹<%= due %>
                                                                                     </div>
                                                                                     <% } else { %>
                                                                                         <div
@@ -1224,7 +1307,7 @@
                                                                                             <% } %>
                                                                     </td>
                                                 </tr>
-                                                <% }) %>
+                                                <% }); %>
                                     </tbody>
                                 </table>
                             </div>
@@ -1376,7 +1459,130 @@
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
-                // 🚨 NEW SAFEMODE JAVASCRIPT MESSAGE BUILDER
+                // ----------------------------------------------------
+                // ADVANCED SEARCH & AGING FILTER LOGIC
+                // ----------------------------------------------------
+                var actionFilterActive = false;
+
+                function toggleFilterPanel() {
+                    var panel = document.getElementById('filterPanel');
+                    if (panel) {
+                        panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
+                    }
+                }
+
+                function clearFilters() {
+                    document.getElementById('filterAging').value = 'all';
+                    document.getElementById('filterAmtType').value = 'due';
+                    document.getElementById('filterMin').value = '';
+                    document.getElementById('filterMax').value = '';
+                    document.getElementById('searchInput').value = '';
+                    runAllFilters('standard');
+                }
+
+                function toggleActionRequiredFilter() {
+                    actionFilterActive = !actionFilterActive;
+                    var card = document.getElementById('actionStatCard');
+                    if (actionFilterActive) {
+                        card.style.background = '#f0f9ff';
+                        card.style.transform = 'scale(0.98)';
+                        card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
+                        document.getElementById('searchInput').value = '';
+                    } else {
+                        card.style.background = 'white';
+                        card.style.transform = 'none';
+                        card.style.boxShadow = 'var(--shadow-soft)';
+                    }
+                    runAllFilters('action');
+                }
+
+                function runAllFilters(source) {
+                    var searchInput = document.getElementById('searchInput');
+                    var searchText = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+                    var filterAging = document.getElementById('filterAging');
+                    var agingVal = filterAging ? filterAging.value : 'all';
+
+                    var filterAmtType = document.getElementById('filterAmtType');
+                    var amtType = filterAmtType ? filterAmtType.value : 'due';
+
+                    var filterMin = document.getElementById('filterMin');
+                    var minAmt = filterMin && filterMin.value ? parseFloat(filterMin.value) : 0;
+
+                    var filterMax = document.getElementById('filterMax');
+                    var maxAmt = filterMax && filterMax.value ? parseFloat(filterMax.value) : Infinity;
+
+                    if (source === 'search' && searchText.length > 0 && actionFilterActive) {
+                        actionFilterActive = false;
+                        var card = document.getElementById('actionStatCard');
+                        if (card) {
+                            card.style.background = 'white';
+                            card.style.transform = 'none';
+                            card.style.boxShadow = 'var(--shadow-soft)';
+                        }
+                    }
+
+                    var rows = document.querySelectorAll('.customer-row');
+
+                    for (var i = 0; i < rows.length; i++) {
+                        var row = rows[i];
+                        var isVisible = true;
+
+                        // 1. Text Search
+                        if (searchText.length > 0) {
+                            var text = row.textContent.toLowerCase();
+                            if (text.indexOf(searchText) === -1) isVisible = false;
+                        }
+
+                        // 2. Amount Check (Min/Max)
+                        var rawDue = parseFloat(row.getAttribute('data-due')) || 0;
+                        var rawTotal = parseFloat(row.getAttribute('data-total')) || 0;
+                        var valToCheck = (amtType === 'due') ? rawDue : rawTotal;
+
+                        if (valToCheck < minAmt || valToCheck > maxAmt) {
+                            isVisible = false;
+                        }
+
+                        // 3. Aging Bucket Check & Dynamic Text Update
+                        var dynamicDueD = row.querySelector('.dynamic-due');
+                        var dynamicDueM = row.querySelector('.dynamic-due-m');
+
+                        if (agingVal !== 'all') {
+                            var bucketAmt = parseFloat(row.getAttribute('data-' + agingVal)) || 0;
+                            if (bucketAmt <= 0) {
+                                isVisible = false;
+                            } else {
+                                if (dynamicDueD) dynamicDueD.innerText = 'Bucket Due: ₹' + bucketAmt;
+                                if (dynamicDueM) dynamicDueM.innerText = 'Bucket Due: ₹' + bucketAmt;
+                            }
+                        } else {
+                            if (dynamicDueD) dynamicDueD.innerText = 'Due: ₹' + rawDue;
+                            if (dynamicDueM) dynamicDueM.innerText = 'Due: ₹' + rawDue;
+                        }
+
+                        // 4. Action Required Check
+                        if (actionFilterActive && row.getAttribute('data-action-req') !== 'true') {
+                            isVisible = false;
+                        }
+
+                        // Apply View
+                        if (isVisible) {
+                            row.classList.remove('d-none');
+                        } else {
+                            row.classList.add('d-none');
+                        }
+                    }
+                }
+
+                var searchBox = document.getElementById('searchInput');
+                if (searchBox) {
+                    searchBox.addEventListener('keyup', function () { runAllFilters('search'); });
+                }
+
+
+                // ----------------------------------------------------
+                // MESSAGE SENDER LOGIC
+                // ----------------------------------------------------
                 function sendMsg(element, type) {
                     var id = element.getAttribute('data-id');
                     var phone = element.getAttribute('data-phone');
@@ -1392,9 +1598,7 @@
                     var admin = element.getAttribute('data-admin');
 
                     var paidStr = "Rs " + paidamount;
-                    if (parseInt(paidamount) > 0 && lastpaid) {
-                        paidStr += " (Last paid: " + lastpaid + ")";
-                    }
+                    if (parseInt(paidamount) > 0 && lastpaid) { paidStr += " (Last paid: " + lastpaid + ")"; }
 
                     var msg = "Hello " + pname + " from " + cname + ",\n\n";
                     msg += "This is a gentle payment reminder from " + admin + ".\n\n";
@@ -1412,7 +1616,6 @@
                     if (type === 'sms') { window.open('sms:+' + phone + '?body=' + encoded, '_self'); }
                     if (type === 'email') { window.open('mailto:' + email + '?subject=Payment Reminder&body=' + encoded, '_self'); }
 
-                    // HIDE ICONS INSTANTLY
                     var container1 = element.closest('.action-buttons');
                     var container2 = element.closest('.m-circles');
                     if (container1) container1.style.display = 'none';
@@ -1427,33 +1630,9 @@
                     fetch('/customers/' + id + '/auto-snooze', { method: 'POST' }).catch(function (e) { });
                 }
 
-                var actionFilterActive = false;
-                    function toggleActionRequiredFilter() {
-                        actionFilterActive = !actionFilterActive;
-                        var rows = document.querySelectorAll('.customer-row');
-                        var card = document.getElementById('actionStatCard');
-                        var searchInput = document.getElementById('searchInput');
-
-                        if (actionFilterActive) {
-                            card.style.background = '#f0f9ff';
-                            card.style.transform = 'scale(0.98)';
-                            card.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.05)';
-                            if (searchInput) searchInput.value = '';
-
-                            for (var i = 0; i < rows.length; i++) {
-                                if (rows[i].getAttribute('data-action-req') === 'true') {
-                                    rows[i].classList.remove('d-none');
-                                } else {
-                                    rows[i].classList.add('d-none');
-                                }
-                            }
-                        } else {
-                            card.style.background = 'white';
-                            card.style.transform = 'none';
-                            card.style.boxShadow = 'var(--shadow-soft)';
-                            for (var j = 0; j < rows.length; j++) { rows[j].classList.remove('d-none'); }
-                        }
-                    }
+                // ----------------------------------------------------
+                // MODALS & BUTTON LISTENERS
+                // ----------------------------------------------------
                 var transBtns = document.querySelectorAll('.transaction-btn');
                 for (var i = 0; i < transBtns.length; i++) {
                     transBtns[i].addEventListener('click', function () {
@@ -1489,55 +1668,15 @@
                     });
                 }
 
-                function openAddModal() {
-                    window.history.pushState({ modal: true }, '', '#add');
-                    document.getElementById('addModal').style.display = "block";
-                }
-
-                function closeAllModals() {
-                    var modals = document.querySelectorAll('.modal');
-                    for (var i = 0; i < modals.length; i++) { modals[i].style.display = "none"; }
-                }
-
+                function openAddModal() { window.history.pushState({ modal: true }, '', '#add'); document.getElementById('addModal').style.display = "block"; }
+                function closeAllModals() { var modals = document.querySelectorAll('.modal'); for (var i = 0; i < modals.length; i++) { modals[i].style.display = "none"; } }
                 function closeTransactionModal() { window.history.back(); }
                 function closeActionModal() { window.history.back(); }
                 function closeEditModal() { window.history.back(); }
                 function closeAddModal() { window.history.back(); }
-
                 window.addEventListener('popstate', function (event) { closeAllModals(); });
+                window.onclick = function (event) { if (event.target.classList.contains('modal')) { if (window.location.hash) window.history.back(); else closeAllModals(); } }
 
-                window.onclick = function (event) {
-                    if (event.target.classList.contains('modal')) {
-                        if (window.location.hash) window.history.back(); else closeAllModals();
-                    }
-                }
-
-                var searchInput = document.getElementById('searchInput');
-                    if (searchInput) {
-                        searchInput.addEventListener('keyup', function () {
-                            var filter = this.value.toLowerCase().trim();
-                            var rows = document.querySelectorAll('.customer-row');
-
-                            if (actionFilterActive && filter.length > 0) {
-                                actionFilterActive = false;
-                                var card = document.getElementById('actionStatCard');
-                                card.style.background = 'white';
-                                card.style.transform = 'none';
-                                card.style.boxShadow = 'var(--shadow-soft)';
-                            }
-
-                            for (var i = 0; i < rows.length; i++) {
-                                // 🚨 FIX: Use textContent to grab all text reliably, regardless of mobile/desktop view
-                                var text = rows[i].textContent.toLowerCase();
-
-                                if (text.includes(filter)) {
-                                    rows[i].classList.remove('d-none');
-                                } else {
-                                    rows[i].classList.add('d-none');
-                                }
-                            }
-                        });
-                    } 
                 function downloadPDF() {
                     var elementToPrint = document.createElement('div');
                     var d = new Date().toLocaleDateString('en-IN');
@@ -1547,7 +1686,6 @@
                     html2pdf().set({ margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } }).from(elementToPrint).save();
                 }
 
-                // Bulk Delete Logic
                 var selectAllBtn = document.getElementById('selectAll');
                 var checkboxes = document.querySelectorAll('.customer-checkbox');
                 var bulkBar = document.getElementById('bulkActionBar');
@@ -1557,26 +1695,11 @@
                 function updateBulkBar() {
                     var count = 0;
                     for (var i = 0; i < checkboxes.length; i++) { if (checkboxes[i].checked) count++; }
-                    if (count > 0) {
-                        if (bulkBar) bulkBar.classList.add('visible');
-                        if (countText) countText.innerText = count + ' Selected';
-                    } else {
-                        if (bulkBar) bulkBar.classList.remove('visible');
-                    }
+                    if (count > 0) { bulkBar.classList.add('visible'); countText.innerText = count + ' Selected'; } else { bulkBar.classList.remove('visible'); }
                 }
 
-                if (selectAllBtn) {
-                    selectAllBtn.addEventListener('change', function () {
-                        var checked = this.checked;
-                        var visibleBoxes = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
-                        for (var i = 0; i < visibleBoxes.length; i++) { visibleBoxes[i].checked = checked; }
-                        updateBulkBar();
-                    });
-                }
-
-                for (var i = 0; i < checkboxes.length; i++) {
-                    checkboxes[i].addEventListener('change', updateBulkBar);
-                }
+                if (selectAllBtn) { selectAllBtn.addEventListener('change', function () { var checked = this.checked; var visibleBoxes = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox'); for (var i = 0; i < visibleBoxes.length; i++) { visibleBoxes[i].checked = checked; } updateBulkBar(); }); }
+                for (var i = 0; i < checkboxes.length; i++) { checkboxes[i].addEventListener('change', updateBulkBar); }
 
                 function confirmBulkDelete() {
                     var selected = [];
@@ -1584,9 +1707,7 @@
                     if (confirm("⚠️ WARNING: You are about to permanently delete " + selected.length + " parties. Proceed?")) {
                         hiddenInputs.innerHTML = '';
                         for (var j = 0; j < selected.length; j++) {
-                            var input = document.createElement('input');
-                            input.type = 'hidden'; input.name = 'customerIds'; input.value = selected[j].value;
-                            hiddenInputs.appendChild(input);
+                            var input = document.createElement('input'); input.type = 'hidden'; input.name = 'customerIds'; input.value = selected[j].value; hiddenInputs.appendChild(input);
                         }
                         document.getElementById('bulkForm').submit();
                     }
