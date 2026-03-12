@@ -88,7 +88,6 @@ app.post('/login', async (req, res) => {
         if (req.body.type === 'customer') {
             const phoneRaw = req.body.phone.replace(/[^0-9]/g, '');
 
-            // 🚨 FIX: Sort by -1 to guarantee we grab the NEWEST Excel import for this phone
             const customer = await Customer.findOne({
                 phone: { $regex: new RegExp(phoneRaw + '$') }
             }).sort({ _id: -1 });
@@ -97,7 +96,6 @@ app.post('/login', async (req, res) => {
                 return res.render('login', { error: "No account found with this phone number." });
             }
 
-            // 🚨 FIX: Store the phone number in the session!
             req.session.userPhone = phoneRaw;
             req.session.userId = customer._id;
             req.session.role = 'customer';
@@ -150,17 +148,15 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-// 🚨 NEW ENDPOINT: Triggered when WhatsApp/SMS/Email is clicked
 app.post('/customers/:id/auto-snooze', async (req, res) => {
     try {
         const customer = await Customer.findById(req.params.id);
         if (customer) {
             const newDate = new Date();
-            newDate.setDate(newDate.getDate() + 10); // Add 10 days automatically
+            newDate.setDate(newDate.getDate() + 10);
             customer.nextActionDate = newDate;
             await customer.save();
 
-            // Log this action so you know who sent the reminder
             const Activity = require('./models/Activity');
             await Activity.create({
                 adminId: req.session.adminId,
@@ -177,7 +173,6 @@ app.post('/customers/:id/auto-snooze', async (req, res) => {
     }
 });
 
-// 🚨 UPDATED DASHBOARD (Removed the blind midnight auto-rollover)
 app.get('/', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
@@ -185,7 +180,6 @@ app.get('/', async (req, res) => {
         let finalCustomers = [];
 
         if (req.session.role === 'customer') {
-            // 🚨 FIX: Always fetch the customer by Phone so it survives Excel re-imports!
             if (req.session.userPhone) {
                 finalCustomers = await Customer.find({
                     phone: { $regex: new RegExp(req.session.userPhone + '$') }
@@ -375,7 +369,7 @@ app.get('/export', requireLogin, async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Sundry Debtors');
 
-        // 1. Dynamic Top Section (Will be blank if Admin skipped the form)
+        // 1. Dynamic Top Section
         worksheet.addRow([admin.companyName || '']);
         worksheet.addRow([admin.addressLine1 || '']);
         worksheet.addRow([admin.addressLine2 || '']);
@@ -409,9 +403,13 @@ app.get('/export', requireLogin, async (req, res) => {
         // Populate Rows
         customers.forEach((c) => {
             const aging = c.aging || {};
+            // Ensure the exported Due matches the Math Due precisely
+            const totalDue = (c.totalAmount || 0) - (c.paidAmount || 0);
+
             worksheet.addRow([
                 c.companyName || '', c.contactPerson || '', c.phone ? String(c.phone) : '',
-                c.totalAmount || 0, aging.under30 || '', aging.days30to60 || '', '',
+                totalDue > 0 ? totalDue : 0,
+                aging.under30 || '', aging.days30to60 || '', '',
                 aging.days60to90 || '', aging.days90to120 || '', aging.days120to150 || '',
                 aging.days150to180 || '', aging.above180 || '', aging.onAccount || ''
             ]);
@@ -501,41 +499,37 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 }
             }
 
-            const totalPending = cleanMoney(row[3]); 
+            const totalPending = cleanMoney(row[3]);
 
             const agingData = {
-                under30: cleanMoney(row[4]),        
-                days30to60: cleanMoney(row[5]),     
-                days60to90: cleanMoney(row[7]),     
-                days90to120: cleanMoney(row[8]),    
-                days120to150: cleanMoney(row[9]),   
-                days150to180: cleanMoney(row[10]),  
-                above180: cleanMoney(row[11]),      
-                onAccount: cleanMoney(row[12])      
+                under30: cleanMoney(row[4]),
+                days30to60: cleanMoney(row[5]),
+                days60to90: cleanMoney(row[7]),
+                days90to120: cleanMoney(row[8]),
+                days120to150: cleanMoney(row[9]),
+                days150to180: cleanMoney(row[10]),
+                above180: cleanMoney(row[11]),
+                onAccount: cleanMoney(row[12])
             };
 
-            // 🚨 THE FIX: Look up customer to smartly manage their Action Date
             let cust = await Customer.findOne({ companyName: partyName, adminId: req.session.adminId });
-            
+
             if (!cust) {
-                // New customer: Create and set 10 days from now
                 cust = new Customer({ companyName: partyName, adminId: req.session.adminId });
                 let d = new Date(); d.setDate(d.getDate() + 10);
                 cust.nextActionDate = d;
             } else if (!cust.nextActionDate) {
-                // Existing customer missing a date: Give them 10 days
                 let d = new Date(); d.setDate(d.getDate() + 10);
                 cust.nextActionDate = d;
             }
 
-            // Update everything else
             cust.contactPerson = contactPerson;
             cust.phone = finalPhone;
             cust.whatsappNumber = finalWhatsapp;
             cust.otherNumbers = finalOther;
             cust.totalAmount = totalPending;
             cust.aging = agingData;
-            
+
             await cust.save();
             importedCount++;
         }
@@ -549,15 +543,16 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
     }
 });
 
-// 5. CUSTOMER ACTIONS (AUTO-ASSIGNS 10 DAYS)
+// ==========================================
+// 1. ADD NEW PARTY (Fixed Aging Buckets)
+// ==========================================
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
 
     try {
-        const fullPhoneNumber = req.body.countryCode + req.body.localPhone;
-        const initialAmount = Number(req.body.totalAmount) || 0;
+        const totalAmt = parseFloat(req.body.totalAmount) || 0;
+        const phoneCombined = (req.body.countryCode || '91') + (req.body.localPhone || '');
 
-        // 🚨 THE FIX: Auto-generate date 10 days into the future
         const autoDate = new Date();
         autoDate.setDate(autoDate.getDate() + 10);
 
@@ -565,18 +560,20 @@ app.post('/customers', async (req, res) => {
             companyName: req.body.companyName,
             contactPerson: req.body.contactPerson,
             email: req.body.email,
-            phone: fullPhoneNumber,
+            phone: phoneCombined,
             whatsappNumber: req.body.whatsappNumber,
-            totalAmount: initialAmount,
+            totalAmount: totalAmt,
             adminId: req.session.adminId,
-            nextActionDate: autoDate, // Uses the smart 10-day logic
+            nextActionDate: autoDate,
             aging: {
-                under30: initialAmount,
+                // 🚨 FIX: Put 100% of new party debt into the newest bucket
+                under30: totalAmt,
                 days30to60: 0, days60to90: 0, days90to120: 0,
                 days120to150: 0, days150to180: 0, above180: 0, onAccount: 0
             }
         });
-        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName} with Total ₹${initialAmount}`);
+
+        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName} with Total ₹${totalAmt}`);
 
         res.redirect('/');
     } catch (err) {
@@ -620,63 +617,70 @@ app.delete('/customers/:id', requireLogin, async (req, res) => {
     res.redirect('/');
 });
 
-// FIFO Payment Engine
+// ==========================================
+// 2. UPDATE BALANCE (Flawless FIFO Math)
+// ==========================================
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.status(404).send("Customer not found.");
 
-        const newPurchase = Number(req.body.newPurchase) || 0;
-        const payment = Number(req.body.payment) || 0;
+        let purchase = parseFloat(req.body.newPurchase) || 0;
+        let payment = parseFloat(req.body.payment) || 0;
 
-        if (payment > 0) customer.lastPaymentDate = new Date();
-
-        customer.totalAmount = (Number(customer.totalAmount) || 0) + newPurchase;
+        customer.totalAmount = (Number(customer.totalAmount) || 0) + purchase;
         customer.paidAmount = (Number(customer.paidAmount) || 0) + payment;
 
         if (!customer.aging) {
             customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
         }
 
-        customer.aging.under30 = (Number(customer.aging.under30) || 0) + newPurchase;
-
-        let remainingPayment = payment;
-        const bucketOrder = ['above180', 'days150to180', 'days120to150', 'days90to120', 'days60to90', 'days30to60', 'under30', 'onAccount'];
-
-        for (let bucket of bucketOrder) {
-            if (remainingPayment <= 0) break;
-
-            let currentBucketVal = Number(customer.aging[bucket]) || 0;
-
-            if (currentBucketVal > 0) {
-                if (currentBucketVal >= remainingPayment) {
-                    customer.aging[bucket] = currentBucketVal - remainingPayment;
-                    remainingPayment = 0;
+        // 🚨 FIX A: NEW PURCHASES "EAT" ADVANCE PAYMENTS FIRST
+        if (purchase > 0) {
+            if (customer.aging.onAccount > 0) {
+                if (purchase <= customer.aging.onAccount) {
+                    customer.aging.onAccount -= purchase;
+                    purchase = 0; // Purchase fully covered by advance
                 } else {
-                    remainingPayment -= currentBucketVal;
-                    customer.aging[bucket] = 0;
+                    purchase -= customer.aging.onAccount;
+                    customer.aging.onAccount = 0; // Advance wiped out
                 }
+            }
+            // Any leftover purchase becomes new < 30 days debt
+            customer.aging.under30 += purchase;
+        }
+
+        // 🚨 FIX B: PAYMENTS "EAT" OLDEST DEBT FIRST
+        if (payment > 0) {
+            customer.lastPaymentDate = new Date();
+            let p = payment;
+
+            if (p > 0 && customer.aging.above180 > 0) { let d = Math.min(p, customer.aging.above180); customer.aging.above180 -= d; p -= d; }
+            if (p > 0 && customer.aging.days150to180 > 0) { let d = Math.min(p, customer.aging.days150to180); customer.aging.days150to180 -= d; p -= d; }
+            if (p > 0 && customer.aging.days120to150 > 0) { let d = Math.min(p, customer.aging.days120to150); customer.aging.days120to150 -= d; p -= d; }
+            if (p > 0 && customer.aging.days90to120 > 0) { let d = Math.min(p, customer.aging.days90to120); customer.aging.days90to120 -= d; p -= d; }
+            if (p > 0 && customer.aging.days60to90 > 0) { let d = Math.min(p, customer.aging.days60to90); customer.aging.days60to90 -= d; p -= d; }
+            if (p > 0 && customer.aging.days30to60 > 0) { let d = Math.min(p, customer.aging.days30to60); customer.aging.days30to60 -= d; p -= d; }
+            if (p > 0 && customer.aging.under30 > 0) { let d = Math.min(p, customer.aging.under30); customer.aging.under30 -= d; p -= d; }
+
+            // If payment STILL has money left after wiping all debt, it becomes an Advance
+            if (p > 0) {
+                customer.aging.onAccount += p;
             }
         }
 
-        if (remainingPayment > 0) {
-            customer.aging.onAccount = (Number(customer.aging.onAccount) || 0) + remainingPayment;
-        }
-
         customer.markModified('aging');
-
         await customer.save();
 
         let details = "";
-        if (newPurchase > 0) details += `Bought goods worth ₹${newPurchase}. `;
-        if (payment > 0) details += `Paid ₹${payment}.`;
+        if (req.body.newPurchase > 0) details += `Bought goods worth ₹${req.body.newPurchase}. `;
+        if (req.body.payment > 0) details += `Paid ₹${req.body.payment}.`;
 
         if (details !== "") {
-            await logActivity(req, "Payment Updated", `Added ₹${payment} payment and ₹${newPurchase} new purchase to ${customer.companyName}.`);
+            await logActivity(req, "Payment Updated", `Updated ${customer.companyName}. ${details}`);
         }
 
         res.redirect('/');
-
     } catch (err) {
         console.error("Transaction Error:", err);
         res.status(500).send("Error updating balance.");
