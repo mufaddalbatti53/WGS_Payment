@@ -138,7 +138,6 @@
             text-align: center;
         }
 
-        /* Filter & Search Layout */
         .toolbar-wrapper {
             display: flex;
             flex-direction: column;
@@ -173,7 +172,6 @@
             box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
         }
 
-        /* Advanced Filter Panel */
         .filter-panel {
             background: #f8fafc;
             border-radius: 16px;
@@ -664,7 +662,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* 🚨 Guaranteed Hide Class for JS Search/Filter */
         tr.customer-row.d-none {
             display: none !important;
         }
@@ -856,7 +853,7 @@
                                     style="margin: 0; padding: 10px 15px; border-radius: 12px; font-size: 15px;"
                                     onclick="toggleFilterPanel()">⚙️ Filters</button>
                                 <input type="text" id="searchInput" class="search-micro"
-                                    placeholder="🔍 Search by company, contact, or phone...">
+                                    placeholder="🔍 Search by party, company, or phone...">
                                 <button onclick="openAddModal()" class="btn-primary" style="margin: 0;">➕ Add
                                     Party</button>
                             </div>
@@ -912,7 +909,7 @@
                                                 <th style="width: 40px; text-align: center;"><input type="checkbox"
                                                         id="selectAll" class="checkbox-custom"></th>
                                                 <% } %>
-                                                    <th>Company / Contact</th>
+                                                    <th>Party / Company</th>
                                                     <th>Contact Info</th>
                                                     <th>Financials</th>
                                                     <% if (role !=='customer' ) { %>
@@ -938,8 +935,8 @@
 
                                                 var lpDate = customer.lastPaymentDate ? new
                                                 Date(customer.lastPaymentDate).toLocaleDateString('en-IN') : "";
-                                                var rawCname = customer.companyName || "Customer";
-                                                var rawPname = customer.contactPerson || "Sir/Madam";
+                                                var rawCname = customer.companyName || "Unknown Party";
+                                                var rawPname = customer.contactPerson || "";
                                                 var rawAname = adminUser.companyName || "Our Company";
 
                                                 var ag = customer.aging || {};
@@ -971,10 +968,10 @@
                                                             <td class="desktop-only">
                                                                 <strong
                                                                     style="font-size: 15px; color: var(--text-dark);">
-                                                                    <%= customer.companyName %>
+                                                                    <%= customer.companyName || 'Unknown Party' %>
                                                                 </strong><br>
                                                                 <span style="color: var(--text-muted); font-size:12px;">
-                                                                    <%= customer.contactPerson %>
+                                                                    <%= customer.contactPerson || 'No Company Name' %>
                                                                 </span>
                                                             </td>
 
@@ -1126,17 +1123,19 @@
                                                                                                         data-email="<%= customer.email %>"
                                                                                                         data-phone="<%= customer.phone %>"
                                                                                                         data-whatsapp="<%= customer.whatsappNumber %>"
-                                                                                                        data-other="<%= customer.otherNumbers %>">✏️
+                                                                                                        data-other="<%= customer.otherNumbers %>"
+                                                                                                        data-total="<%= customer.totalAmount %>"
+                                                                                                        data-paid="<%= customer.paidAmount %>">✏️
                                                                                                         Edit</button>
                                                                                                     <form
                                                                                                         action="/customers/<%= customer._id %>?_method=DELETE"
                                                                                                         method="POST"
                                                                                                         style="margin:0; display: flex;"
-                                                                                                        onsubmit="return confirm('Permanently delete this customer?');">
+                                                                                                        onsubmit="return confirm('Permanently delete this party?');">
                                                                                                         <button
                                                                                                             type="submit"
                                                                                                             class="btn-table btn-table-red"
-                                                                                                            title="Delete Customer">🗑️</button>
+                                                                                                            title="Delete Party">🗑️</button>
                                                                                                     </form>
                                                                                                 </div>
                                                                                                 <% } %>
@@ -1155,10 +1154,12 @@
                                                                                         <div>
                                                                                             <strong>
                                                                                                 <%= customer.companyName
+                                                                                                    || 'Unknown Party'
                                                                                                     %>
                                                                                             </strong>
                                                                                             <span>
                                                                                                 <%= customer.contactPerson
+                                                                                                    || 'No Company Name'
                                                                                                     %>
                                                                                             </span><br>
                                                                                             <a href="tel:+<%= customer.phone %>"
@@ -1289,17 +1290,19 @@
                                                                                                                         data-phone="<%= customer.phone %>"
                                                                                                                         data-whatsapp="<%= customer.whatsappNumber %>"
                                                                                                                         data-other="<%= customer.otherNumbers %>"
+                                                                                                                        data-total="<%= customer.totalAmount %>"
+                                                                                                                        data-paid="<%= customer.paidAmount %>"
                                                                                                                         title="Edit Customer Details">✏️</button>
                                                                                                                     <form
                                                                                                                         action="/customers/<%= customer._id %>?_method=DELETE"
                                                                                                                         method="POST"
                                                                                                                         style="margin:0; display: flex;"
-                                                                                                                        onsubmit="return confirm('Permanently delete this customer?');">
+                                                                                                                        onsubmit="return confirm('Permanently delete this party?');">
                                                                                                                         <button
                                                                                                                             type="submit"
                                                                                                                             class="m-tool-btn"
                                                                                                                             style="color:#ef4444;"
-                                                                                                                            title="Delete Customer">🗑️</button>
+                                                                                                                            title="Delete Party">🗑️</button>
                                                                                                                     </form>
                                                                                                                     <% }
                                                                                                                         %>
@@ -1332,10 +1335,11 @@
                     <span class="close" onclick="closeAddModal()">&times;</span>
                     <h3 style="margin-top: 0; color: var(--text-dark);">➕ Add New Party</h3>
                     <form action="/customers" method="POST">
+                        <label class="trans-label">Party Name</label>
+                        <input type="text" name="companyName" class="input-style">
                         <label class="trans-label">Company Name</label>
-                        <input type="text" name="companyName" required class="input-style">
-                        <label class="trans-label">Contact Person</label>
-                        <input type="text" name="contactPerson" required class="input-style">
+                        <input type="text" name="contactPerson" class="input-style">
+
                         <label class="trans-label">Email Address</label>
                         <input type="email" name="email" class="input-style">
                         <label class="trans-label">Total Due Amount (₹)</label>
@@ -1402,21 +1406,34 @@
                     <span class="close" onclick="closeEditModal()">&times;</span>
                     <h3 style="margin-top: 0; color: var(--text-dark);">✏️ Edit Details</h3>
                     <form id="editForm" method="POST">
-                        <label class="trans-label">Company</label><input type="text" name="companyName" id="editCompany"
-                            required class="input-style">
-                        <label class="trans-label">Contact</label><input type="text" name="contactPerson"
-                            id="editContact" required class="input-style">
-                        <label class="trans-label">Email</label><input type="email" name="email" id="editEmail"
-                            class="input-style">
+                        <label class="trans-label">Party Name</label>
+                        <input type="text" name="companyName" id="editCompany" class="input-style">
+                        <label class="trans-label">Company Name</label>
+                        <input type="text" name="contactPerson" id="editContact" class="input-style">
+
+                        <label class="trans-label">Email</label>
+                        <input type="email" name="email" id="editEmail" class="input-style">
                         <div style="display: flex; gap: 10px;">
                             <div style="flex:1"><label class="trans-label">Phone</label><input type="text" name="phone"
                                     id="editPhone" required class="input-style"></div>
                             <div style="flex:1"><label class="trans-label">WhatsApp</label><input type="text"
                                     name="whatsappNumber" id="editWhatsapp" required class="input-style"></div>
                         </div>
-                        <label class="trans-label">Other</label><input type="text" name="otherNumbers" id="editOther"
-                            class="input-style">
-                        <button type="submit" class="btn-primary" style="width:100%;">Save Changes</button>
+                        <label class="trans-label">Other</label>
+                        <input type="text" name="otherNumbers" id="editOther" class="input-style">
+
+                        <div
+                            style="display: flex; gap: 10px; border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px;">
+                            <div style="flex:1"><label class="trans-label" style="color: #b91c1c;">Total Bill
+                                    (₹)</label><input type="number" name="totalAmount" id="editTotal" required
+                                    class="input-style" style="margin-bottom: 0;"></div>
+                            <div style="flex:1"><label class="trans-label" style="color: #15803d;">Total Paid
+                                    (₹)</label><input type="number" name="paidAmount" id="editPaid" required
+                                    class="input-style" style="margin-bottom: 0;"></div>
+                        </div>
+
+                        <button type="submit" class="btn-primary" style="width:100%; margin-top: 15px;">Save
+                            Changes</button>
                     </form>
                 </div>
             </div>
@@ -1450,18 +1467,43 @@
                                     name="companyEmail" value="<%= adminUser.companyEmail || '' %>" class="input-style">
                             </div>
                         </div>
+
+                        <div style="border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 15px;">
+                            <h4
+                                style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: var(--primary-dark);">
+                                🏦 Bank & UPI Details (Optional)</h4>
+                            <label class="trans-label">Bank Name</label><input type="text" name="bankName"
+                                value="<%= adminUser.bankName || '' %>" class="input-style">
+                            <label class="trans-label">Account Name</label><input type="text" name="accountName"
+                                value="<%= adminUser.accountName || '' %>" class="input-style">
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex:1"><label class="trans-label">Account No.</label><input type="text"
+                                        name="accountNumber" value="<%= adminUser.accountNumber || '' %>"
+                                        class="input-style"></div>
+                                <div style="flex:1"><label class="trans-label">IFSC Code</label><input type="text"
+                                        name="ifscCode" value="<%= adminUser.ifscCode || '' %>" class="input-style">
+                                </div>
+                            </div>
+                            <label class="trans-label">UPI ID / Number</label><input type="text" name="upiDetails"
+                                value="<%= adminUser.upiDetails || '' %>" class="input-style" style="margin-bottom: 0;">
+                        </div>
+
                         <button type="submit" class="btn-primary"
-                            style="width:100%; padding:12px; font-weight:bold; margin-top:10px;">💾 Save Company
-                            Profile</button>
+                            style="width:100%; padding:12px; font-weight:bold; margin-top:20px;">💾 Save Profile & Bank
+                            Info</button>
                     </form>
                 </div>
             </div>
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
-                // ----------------------------------------------------
-                // ADVANCED SEARCH & AGING FILTER LOGIC
-                // ----------------------------------------------------
+                // 🚨 GET ADMIN BANK INFO SECURELY FROM BACKEND
+                var adminBankName = "<%= adminUser.bankName || '' %>";
+                var adminAccName = "<%= adminUser.accountName || '' %>";
+                var adminAccNo = "<%= adminUser.accountNumber || '' %>";
+                var adminIfsc = "<%= adminUser.ifscCode || '' %>";
+                var adminUpi = "<%= adminUser.upiDetails || '' %>";
+
                 var actionFilterActive = false;
 
                 function toggleFilterPanel() {
@@ -1528,13 +1570,11 @@
                         var row = rows[i];
                         var isVisible = true;
 
-                        // 1. Text Search
                         if (searchText.length > 0) {
                             var text = row.textContent.toLowerCase();
                             if (text.indexOf(searchText) === -1) isVisible = false;
                         }
 
-                        // 2. Amount Check (Min/Max)
                         var rawDue = parseFloat(row.getAttribute('data-due')) || 0;
                         var rawTotal = parseFloat(row.getAttribute('data-total')) || 0;
                         var valToCheck = (amtType === 'due') ? rawDue : rawTotal;
@@ -1543,7 +1583,6 @@
                             isVisible = false;
                         }
 
-                        // 3. Aging Bucket Check & Dynamic Text Update
                         var dynamicDueD = row.querySelector('.dynamic-due');
                         var dynamicDueM = row.querySelector('.dynamic-due-m');
 
@@ -1560,12 +1599,10 @@
                             if (dynamicDueM) dynamicDueM.innerText = 'Due: ₹' + rawDue;
                         }
 
-                        // 4. Action Required Check
                         if (actionFilterActive && row.getAttribute('data-action-req') !== 'true') {
                             isVisible = false;
                         }
 
-                        // Apply View
                         if (isVisible) {
                             row.classList.remove('d-none');
                         } else {
@@ -1575,21 +1612,15 @@
                 }
 
                 var searchBox = document.getElementById('searchInput');
-                if (searchBox) {
-                    searchBox.addEventListener('keyup', function () { runAllFilters('search'); });
-                }
+                if (searchBox) { searchBox.addEventListener('keyup', function () { runAllFilters('search'); }); }
 
-
-                // ----------------------------------------------------
-                // MESSAGE SENDER LOGIC
-                // ----------------------------------------------------
                 function sendMsg(element, type) {
                     var id = element.getAttribute('data-id');
                     var phone = element.getAttribute('data-phone');
                     var wa = element.getAttribute('data-wa');
                     var email = element.getAttribute('data-email');
-                    var cname = element.getAttribute('data-cname');
-                    var pname = element.getAttribute('data-pname');
+                    var cname = element.getAttribute('data-cname'); // Now this represents Party
+                    var pname = element.getAttribute('data-pname'); // Now this represents Company
                     var total = element.getAttribute('data-total');
                     var paidamount = element.getAttribute('data-paidamount');
                     var lastpaid = element.getAttribute('data-lastpaid');
@@ -1600,7 +1631,23 @@
                     var paidStr = "Rs " + paidamount;
                     if (parseInt(paidamount) > 0 && lastpaid) { paidStr += " (Last paid: " + lastpaid + ")"; }
 
-                    var msg = "Hello, I am " + pname + " from " + cname + ",\n\n";
+                    // 🚨 Generate the Bank Details block
+                    var bankStr = "";
+                    if (adminBankName || adminAccNo || adminUpi) {
+                        bankStr += "🏦 *Payment Details:*\n";
+                        if (adminBankName) bankStr += "Bank: " + adminBankName + "\n";
+                        if (adminAccName) bankStr += "Name: " + adminAccName + "\n";
+                        if (adminAccNo) bankStr += "A/C No: " + adminAccNo + "\n";
+                        if (adminIfsc) bankStr += "IFSC: " + adminIfsc + "\n";
+                        if (adminUpi) bankStr += "UPI: " + adminUpi + "\n";
+                        bankStr += "\n";
+                    }
+
+                    // Note: Swapped pname and cname order because "Party" is now first
+                    var contactStr = cname;
+                    if (pname && pname.length > 0) contactStr += " (" + pname + ")";
+
+                    var msg = "Hello I am " + contactStr + ",\n\n";
                     msg += "This is a gentle payment reminder " + ".\n\n";
                     msg += "📊 *Account Summary:*\n";
                     msg += "- Total Bill Amount: Rs " + total + "\n";
@@ -1608,6 +1655,9 @@
                     msg += "- Current Outstanding Due: *Rs " + due + "*\n\n";
                     if (diff > 0) { msg += "_It is " + diff + " days past the set action date._\n\n"; }
                     msg += "Please arrange the payment for the pending amount at your earliest convenience.\n\n";
+
+                    msg += bankStr; // 🚨 Inject Bank Details
+
                     msg += "Thank you,\n" + admin;
 
                     var encoded = encodeURIComponent(msg);
@@ -1630,9 +1680,6 @@
                     fetch('/customers/' + id + '/auto-snooze', { method: 'POST' }).catch(function (e) { });
                 }
 
-                // ----------------------------------------------------
-                // MODALS & BUTTON LISTENERS
-                // ----------------------------------------------------
                 var transBtns = document.querySelectorAll('.transaction-btn');
                 for (var i = 0; i < transBtns.length; i++) {
                     transBtns[i].addEventListener('click', function () {
@@ -1662,6 +1709,9 @@
                         document.getElementById('editPhone').value = this.getAttribute('data-phone');
                         document.getElementById('editWhatsapp').value = this.getAttribute('data-whatsapp');
                         document.getElementById('editOther').value = this.getAttribute('data-other');
+                        document.getElementById('editTotal').value = this.getAttribute('data-total');
+                        document.getElementById('editPaid').value = this.getAttribute('data-paid');
+
                         window.history.pushState({ modal: true }, '', '#edit');
                         document.getElementById('editModal').style.display = "block";
                         document.getElementById('editForm').action = '/customers/' + this.getAttribute('data-id') + '/edit?_method=PUT';
@@ -1698,7 +1748,15 @@
                     if (count > 0) { bulkBar.classList.add('visible'); countText.innerText = count + ' Selected'; } else { bulkBar.classList.remove('visible'); }
                 }
 
-                if (selectAllBtn) { selectAllBtn.addEventListener('change', function () { var checked = this.checked; var visibleBoxes = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox'); for (var i = 0; i < visibleBoxes.length; i++) { visibleBoxes[i].checked = checked; } updateBulkBar(); }); }
+                if (selectAllBtn) {
+                    selectAllBtn.addEventListener('change', function () {
+                        var checked = this.checked;
+                        var visibleBoxes = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
+                        for (var i = 0; i < visibleBoxes.length; i++) { visibleBoxes[i].checked = checked; }
+                        updateBulkBar();
+                    });
+                }
+
                 for (var i = 0; i < checkboxes.length; i++) { checkboxes[i].addEventListener('change', updateBulkBar); }
 
                 function confirmBulkDelete() {

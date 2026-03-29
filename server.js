@@ -4,11 +4,10 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
 
-// Add this near the top of server.js
 const xlsx = require('xlsx');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() }); // Stores uploaded files in RAM safely
+const upload = multer({ storage: multer.memoryStorage() });
 
 const Customer = require('./models/Customer');
 const User = require('./models/User');
@@ -35,9 +34,6 @@ const requireLogin = (req, res, next) => {
     next();
 };
 
-// --- ROUTES ---
-
-// Activity Log Schema
 const activitySchema = new mongoose.Schema({
     adminId: { type: String, required: true },
     userId: { type: String, required: true },
@@ -48,19 +44,9 @@ const activitySchema = new mongoose.Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', activitySchema);
 
-// --- MASTER TRACKING FUNCTION ---
 async function logActivity(req, action, details) {
-    console.log(`\n▶️ [ACTIVITY TRIGGERED] Attempting to log: "${action}"`);
     try {
-        if (!req.session) {
-            console.log("❌ [ACTIVITY FAILED] Reason: No session found.");
-            return;
-        }
-        if (!req.session.adminId) {
-            console.log("❌ [ACTIVITY FAILED] Reason: req.session.adminId is missing.");
-            return;
-        }
-
+        if (!req.session || !req.session.adminId) return;
         await ActivityLog.create({
             adminId: req.session.adminId,
             userId: req.session.userId || req.session.adminId,
@@ -68,18 +54,14 @@ async function logActivity(req, action, details) {
             action: action,
             details: details
         });
-
-        console.log("✅ [ACTIVITY SUCCESS] Successfully saved to database!\n");
     } catch (err) {
-        console.error("❌ [ACTIVITY DATABASE ERROR] Here is why it crashed:", err.message, "\n");
+        console.error("Activity Log Error:", err.message);
     }
 }
 
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
-    if (req.session.userId) {
-        return res.redirect('/');
-    }
+    if (req.session.userId) return res.redirect('/');
     res.render('login', { error: null });
 });
 
@@ -87,20 +69,16 @@ app.post('/login', async (req, res) => {
     try {
         if (req.body.type === 'customer') {
             const phoneRaw = req.body.phone.replace(/[^0-9]/g, '');
-
             const customer = await Customer.findOne({
                 phone: { $regex: new RegExp(phoneRaw + '$') }
             }).sort({ _id: -1 });
 
-            if (!customer) {
-                return res.render('login', { error: "No account found with this phone number." });
-            }
+            if (!customer) return res.render('login', { error: "No account found with this phone number." });
 
             req.session.userPhone = phoneRaw;
             req.session.userId = customer._id;
             req.session.role = 'customer';
             req.session.adminId = customer.adminId;
-
             return res.redirect('/');
         }
 
@@ -120,7 +98,6 @@ app.post('/login', async (req, res) => {
             return res.render('login', { error: "Invalid username or password." });
         }
     } catch (error) {
-        console.error("Login Error:", error);
         res.status(500).send("An error occurred during login.");
     }
 });
@@ -157,18 +134,16 @@ app.post('/customers/:id/auto-snooze', async (req, res) => {
             customer.nextActionDate = newDate;
             await customer.save();
 
-            const Activity = require('./models/Activity');
-            await Activity.create({
+            await ActivityLog.create({
                 adminId: req.session.adminId,
                 userId: req.session.userId,
                 username: req.session.role.toUpperCase(),
                 action: "Reminder Sent",
-                details: `Sent payment reminder to ${customer.companyName}. Auto-snoozed for 10 days.`
+                details: `Sent payment reminder to ${customer.companyName || 'Party'}. Auto-snoozed for 10 days.`
             });
         }
         res.json({ success: true });
     } catch (err) {
-        console.error("Auto-Snooze Error:", err);
         res.status(500).json({ success: false });
     }
 });
@@ -199,39 +174,24 @@ app.get('/', async (req, res) => {
             adminUser: adminUser
         });
     } catch (err) {
-        console.error("Dashboard Error:", err);
         res.status(500).send("Error loading dashboard.");
     }
 });
 
 // 3. ADMIN PAGES
 app.get('/staff', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') {
-        return res.status(403).send("Unauthorized. Only Admins can view this page.");
-    }
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
-        const myStaff = await User.find({
-            role: 'staff',
-            adminId: req.session.adminId
-        }).lean();
+        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
         res.render('staff', { staffMembers: myStaff, role: req.session.role });
-    } catch (error) {
-        console.error("Error loading staff list:", error);
-        res.status(500).send("Error loading staff list.");
-    }
+    } catch (error) { res.status(500).send("Error loading staff."); }
 });
 
 app.get('/activity', requireLogin, async (req, res) => {
     try {
         const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).lean();
-        res.render('activity', {
-            activities: activities,
-            role: req.session.role
-        });
-    } catch (err) {
-        console.error("Activity Load Error:", err);
-        res.status(500).send("Error loading activity log.");
-    }
+        res.render('activity', { activities: activities, role: req.session.role });
+    } catch (err) { res.status(500).send("Error loading activity."); }
 });
 
 app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
@@ -242,14 +202,10 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
         const now = new Date();
 
         if (filterType === 'older_than_30') {
-            const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-            query.createdAt = { $lt: thirtyDaysAgo };
-        }
-        else if (filterType === 'last_30') {
-            const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-            query.createdAt = { $gte: thirtyDaysAgo };
-        }
-        else if (filterType === 'custom' && startDate && endDate) {
+            query.createdAt = { $lt: new Date(now.setDate(now.getDate() - 30)) };
+        } else if (filterType === 'last_30') {
+            query.createdAt = { $gte: new Date(now.setDate(now.getDate() - 30)) };
+        } else if (filterType === 'custom' && startDate && endDate) {
             query.createdAt = {
                 $gte: new Date(startDate),
                 $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
@@ -258,44 +214,27 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
 
         await ActivityLog.deleteMany(query);
         res.redirect('/activity');
-    } catch (err) {
-        console.error("Bulk Delete Error:", err);
-        res.status(500).send("Failed to delete logs.");
-    }
+    } catch (err) { res.status(500).send("Failed to delete logs."); }
 });
 
-// --- UPDATE COMPANY PROFILE ---
 app.put('/settings', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-
     await User.findByIdAndUpdate(req.session.adminId, {
-        companyName: req.body.companyName,
-        addressLine1: req.body.addressLine1,
-        addressLine2: req.body.addressLine2,
-        addressLine3: req.body.addressLine3,
-        dlNo: req.body.dlNo,
-        msmeNo: req.body.msmeNo,
-        contactNo: req.body.contactNo,
-        companyEmail: req.body.companyEmail
+        companyName: req.body.companyName, addressLine1: req.body.addressLine1, addressLine2: req.body.addressLine2,
+        addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo, contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
+        bankName: req.body.bankName, accountName: req.body.accountName, accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails
     });
-
-    await logActivity(req, "Company Profile", "Updated company profile details.");
+    await logActivity(req, "Company Profile", "Updated company profile and bank details.");
     res.redirect('/');
 });
-
-// 4. ADMIN ACTIONS (Staff Management)
-app.get('/register', (req, res) => { res.render('register'); });
 
 app.post('/register', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const hashedAnswer = await bcrypt.hash(req.body.securityAnswer, 10);
         await User.create({
-            username: req.body.username,
-            password: hashedPassword,
-            role: 'admin',
-            securityQuestion: req.body.securityQuestion,
-            securityAnswer: hashedAnswer
+            username: req.body.username, password: hashedPassword, role: 'admin',
+            securityQuestion: req.body.securityQuestion, securityAnswer: hashedAnswer
         });
         res.redirect('/login');
     } catch (e) { res.send("Error: " + e.message); }
@@ -306,70 +245,40 @@ app.post('/create-staff', requireLogin, async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const dummyAnswer = await bcrypt.hash("admin-managed", 10);
-
         await User.create({
-            username: req.body.username,
-            password: hashedPassword,
-            role: 'staff',
-            adminId: req.session.adminId,
-            securityQuestion: "Managed by Admin?",
-            securityAnswer: dummyAnswer
+            username: req.body.username, password: hashedPassword, role: 'staff',
+            adminId: req.session.adminId, securityQuestion: "Managed by Admin?", securityAnswer: dummyAnswer
         });
-
         await logActivity(req, "Created Staff", `Created: ${req.body.username}`);
         res.redirect('/staff');
-    } catch (e) {
-        console.error("Staff Creation Error:", e);
-        if (e.code === 11000) {
-            res.send("That exact username is already in use. Please go back and type a different one (like 'john_staff').");
-        } else {
-            res.send("Failed to create staff. Error: " + e.message);
-        }
-    }
+    } catch (e) { res.send("Failed to create staff."); }
 });
 
 app.post('/reset-staff-password', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
     const { staffId, newPassword } = req.body;
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const staff = await User.findOneAndUpdate(
-        { _id: staffId, adminId: req.session.adminId },
-        { password: hashedPassword }
-    );
-
-    if (staff) {
-        await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
-    }
+    const staff = await User.findOneAndUpdate({ _id: staffId, adminId: req.session.adminId }, { password: hashedPassword });
+    if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
     res.redirect('/staff');
 });
 
 app.delete('/staff/:id', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-
-    const staff = await User.findOneAndDelete({
-        _id: req.params.id,
-        adminId: req.session.adminId
-    });
-
-    if (staff) {
-        await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
-    }
+    const staff = await User.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
+    if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
     res.redirect('/staff');
 });
 
-// --- EXPORT TO EXCEL ROUTE (DYNAMIC & B&W) ---
+// --- EXPORT ---
 app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
-
-        // Grab the Admin's specific company details
         const admin = await User.findById(req.session.adminId).lean();
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Sundry Debtors');
 
-        // 1. Dynamic Top Section
         worksheet.addRow([admin.companyName || '']);
         worksheet.addRow([admin.addressLine1 || '']);
         worksheet.addRow([admin.addressLine2 || '']);
@@ -387,10 +296,12 @@ app.get('/export', requireLogin, async (req, res) => {
 
         const compName = admin.companyName || 'Company';
 
-        // 2. The Multi-Layered Headers
         worksheet.addRow(['', '', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors']);
         worksheet.addRow(['', '', '', compName, compName, compName, '', compName, compName, compName, compName, compName, compName]);
-        worksheet.addRow(['Particulars', 'Contact Person', 'Telephone No.', dateRange, dateRange, dateRange, '', dateRange, dateRange, dateRange, dateRange, dateRange, dateRange]);
+
+        // 🚨 UPDATED HEADERS TO REFLECT "PARTY NAME"
+        worksheet.addRow(['Party Name', 'Company Name', 'Telephone No.', dateRange, dateRange, dateRange, '', dateRange, dateRange, dateRange, dateRange, dateRange, dateRange]);
+
         worksheet.addRow(['', '', '', 'Pending Bills', '(< 30 days )', '30 to 60 days', '', '60 to 90 days', '90 to 120 days', '120 to 150 days', '150 to 180 days', '(> 180 days )', 'On Account']);
         worksheet.addRow(['', '', '', 'Debit', 'Debit', 'Debit', 'Credit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit']);
         worksheet.addRow([]);
@@ -400,10 +311,8 @@ app.get('/export', requireLogin, async (req, res) => {
         worksheet.getColumn(3).width = 15;
         for (let i = 4; i <= 13; i++) worksheet.getColumn(i).width = 15;
 
-        // Populate Rows
         customers.forEach((c) => {
             const aging = c.aging || {};
-            // Ensure the exported Due matches the Math Due precisely
             const totalDue = (c.totalAmount || 0) - (c.paidAmount || 0);
 
             worksheet.addRow([
@@ -415,21 +324,11 @@ app.get('/export', requireLogin, async (req, res) => {
             ]);
         });
 
-        // 3. Black and White Styling
         worksheet.eachRow((row, rowNumber) => {
             row.eachCell((cell, colNumber) => {
-                cell.font = { color: { argb: 'FF000000' } }; // Pure Black Text
-
-                // Bold the Company header info and Table Headers
-                if (rowNumber <= 11 || (rowNumber >= 12 && rowNumber <= 16)) {
-                    cell.font = { bold: true, color: { argb: 'FF000000' } };
-                }
-
-                if (rowNumber > 17 && colNumber > 3) {
-                    cell.alignment = { horizontal: 'right' };
-                } else {
-                    cell.alignment = { horizontal: 'left' };
-                }
+                cell.font = { color: { argb: 'FF000000' } };
+                if (rowNumber <= 11 || (rowNumber >= 12 && rowNumber <= 16)) { cell.font = { bold: true, color: { argb: 'FF000000' } }; }
+                if (rowNumber > 17 && colNumber > 3) { cell.alignment = { horizontal: 'right' }; } else { cell.alignment = { horizontal: 'left' }; }
             });
         });
 
@@ -438,50 +337,36 @@ app.get('/export', requireLogin, async (req, res) => {
 
         await workbook.xlsx.write(res);
         res.end();
-    } catch (err) {
-        console.error("Export Error:", err);
-        res.status(500).send("Failed to export Excel file.");
-    }
+    } catch (err) { res.status(500).send("Failed to export Excel."); }
 });
 
-
-// --- SMART TALLY IMPORTER (AUTO-10-DAY ASSIGNMENT) ---
+// --- SMART IMPORT ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
-
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
         const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
         let importedCount = 0;
-
         let dataStartIndex = 0;
+
         for (let i = 0; i < rawData.length; i++) {
             const firstColumn = rawData[i][0] ? String(rawData[i][0]).trim().toLowerCase() : '';
-            if (firstColumn === 'particulars') {
-                dataStartIndex = i + 1;
-                break;
-            }
+            if (firstColumn === 'party name' || firstColumn === 'particulars') { dataStartIndex = i + 1; break; }
         }
 
         for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
             const partyName = row[0] ? String(row[0]).trim() : '';
 
-            if (!partyName || partyName.toLowerCase() === 'grand total') {
-                continue;
-            }
+            if (!partyName || partyName.toLowerCase() === 'grand total') continue;
 
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
             const contactPerson = row[1] ? String(row[1]).trim() : '';
-
             const rawPhoneStr = row[2] ? String(row[2]).trim() : '';
             const phoneArray = rawPhoneStr.split(',').map(n => n.trim()).filter(n => n);
 
-            let finalPhone = '';
-            let finalWhatsapp = '';
-            let finalOther = '';
+            let finalPhone = ''; let finalWhatsapp = ''; let finalOther = '';
 
             if (phoneArray.length > 0) {
                 const formatNum = (num) => {
@@ -490,26 +375,15 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                     if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned;
                     return cleaned ? '91' + cleaned : '';
                 };
-
-                finalPhone = formatNum(phoneArray[0]);
-                finalWhatsapp = finalPhone;
-
-                if (phoneArray.length > 1) {
-                    finalOther = phoneArray.slice(1).map(formatNum).join(', ');
-                }
+                finalPhone = formatNum(phoneArray[0]); finalWhatsapp = finalPhone;
+                if (phoneArray.length > 1) { finalOther = phoneArray.slice(1).map(formatNum).join(', '); }
             }
 
             const totalPending = cleanMoney(row[3]);
-
             const agingData = {
-                under30: cleanMoney(row[4]),
-                days30to60: cleanMoney(row[5]),
-                days60to90: cleanMoney(row[7]),
-                days90to120: cleanMoney(row[8]),
-                days120to150: cleanMoney(row[9]),
-                days150to180: cleanMoney(row[10]),
-                above180: cleanMoney(row[11]),
-                onAccount: cleanMoney(row[12])
+                under30: cleanMoney(row[4]), days30to60: cleanMoney(row[5]), days60to90: cleanMoney(row[7]),
+                days90to120: cleanMoney(row[8]), days120to150: cleanMoney(row[9]), days150to180: cleanMoney(row[10]),
+                above180: cleanMoney(row[11]), onAccount: cleanMoney(row[12])
             };
 
             let cust = await Customer.findOne({ companyName: partyName, adminId: req.session.adminId });
@@ -523,103 +397,84 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 cust.nextActionDate = d;
             }
 
-            cust.contactPerson = contactPerson;
-            cust.phone = finalPhone;
-            cust.whatsappNumber = finalWhatsapp;
-            cust.otherNumbers = finalOther;
-            cust.totalAmount = totalPending;
-            cust.aging = agingData;
+            cust.contactPerson = contactPerson; cust.phone = finalPhone; cust.whatsappNumber = finalWhatsapp;
+            cust.otherNumbers = finalOther; cust.totalAmount = totalPending; cust.aging = agingData;
 
             await cust.save();
             importedCount++;
         }
 
-        await logActivity(req, "Excel Import", `Imported ${importedCount} real customers from Tally/CSV Export.`);
+        await logActivity(req, "Excel Import", `Imported ${importedCount} customers from Excel.`);
         res.redirect('/');
-
-    } catch (err) {
-        console.error("Smart Import Error:", err);
-        res.status(500).send("Failed to import. Please check file format.");
-    }
+    } catch (err) { res.status(500).send("Import failed."); }
 });
 
-// ==========================================
-// 1. ADD NEW PARTY (Fixed Aging Buckets)
-// ==========================================
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
-
     try {
         const totalAmt = parseFloat(req.body.totalAmount) || 0;
         const phoneCombined = (req.body.countryCode || '91') + (req.body.localPhone || '');
-
         const autoDate = new Date();
         autoDate.setDate(autoDate.getDate() + 10);
 
         await Customer.create({
-            companyName: req.body.companyName,
-            contactPerson: req.body.contactPerson,
-            email: req.body.email,
-            phone: phoneCombined,
-            whatsappNumber: req.body.whatsappNumber,
-            totalAmount: totalAmt,
-            adminId: req.session.adminId,
-            nextActionDate: autoDate,
-            aging: {
-                // 🚨 FIX: Put 100% of new party debt into the newest bucket
-                under30: totalAmt,
-                days30to60: 0, days60to90: 0, days90to120: 0,
-                days120to150: 0, days150to180: 0, above180: 0, onAccount: 0
-            }
+            companyName: req.body.companyName, contactPerson: req.body.contactPerson, email: req.body.email,
+            phone: phoneCombined, whatsappNumber: req.body.whatsappNumber, totalAmount: totalAmt, adminId: req.session.adminId, nextActionDate: autoDate,
+            aging: { under30: totalAmt, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 }
         });
 
-        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName} with Total ₹${totalAmt}`);
-
+        await logActivity(req, "Added Party", `Created new party: ${req.body.companyName || 'Unknown Party'}`);
         res.redirect('/');
-    } catch (err) {
-        console.error("Add Customer Error:", err);
-        res.status(500).send("Error adding customer.");
-    }
+    } catch (err) { res.status(500).send("Error adding customer."); }
 });
 
 app.put('/customers/:id/edit', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
 
-    const customer = await Customer.findOneAndUpdate(
-        { _id: req.params.id, adminId: req.session.adminId },
-        {
-            companyName: req.body.companyName,
-            contactPerson: req.body.contactPerson,
-            email: req.body.email,
-            phone: req.body.phone,
-            whatsappNumber: req.body.whatsappNumber,
-            otherNumbers: req.body.otherNumbers
-        },
-        { returnDocument: 'after' }
-    );
+    try {
+        const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
+        if (!customer) return res.redirect('/');
 
-    if (customer) {
-        await logActivity(req, "Edited Party", `Updated profile details for ${customer.companyName}.`);
+        const oldDue = (Number(customer.totalAmount) || 0) - (Number(customer.paidAmount) || 0);
+
+        customer.companyName = req.body.companyName;
+        customer.contactPerson = req.body.contactPerson;
+        customer.email = req.body.email;
+        customer.phone = req.body.phone;
+        customer.whatsappNumber = req.body.whatsappNumber;
+        customer.otherNumbers = req.body.otherNumbers;
+
+        if (req.body.totalAmount !== undefined) customer.totalAmount = Number(req.body.totalAmount) || 0;
+        if (req.body.paidAmount !== undefined) customer.paidAmount = Number(req.body.paidAmount) || 0;
+
+        const newDue = customer.totalAmount - customer.paidAmount;
+        const dueDiff = newDue - oldDue;
+
+        if (dueDiff !== 0) {
+            if (!customer.aging) {
+                customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
+            }
+            customer.aging.under30 = (Number(customer.aging.under30) || 0) + dueDiff;
+            if (customer.aging.under30 < 0) customer.aging.under30 = 0;
+            customer.markModified('aging');
+        }
+
+        await customer.save();
+        await logActivity(req, "Edited Party", `Updated profile and financials for ${customer.companyName || 'Party'}.`);
+        res.redirect('/');
+    } catch (err) {
+        console.error("Edit Error:", err);
+        res.redirect('/');
     }
-
-    res.redirect('/');
 });
 
 app.delete('/customers/:id', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-
     const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
-
-    if (customer) {
-        await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName}`);
-    }
-
+    if (customer) await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName || 'Party'}`);
     res.redirect('/');
 });
 
-// ==========================================
-// 2. UPDATE BALANCE (Flawless FIFO Math)
-// ==========================================
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
@@ -631,30 +486,22 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
         customer.totalAmount = (Number(customer.totalAmount) || 0) + purchase;
         customer.paidAmount = (Number(customer.paidAmount) || 0) + payment;
 
-        if (!customer.aging) {
-            customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
-        }
+        if (!customer.aging) customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
 
-        // 🚨 FIX A: NEW PURCHASES "EAT" ADVANCE PAYMENTS FIRST
         if (purchase > 0) {
             if (customer.aging.onAccount > 0) {
                 if (purchase <= customer.aging.onAccount) {
-                    customer.aging.onAccount -= purchase;
-                    purchase = 0; // Purchase fully covered by advance
+                    customer.aging.onAccount -= purchase; purchase = 0;
                 } else {
-                    purchase -= customer.aging.onAccount;
-                    customer.aging.onAccount = 0; // Advance wiped out
+                    purchase -= customer.aging.onAccount; customer.aging.onAccount = 0;
                 }
             }
-            // Any leftover purchase becomes new < 30 days debt
             customer.aging.under30 += purchase;
         }
 
-        // 🚨 FIX B: PAYMENTS "EAT" OLDEST DEBT FIRST
         if (payment > 0) {
             customer.lastPaymentDate = new Date();
             let p = payment;
-
             if (p > 0 && customer.aging.above180 > 0) { let d = Math.min(p, customer.aging.above180); customer.aging.above180 -= d; p -= d; }
             if (p > 0 && customer.aging.days150to180 > 0) { let d = Math.min(p, customer.aging.days150to180); customer.aging.days150to180 -= d; p -= d; }
             if (p > 0 && customer.aging.days120to150 > 0) { let d = Math.min(p, customer.aging.days120to150); customer.aging.days120to150 -= d; p -= d; }
@@ -662,11 +509,7 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
             if (p > 0 && customer.aging.days60to90 > 0) { let d = Math.min(p, customer.aging.days60to90); customer.aging.days60to90 -= d; p -= d; }
             if (p > 0 && customer.aging.days30to60 > 0) { let d = Math.min(p, customer.aging.days30to60); customer.aging.days30to60 -= d; p -= d; }
             if (p > 0 && customer.aging.under30 > 0) { let d = Math.min(p, customer.aging.under30); customer.aging.under30 -= d; p -= d; }
-
-            // If payment STILL has money left after wiping all debt, it becomes an Advance
-            if (p > 0) {
-                customer.aging.onAccount += p;
-            }
+            if (p > 0) { customer.aging.onAccount += p; }
         }
 
         customer.markModified('aging');
@@ -675,55 +518,36 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
         let details = "";
         if (req.body.newPurchase > 0) details += `Bought goods worth ₹${req.body.newPurchase}. `;
         if (req.body.payment > 0) details += `Paid ₹${req.body.payment}.`;
-
-        if (details !== "") {
-            await logActivity(req, "Payment Updated", `Updated ${customer.companyName}. ${details}`);
-        }
+        if (details !== "") await logActivity(req, "Payment Updated", `Updated ${customer.companyName || 'Party'}. ${details}`);
 
         res.redirect('/');
-    } catch (err) {
-        console.error("Transaction Error:", err);
-        res.status(500).send("Error updating balance.");
-    }
+    } catch (err) { res.status(500).send("Error updating balance."); }
 });
 
 app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
-
     if (!customer) return res.status(404).send("Customer not found.");
-
     customer.nextActionDate = new Date(req.body.nextDate);
     await customer.save();
-
-    await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName} set to ${req.body.nextDate}`);
+    await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName || 'Party'} set to ${req.body.nextDate}`);
     res.redirect('/');
 });
 
-// --- BULK CUSTOMER ACTIONS ---
 app.post('/customers/bulk', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-
     const { action, customerIds } = req.body;
-
     let ids = [];
     if (Array.isArray(customerIds)) ids = customerIds;
     else if (customerIds) ids = [customerIds];
-
     if (ids.length === 0) return res.redirect('/');
-
     try {
         if (action === 'delete') {
             const result = await Customer.deleteMany({ _id: { $in: ids }, adminId: req.session.adminId });
             await logActivity(req, "Bulk Delete", `Permanently deleted ${result.deletedCount} parties at once.`);
         }
-    } catch (err) {
-        console.error("Bulk Action Error:", err);
-    }
-
+    } catch (err) { }
     res.redirect('/');
 });
 
-// --- START SERVER ---
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
