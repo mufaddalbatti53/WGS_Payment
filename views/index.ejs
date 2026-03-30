@@ -936,8 +936,6 @@
                                                 var lpDate = customer.lastPaymentDate ? new
                                                 Date(customer.lastPaymentDate).toLocaleDateString('en-IN') : "";
 
-                                                // Because labels are swapped: companyName represents the Party.
-                                                contactPerson represents the Company.
                                                 var cName = customer.companyName || "Party";
                                                 var pName = customer.contactPerson || "";
                                                 var aName = adminUser.companyName || "Our Company";
@@ -966,14 +964,14 @@
                                                 if (customer.paidAmount > 0 && customer.lastPaymentDate) { paidText += "
                                                 (Last paid: " + lpDate + ")"; }
 
-                                                // 🚨 THE FIXED DESKTOP GREETING
                                                 var rawMsg = "Hello, this is " + aName + ".%0A%0AThis is a gentle
                                                 payment reminder for " + contactStrEJS + ".%0A%0A*Account Summary:*%0A-
                                                 Bill Amount: Rs " + customer.totalAmount + "%0A- Paid: " + paidText +
-                                                "%0A- Due: *Rs " + due + "*%0A%0A" + (diffDays > 0 ? "_It is " +
-                                                diffDays + " days past the set action date._%0A%0A" : "") + "Please
-                                                arrange payment at your earliest convenience.%0A%0A" + bankStrEJS +
-                                                "Thank you,%0A" + aName;
+                                                "%0A- Due: *Rs " + due + "*%0A%0A";
+                                                if (diffDays > 0) { rawMsg += "_It is " + diffDays + " days past the set
+                                                action date._%0A%0A"; }
+                                                rawMsg += "Please arrange payment at your earliest convenience.%0A%0A" +
+                                                bankStrEJS + "Thank you,%0A" + aName;
 
                                                 var ag = customer.aging || {};
                                                 var ag_u30 = ag.under30 || 0;
@@ -1498,7 +1496,7 @@
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
-                // 🚨 GET ADMIN BANK INFO SECURELY FROM BACKEND FOR MOBILE BUTTONS
+                /* ADMIN BANK INFO */
                 var adminBankName = "<%= adminUser.bankName || '' %>";
                 var adminAccName = "<%= adminUser.accountName || '' %>";
                 var adminAccNo = "<%= adminUser.accountNumber || '' %>";
@@ -1621,8 +1619,8 @@
                     var wa = element.getAttribute('data-wa');
                     var email = element.getAttribute('data-email');
 
-                    var cname = element.getAttribute('data-cname'); // Contains Party Name
-                    var pname = element.getAttribute('data-pname'); // Contains Company Name
+                    var cname = element.getAttribute('data-cname');
+                    var pname = element.getAttribute('data-pname');
                     var total = element.getAttribute('data-total');
                     var paidamount = element.getAttribute('data-paidamount');
                     var lastpaid = element.getAttribute('data-lastpaid');
@@ -1633,7 +1631,6 @@
                     var paidStr = "Rs " + paidamount;
                     if (parseInt(paidamount) > 0 && lastpaid) { paidStr += " (Last paid: " + lastpaid + ")"; }
 
-                    // 🚨 Generate the Bank Details block
                     var bankStr = "";
                     if (adminBankName || adminAccNo || adminUpi) {
                         bankStr += "🏦 *Payment Details:*\n";
@@ -1648,7 +1645,6 @@
                     var contactStr = cname;
                     if (pname && pname.length > 0) contactStr += " (" + pname + ")";
 
-                    // 🚨 THE FIXED MOBILE GREETING
                     var msg = "Hello, this is " + admin + ".\n\n";
                     msg += "This is a gentle payment reminder for " + contactStr + ".\n\n";
                     msg += "📊 *Account Summary:*\n";
@@ -1658,7 +1654,7 @@
                     if (diff > 0) { msg += "_It is " + diff + " days past the set action date._\n\n"; }
                     msg += "Please arrange the payment for the pending amount at your earliest convenience.\n\n";
 
-                    msg += bankStr; // 🚨 Inject Bank Details into Mobile logic
+                    msg += bankStr;
 
                     msg += "Thank you,\n" + admin;
 
