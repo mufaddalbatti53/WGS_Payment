@@ -7,7 +7,6 @@
     <title>Payment Manager</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2c3e50">
-    <link rel="apple-touch-icon" href="/images/logo.png">
     <style>
         :root {
             --primary: #27ae60;
@@ -720,11 +719,13 @@
                 </form>
             </div>
 
-            <% var totalPending=0; var actionRequiredCount=0; var b_u30=0, b_30_60=0, b_60_90=0, b_90_120=0,
-                b_120_150=0, b_150_180=0, b_a180=0, b_onAcc=0; var td2=new Date(); td2.setHours(0,0,0,0);
-                customers.forEach(function(c) { var due=c.totalAmount - c.paidAmount; totalPending +=due; if
-                (c.nextActionDate) { var nd2=new Date(c.nextActionDate); nd2.setHours(0,0,0,0); if (due> 0 && td2 >=
-                nd2) { actionRequiredCount++; }
+            <% var totalPending=0; var actionRequiredCount=0; var b_u30=0; var b_30_60=0; var b_60_90=0; var b_90_120=0;
+                var b_120_150=0; var b_150_180=0; var b_a180=0; var b_onAcc=0; var td2=new Date();
+                td2.setHours(0,0,0,0); for(var i=0; i<customers.length; i++) { var c=customers[i]; var due=c.totalAmount
+                - c.paidAmount; totalPending +=due; if (c.nextActionDate) { var nd2=new Date(c.nextActionDate);
+                nd2.setHours(0,0,0,0); if (due> 0 && td2 >= nd2) {
+                actionRequiredCount++;
+                }
                 } else if (due > 0) {
                 actionRequiredCount++;
                 }
@@ -739,10 +740,12 @@
                 b_a180 += (c.aging.above180 || 0);
                 b_onAcc += (c.aging.onAccount || 0);
                 }
-                });
+                }
 
                 var maxBucket = Math.max(b_u30, b_30_60, b_60_90, b_90_120, b_120_150, b_150_180, b_a180) || 1;
-                function fMoney(amt) { return '₹ ' + amt.toLocaleString('en-IN'); }
+                function fMoney(amt) {
+                return '₹ ' + amt.toLocaleString('en-IN');
+                }
                 %>
 
                 <div class="stats-grid">
@@ -919,397 +922,652 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% customers.forEach(function(customer) { %>
-                                            <% var due=customer.totalAmount - customer.paidAmount; var
-                                                isDueForReminder=false; var diffDays=0; var nextDateString="--" ; if
-                                                (customer.nextActionDate) { var nd=new Date(customer.nextActionDate);
-                                                var td=new Date(); nd.setHours(0,0,0,0); td.setHours(0,0,0,0);
-                                                nextDateString=nd.toLocaleDateString('en-IN', {day: 'numeric' ,
-                                                month: 'short' , year: 'numeric' }); if (td>= nd) {
-                                                isDueForReminder = true;
-                                                diffDays = Math.floor((td - nd) / (1000 * 60 * 60 * 24));
-                                                }
-                                                } else {
-                                                isDueForReminder = true;
-                                                }
+                                        <% for(var j=0; j<customers.length; j++) { %>
+                                            <% var customer=customers[j]; %>
+                                                <% var due=customer.totalAmount - customer.paidAmount; %>
+                                                    <% var isDueForReminder=false; %>
+                                                        <% var diffDays=0; %>
+                                                            <% var nextDateString="--" ; %>
 
-                                                var lpDate = customer.lastPaymentDate ? new
-                                                Date(customer.lastPaymentDate).toLocaleDateString('en-IN') : "";
+                                                                <% if (customer.nextActionDate) { %>
+                                                                    <% var nd=new Date(customer.nextActionDate); %>
+                                                                        <% var td=new Date(); %>
+                                                                            <% nd.setHours(0,0,0,0); %>
+                                                                                <% td.setHours(0,0,0,0); %>
+                                                                                    <% nextDateString=nd.toLocaleDateString('en-IN',
+                                                                                        {day: 'numeric' , month: 'short'
+                                                                                        , year: 'numeric' }); %>
+                                                                                        <% if (td>= nd) { %>
+                                                                                            <% isDueForReminder=true; %>
+                                                                                                <% diffDays=Math.floor((td
+                                                                                                    - nd) / (1000 * 60 *
+                                                                                                    60 * 24)); %>
+                                                                                                    <% } %>
+                                                                                                        <% } else { %>
+                                                                                                            <% isDueForReminder=true;
+                                                                                                                %>
+                                                                                                                <% } %>
 
-                                                var cName = customer.companyName || "Party";
-                                                var pName = customer.contactPerson || "";
-                                                var aName = adminUser.companyName || "Our Company";
-
-                                                var contactStrEJS = cName;
-                                                if (pName && pName.length > 0) contactStrEJS += " (" + pName + ")";
-
-                                                var bankStrEJS = "";
-                                                if (adminUser.bankName || adminUser.accountNumber ||
-                                                adminUser.upiDetails) {
-                                                bankStrEJS += "🏦 *Payment Details:*%0A";
-                                                if (adminUser.bankName) bankStrEJS += "Bank: " + adminUser.bankName +
-                                                "%0A";
-                                                if (adminUser.accountName) bankStrEJS += "Name: " +
-                                                adminUser.accountName + "%0A";
-                                                if (adminUser.accountNumber) bankStrEJS += "A/C No: " +
-                                                adminUser.accountNumber + "%0A";
-                                                if (adminUser.ifscCode) bankStrEJS += "IFSC: " + adminUser.ifscCode +
-                                                "%0A";
-                                                if (adminUser.upiDetails) bankStrEJS += "UPI: " + adminUser.upiDetails +
-                                                "%0A";
-                                                bankStrEJS += "%0A";
-                                                }
-
-                                                var paidText = "Rs " + customer.paidAmount;
-                                                if (customer.paidAmount > 0 && customer.lastPaymentDate) { paidText += "
-                                                (Last paid: " + lpDate + ")"; }
-
-                                                var rawMsg = "Hello, this is " + aName + ".%0A%0AThis is a gentle
-                                                payment reminder for " + contactStrEJS + ".%0A%0A*Account Summary:*%0A-
-                                                Bill Amount: Rs " + customer.totalAmount + "%0A- Paid: " + paidText +
-                                                "%0A- Due: *Rs " + due + "*%0A%0A";
-                                                if (diffDays > 0) { rawMsg += "_It is " + diffDays + " days past the set
-                                                action date._%0A%0A"; }
-                                                rawMsg += "Please arrange payment at your earliest convenience.%0A%0A" +
-                                                bankStrEJS + "Thank you,%0A" + aName;
-
-                                                var ag = customer.aging || {};
-                                                var ag_u30 = ag.under30 || 0;
-                                                var ag_d30 = ag.days30to60 || 0;
-                                                var ag_d60 = ag.days60to90 || 0;
-                                                var ag_d90 = ag.days90to120 || 0;
-                                                var ag_d120 = ag.days120to150 || 0;
-                                                var ag_d150 = ag.days150to180 || 0;
-                                                var ag_a180 = ag.above180 || 0;
-                                                %>
-
-                                                <tr class="customer-row"
-                                                    data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>"
-                                                    data-total="<%= customer.totalAmount %>" data-due="<%= due %>"
-                                                    data-u30="<%= ag_u30 %>" data-d30_60="<%= ag_d30 %>"
-                                                    data-d60_90="<%= ag_d60 %>" data-d90_120="<%= ag_d90 %>"
-                                                    data-d120_150="<%= ag_d120 %>" data-d150_180="<%= ag_d150 %>"
-                                                    data-a180="<%= ag_a180 %>">
-
-                                                    <% if (role==='admin' ) { %>
-                                                        <td class="desktop-only" style="text-align: center;">
-                                                            <input type="checkbox"
-                                                                class="customer-checkbox checkbox-custom"
-                                                                value="<%= customer._id %>">
-                                                        </td>
-                                                        <% } %>
-
-                                                            <td class="desktop-only">
-                                                                <strong
-                                                                    style="font-size: 15px; color: var(--text-dark);">
-                                                                    <%= customer.companyName || 'Unknown Party' %>
-                                                                </strong><br>
-                                                                <span style="color: var(--text-muted); font-size:12px;">
-                                                                    <%= customer.contactPerson || 'No Company Name' %>
-                                                                </span>
-                                                            </td>
-
-                                                            <td class="desktop-only"
-                                                                style="font-size: 13px; line-height: 1.6;">
-                                                                <strong style="color: #cbd5e1;">P:</strong> <a
-                                                                    href="tel:+<%= customer.phone %>"
-                                                                    style="text-decoration:none; color:var(--text-dark); font-weight: 600;">+
-                                                                    <%= customer.phone %></a><br>
-                                                                <% if (customer.whatsappNumber) { %> <strong
-                                                                        style="color: #cbd5e1;">W:</strong> <a
-                                                                        href="https://wa.me/<%= customer.whatsappNumber %>"
-                                                                        target="_blank"
-                                                                        style="text-decoration:none; color:#15803d; font-weight: 600;">+
-                                                                        <%= customer.whatsappNumber %></a><br>
-                                                                    <% } %>
-                                                                        <% if (customer.otherNumbers) { %>
-                                                                            <% var
-                                                                                others=customer.otherNumbers.split(',');
-                                                                                %>
-                                                                                <% for(var k=0; k < others.length; k++)
-                                                                                    { %>
-                                                                                    <% if(others[k].trim() !=="" ) { %>
-                                                                                        <strong
-                                                                                            style="color: #cbd5e1;">O:</strong>
-                                                                                        <a href="tel:<%= others[k].trim() %>"
-                                                                                            style="text-decoration:none; color:var(--text-muted);">
-                                                                                            <%= others[k].trim() %>
-                                                                                        </a><br>
-                                                                                        <% } %>
-                                                                                            <% } %>
-                                                                                                <% } %>
-                                                            </td>
-
-                                                            <td class="desktop-only">
-                                                                <div style="color: var(--text-muted); font-size: 12px;">
-                                                                    Total: ₹<%= customer.totalAmount %>
-                                                                </div>
-                                                                <div
-                                                                    style="color: #15803d; font-size: 12px; font-weight: bold;">
-                                                                    Paid: ₹<%= customer.paidAmount %>
-                                                                </div>
-                                                                <% if (due> 0) { %>
-                                                                    <div class="dynamic-due"
-                                                                        style="color: #b91c1c; font-weight: 800; font-size: 15px; margin-top: 4px;">
-                                                                        Due: ₹<%= due %>
-                                                                    </div>
-                                                                    <% } else { %>
-                                                                        <span class="badge-paid"
-                                                                            style="margin-top: 4px;">Fully Paid</span>
-                                                                        <% } %>
-                                                            </td>
-
-                                                            <% if (role !=='customer' ) { %>
-                                                                <td class="desktop-only">
-                                                                    <% if (due> 0) { %>
-                                                                        <div style="font-weight: 600;">
-                                                                            <%= nextDateString %>
-                                                                        </div>
-                                                                        <% if (isDueForReminder) { %>
-                                                                            <div class="req-badge"
-                                                                                style="color: #ef4444; font-weight:bold; font-size: 11px; margin-top: 4px; background: #fee2e2; padding: 2px 6px; border-radius: 4px; display: inline-block;">
-                                                                                ⚠️ Action Required</div>
-                                                                            <% } %>
-                                                                                <% } else { %> <span
-                                                                                        style="color: #cbd5e1;">--</span>
-                                                                                    <% } %>
-                                                                </td>
-
-                                                                <td class="desktop-only"
-                                                                    style="text-align: right; padding-right: 20px;">
-                                                                    <% if (due> 0 && isDueForReminder) { %>
-                                                                        <div class="action-buttons"
-                                                                            style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
-                                                                            <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= rawMsg %>"
-                                                                                target="_blank"
-                                                                                onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
-                                                                                style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
-                                                                                    src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-                                                                                    width="16" height="16"></a>
-                                                                            <a href="sms:+<%= customer.phone %>?body=<%= rawMsg %>"
-                                                                                onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
-                                                                                style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
-                                                                            <a href="mailto:<%= customer.email %>?subject=Payment Reminder&body=<%= rawMsg %>"
-                                                                                onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
-                                                                                style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
-                                                                        </div>
-                                                                        <% } %>
-
-                                                                            <% if (role==='admin' || role==='staff' ) {
-                                                                                %>
-                                                                                <button
-                                                                                    class="btn-table transaction-btn"
-                                                                                    data-id="<%= customer._id %>"
-                                                                                    data-company="<%= customer.companyName %>">💳
-                                                                                    Update Balance</button>
-                                                                                <% if (due> 0) { %><button
-                                                                                        class="btn-table reminder-btn"
-                                                                                        data-id="<%= customer._id %>"
-                                                                                        data-company="<%= customer.companyName %>">📅
-                                                                                        Set Action Date</button>
-                                                                                    <% } %>
-                                                                                        <% } %>
-
-                                                                                            <% if (role==='admin' ) { %>
-                                                                                                <div
-                                                                                                    style="display:flex; gap: 5px;">
-                                                                                                    <button
-                                                                                                        class="btn-table edit-btn"
-                                                                                                        style="flex:1;"
-                                                                                                        data-id="<%= customer._id %>"
-                                                                                                        data-company="<%= customer.companyName %>"
-                                                                                                        data-contact="<%= customer.contactPerson %>"
-                                                                                                        data-email="<%= customer.email %>"
-                                                                                                        data-phone="<%= customer.phone %>"
-                                                                                                        data-whatsapp="<%= customer.whatsappNumber %>"
-                                                                                                        data-other="<%= customer.otherNumbers %>"
-                                                                                                        data-total="<%= customer.totalAmount %>"
-                                                                                                        data-paid="<%= customer.paidAmount %>">✏️
-                                                                                                        Edit</button>
-                                                                                                    <form
-                                                                                                        action="/customers/<%= customer._id %>?_method=DELETE"
-                                                                                                        method="POST"
-                                                                                                        style="margin:0; display: flex;"
-                                                                                                        onsubmit="return confirm('Permanently delete this party?');">
-                                                                                                        <button
-                                                                                                            type="submit"
-                                                                                                            class="btn-table btn-table-red"
-                                                                                                            title="Delete Party">🗑️</button>
-                                                                                                    </form>
-                                                                                                </div>
-                                                                                                <% } %>
-                                                                </td>
-                                                                <% } %>
-
-                                                                    <td class="mobile-only">
-                                                                        <div class="m-top">
-                                                                            <div class="m-name">
-                                                                                <% if (role==='admin' ) { %>
-                                                                                    <input type="checkbox"
-                                                                                        class="customer-checkbox checkbox-custom"
-                                                                                        value="<%= customer._id %>"
-                                                                                        style="margin-top: 4px; flex-shrink: 0;">
-                                                                                    <% } %>
-                                                                                        <div>
-                                                                                            <strong>
-                                                                                                <%= customer.companyName
-                                                                                                    || 'Unknown Party'
-                                                                                                    %>
-                                                                                            </strong>
-                                                                                            <span>
-                                                                                                <%= customer.contactPerson
-                                                                                                    || 'No Company Name'
-                                                                                                    %>
-                                                                                            </span><br>
-                                                                                            <a href="tel:+<%= customer.phone %>"
-                                                                                                style="color:var(--secondary); text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:6px;">📞
-                                                                                                +<%= customer.phone %>
-                                                                                                    </a>
-                                                                                        </div>
-                                                                            </div>
-                                                                            <div class="m-fin">
-                                                                                <div class="m-fin-top">Total ₹<%=
-                                                                                        customer.totalAmount %>
-                                                                                </div>
-                                                                                <div class="m-fin-paid">Paid ₹<%=
-                                                                                        customer.paidAmount %>
-                                                                                </div>
-                                                                                <% if (due> 0) { %>
-                                                                                    <div
-                                                                                        class="m-fin-due dynamic-due-m">
-                                                                                        Due ₹<%= due %>
-                                                                                    </div>
-                                                                                    <% } else { %>
-                                                                                        <div
-                                                                                            style="color: #15803d; font-weight: bold; margin-top: 4px;">
-                                                                                            Fully Paid 🎉</div>
-                                                                                        <% } %>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <% if (role !=='customer' ) { %>
-                                                                            <% if (due> 0) { %>
-                                                                                <div
-                                                                                    style="font-size: 13px; color: var(--text-muted); padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
-                                                                                    📅 Action Date: <strong
-                                                                                        style="color:var(--text-dark);">
-                                                                                        <%= nextDateString %>
-                                                                                    </strong>
-                                                                                    <% if (isDueForReminder) { %> <span
-                                                                                            class="req-badge"
-                                                                                            style="color:white; background: #ef4444; padding: 2px 8px; border-radius: 10px; font-weight:bold; float:right; font-size: 11px;">Action
-                                                                                            Required</span>
-                                                                                        <% } %>
-                                                                                </div>
-                                                                                <% } %>
-
-                                                                                    <% if (due> 0 && isDueForReminder) {
-                                                                                        %>
-                                                                                        <div class="m-circles">
-                                                                                            <a href="javascript:void(0)"
-                                                                                                onclick="sendMsg(this, 'wa')"
-                                                                                                data-id="<%= customer._id %>"
-                                                                                                data-phone="<%= customer.phone %>"
-                                                                                                data-wa="<%= customer.whatsappNumber %>"
-                                                                                                data-email="<%= customer.email %>"
-                                                                                                data-cname="<%= rawCname %>"
-                                                                                                data-pname="<%= rawPname %>"
-                                                                                                data-total="<%= customer.totalAmount %>"
-                                                                                                data-paidamount="<%= customer.paidAmount %>"
-                                                                                                data-lastpaid="<%= lpDate %>"
-                                                                                                data-due="<%= due %>"
-                                                                                                data-diff="<%= diffDays %>"
-                                                                                                data-admin="<%= rawAname %>"
-                                                                                                class="m-circle"
-                                                                                                style="background: #dcfce7; border-color: #bbf7d0;"><img
-                                                                                                    src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-                                                                                                    alt="WA" width="22"
-                                                                                                    height="22"></a>
-                                                                                            <a href="javascript:void(0)"
-                                                                                                onclick="sendMsg(this, 'sms')"
-                                                                                                data-id="<%= customer._id %>"
-                                                                                                data-phone="<%= customer.phone %>"
-                                                                                                data-wa="<%= customer.whatsappNumber %>"
-                                                                                                data-email="<%= customer.email %>"
-                                                                                                data-cname="<%= rawCname %>"
-                                                                                                data-pname="<%= rawPname %>"
-                                                                                                data-total="<%= customer.totalAmount %>"
-                                                                                                data-paidamount="<%= customer.paidAmount %>"
-                                                                                                data-lastpaid="<%= lpDate %>"
-                                                                                                data-due="<%= due %>"
-                                                                                                data-diff="<%= diffDays %>"
-                                                                                                data-admin="<%= rawAname %>"
-                                                                                                class="m-circle">💬</a>
-                                                                                            <a href="javascript:void(0)"
-                                                                                                onclick="sendMsg(this, 'email')"
-                                                                                                data-id="<%= customer._id %>"
-                                                                                                data-phone="<%= customer.phone %>"
-                                                                                                data-wa="<%= customer.whatsappNumber %>"
-                                                                                                data-email="<%= customer.email %>"
-                                                                                                data-cname="<%= rawCname %>"
-                                                                                                data-pname="<%= rawPname %>"
-                                                                                                data-total="<%= customer.totalAmount %>"
-                                                                                                data-paidamount="<%= customer.paidAmount %>"
-                                                                                                data-lastpaid="<%= lpDate %>"
-                                                                                                data-due="<%= due %>"
-                                                                                                data-diff="<%= diffDays %>"
-                                                                                                data-admin="<%= rawAname %>"
-                                                                                                class="m-circle">📧</a>
-                                                                                        </div>
-                                                                                        <% } %>
-
-                                                                                            <div class="m-tools">
-                                                                                                <% if (role==='admin' ||
-                                                                                                    role==='staff' ) {
-                                                                                                    %>
-                                                                                                    <button
-                                                                                                        class="m-tool-btn transaction-btn"
-                                                                                                        data-id="<%= customer._id %>"
-                                                                                                        data-company="<%= customer.companyName %>"
-                                                                                                        title="Update Payment">💳</button>
-                                                                                                    <% if (due> 0) { %>
-                                                                                                        <button
-                                                                                                            class="m-tool-btn reminder-btn"
-                                                                                                            data-id="<%= customer._id %>"
-                                                                                                            data-company="<%= customer.companyName %>"
-                                                                                                            title="Set Next Action Date">📅</button>
-                                                                                                        <% } %>
-                                                                                                            <% } %>
-
-                                                                                                                <% if
-                                                                                                                    (role==='admin'
-                                                                                                                    ) {
-                                                                                                                    %>
-                                                                                                                    <button
-                                                                                                                        class="m-tool-btn edit-btn"
-                                                                                                                        data-id="<%= customer._id %>"
-                                                                                                                        data-company="<%= customer.companyName %>"
-                                                                                                                        data-contact="<%= customer.contactPerson %>"
-                                                                                                                        data-email="<%= customer.email %>"
-                                                                                                                        data-phone="<%= customer.phone %>"
-                                                                                                                        data-whatsapp="<%= customer.whatsappNumber %>"
-                                                                                                                        data-other="<%= customer.otherNumbers %>"
-                                                                                                                        data-total="<%= customer.totalAmount %>"
-                                                                                                                        data-paid="<%= customer.paidAmount %>"
-                                                                                                                        title="Edit Customer Details">✏️</button>
-                                                                                                                    <form
-                                                                                                                        action="/customers/<%= customer._id %>?_method=DELETE"
-                                                                                                                        method="POST"
-                                                                                                                        style="margin:0; display: flex;"
-                                                                                                                        onsubmit="return confirm('Permanently delete this party?');">
-                                                                                                                        <button
-                                                                                                                            type="submit"
-                                                                                                                            class="m-tool-btn"
-                                                                                                                            style="color:#ef4444;"
-                                                                                                                            title="Delete Party">🗑️</button>
-                                                                                                                    </form>
-                                                                                                                    <% }
+                                                                                                                    <% var
+                                                                                                                        lpDate=customer.lastPaymentDate
+                                                                                                                        ?
+                                                                                                                        new
+                                                                                                                        Date(customer.lastPaymentDate).toLocaleDateString('en-IN')
+                                                                                                                        : ""
+                                                                                                                        ;
                                                                                                                         %>
-                                                                                            </div>
-                                                                                            <% } %>
-                                                                    </td>
-                                                </tr>
-                                                <% }); %>
+                                                                                                                        <% var
+                                                                                                                            rawCname=customer.companyName
+                                                                                                                            || "Party"
+                                                                                                                            ;
+                                                                                                                            %>
+                                                                                                                            <% var
+                                                                                                                                rawPname=customer.contactPerson
+                                                                                                                                || ""
+                                                                                                                                ;
+                                                                                                                                %>
+                                                                                                                                <% var
+                                                                                                                                    rawAname=adminUser.companyName
+                                                                                                                                    || "Our Company"
+                                                                                                                                    ;
+                                                                                                                                    %>
+
+                                                                                                                                    <% var
+                                                                                                                                        ag=customer.aging
+                                                                                                                                        ||
+                                                                                                                                        {};
+                                                                                                                                        %>
+                                                                                                                                        <% var
+                                                                                                                                            ag_u30=ag.under30
+                                                                                                                                            ||
+                                                                                                                                            0;
+                                                                                                                                            %>
+                                                                                                                                            <% var
+                                                                                                                                                ag_d30=ag.days30to60
+                                                                                                                                                ||
+                                                                                                                                                0;
+                                                                                                                                                %>
+                                                                                                                                                <% var
+                                                                                                                                                    ag_d60=ag.days60to90
+                                                                                                                                                    ||
+                                                                                                                                                    0;
+                                                                                                                                                    %>
+                                                                                                                                                    <% var
+                                                                                                                                                        ag_d90=ag.days90to120
+                                                                                                                                                        ||
+                                                                                                                                                        0;
+                                                                                                                                                        %>
+                                                                                                                                                        <% var
+                                                                                                                                                            ag_d120=ag.days120to150
+                                                                                                                                                            ||
+                                                                                                                                                            0;
+                                                                                                                                                            %>
+                                                                                                                                                            <% var
+                                                                                                                                                                ag_d150=ag.days150to180
+                                                                                                                                                                ||
+                                                                                                                                                                0;
+                                                                                                                                                                %>
+                                                                                                                                                                <% var
+                                                                                                                                                                    ag_a180=ag.above180
+                                                                                                                                                                    ||
+                                                                                                                                                                    0;
+                                                                                                                                                                    %>
+
+                                                                                                                                                                    <tr class="customer-row"
+                                                                                                                                                                        data-action-req="<%= (due > 0 && isDueForReminder) ? 'true' : 'false' %>"
+                                                                                                                                                                        data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                        data-due="<%= due %>"
+                                                                                                                                                                        data-u30="<%= ag_u30 %>"
+                                                                                                                                                                        data-d30_60="<%= ag_d30 %>"
+                                                                                                                                                                        data-d60_90="<%= ag_d60 %>"
+                                                                                                                                                                        data-d90_120="<%= ag_d90 %>"
+                                                                                                                                                                        data-d120_150="<%= ag_d120 %>"
+                                                                                                                                                                        data-d150_180="<%= ag_d150 %>"
+                                                                                                                                                                        data-a180="<%= ag_a180 %>">
+
+                                                                                                                                                                        <% if
+                                                                                                                                                                            (role==='admin'
+                                                                                                                                                                            )
+                                                                                                                                                                            {
+                                                                                                                                                                            %>
+                                                                                                                                                                            <td class="desktop-only"
+                                                                                                                                                                                style="text-align: center;">
+                                                                                                                                                                                <input
+                                                                                                                                                                                    type="checkbox"
+                                                                                                                                                                                    class="customer-checkbox checkbox-custom"
+                                                                                                                                                                                    value="<%= customer._id %>">
+                                                                                                                                                                            </td>
+                                                                                                                                                                            <% }
+                                                                                                                                                                                %>
+
+                                                                                                                                                                                <td
+                                                                                                                                                                                    class="desktop-only">
+                                                                                                                                                                                    <strong
+                                                                                                                                                                                        style="font-size: 15px; color: var(--text-dark);">
+                                                                                                                                                                                        <%= customer.companyName
+                                                                                                                                                                                            || 'Unknown Party'
+                                                                                                                                                                                            %>
+                                                                                                                                                                                    </strong><br>
+                                                                                                                                                                                    <span
+                                                                                                                                                                                        style="color: var(--text-muted); font-size:12px;">
+                                                                                                                                                                                        <%= customer.contactPerson
+                                                                                                                                                                                            || 'No Company Name'
+                                                                                                                                                                                            %>
+                                                                                                                                                                                    </span>
+                                                                                                                                                                                </td>
+
+                                                                                                                                                                                <td class="desktop-only"
+                                                                                                                                                                                    style="font-size: 13px; line-height: 1.6;">
+                                                                                                                                                                                    <strong
+                                                                                                                                                                                        style="color: #cbd5e1;">P:</strong>
+                                                                                                                                                                                    <a href="tel:+<%= customer.phone %>"
+                                                                                                                                                                                        style="text-decoration:none; color:var(--text-dark); font-weight: 600;">+
+                                                                                                                                                                                        <%= customer.phone
+                                                                                                                                                                                            %>
+                                                                                                                                                                                            </a><br>
+                                                                                                                                                                                    <% if
+                                                                                                                                                                                        (customer.whatsappNumber)
+                                                                                                                                                                                        {
+                                                                                                                                                                                        %>
+                                                                                                                                                                                        <strong
+                                                                                                                                                                                            style="color: #cbd5e1;">W:</strong>
+                                                                                                                                                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>"
+                                                                                                                                                                                            target="_blank"
+                                                                                                                                                                                            style="text-decoration:none; color:#15803d; font-weight: 600;">+
+                                                                                                                                                                                            <%= customer.whatsappNumber
+                                                                                                                                                                                                %>
+                                                                                                                                                                                                </a><br>
+                                                                                                                                                                                        <% }
+                                                                                                                                                                                            %>
+                                                                                                                                                                                            <% if
+                                                                                                                                                                                                (customer.otherNumbers)
+                                                                                                                                                                                                {
+                                                                                                                                                                                                %>
+                                                                                                                                                                                                <% var
+                                                                                                                                                                                                    others=customer.otherNumbers.split(',');
+                                                                                                                                                                                                    %>
+                                                                                                                                                                                                    <% for(var
+                                                                                                                                                                                                        k=0;
+                                                                                                                                                                                                        k
+                                                                                                                                                                                                        <
+                                                                                                                                                                                                        others.length;
+                                                                                                                                                                                                        k++)
+                                                                                                                                                                                                        {
+                                                                                                                                                                                                        %>
+                                                                                                                                                                                                        <% if(others[k].trim()
+                                                                                                                                                                                                            !==""
+                                                                                                                                                                                                            )
+                                                                                                                                                                                                            {
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                            <strong
+                                                                                                                                                                                                                style="color: #cbd5e1;">O:</strong>
+                                                                                                                                                                                                            <a href="tel:<%= others[k].trim() %>"
+                                                                                                                                                                                                                style="text-decoration:none; color:var(--text-muted);">
+                                                                                                                                                                                                                <%= others[k].trim()
+                                                                                                                                                                                                                    %>
+                                                                                                                                                                                                            </a><br>
+                                                                                                                                                                                                            <% }
+                                                                                                                                                                                                                %>
+                                                                                                                                                                                                                <% }
+                                                                                                                                                                                                                    %>
+                                                                                                                                                                                                                    <% }
+                                                                                                                                                                                                                        %>
+                                                                                                                                                                                </td>
+
+                                                                                                                                                                                <td
+                                                                                                                                                                                    class="desktop-only">
+                                                                                                                                                                                    <div
+                                                                                                                                                                                        style="color: var(--text-muted); font-size: 12px;">
+                                                                                                                                                                                        Total:
+                                                                                                                                                                                        ₹
+                                                                                                                                                                                        <%= customer.totalAmount
+                                                                                                                                                                                            %>
+                                                                                                                                                                                    </div>
+                                                                                                                                                                                    <div
+                                                                                                                                                                                        style="color: #15803d; font-size: 12px; font-weight: bold;">
+                                                                                                                                                                                        Paid:
+                                                                                                                                                                                        ₹
+                                                                                                                                                                                        <%= customer.paidAmount
+                                                                                                                                                                                            %>
+                                                                                                                                                                                    </div>
+                                                                                                                                                                                    <% if
+                                                                                                                                                                                        (due>
+                                                                                                                                                                                        0)
+                                                                                                                                                                                        {
+                                                                                                                                                                                        %>
+                                                                                                                                                                                        <div class="dynamic-due"
+                                                                                                                                                                                            style="color: #b91c1c; font-weight: 800; font-size: 15px; margin-top: 4px;">
+                                                                                                                                                                                            Due:
+                                                                                                                                                                                            ₹
+                                                                                                                                                                                            <%= due
+                                                                                                                                                                                                %>
+                                                                                                                                                                                        </div>
+                                                                                                                                                                                        <% } else
+                                                                                                                                                                                            {
+                                                                                                                                                                                            %>
+                                                                                                                                                                                            <span
+                                                                                                                                                                                                class="badge-paid"
+                                                                                                                                                                                                style="margin-top: 4px;">Fully
+                                                                                                                                                                                                Paid</span>
+                                                                                                                                                                                            <% }
+                                                                                                                                                                                                %>
+                                                                                                                                                                                </td>
+
+                                                                                                                                                                                <% if
+                                                                                                                                                                                    (role
+                                                                                                                                                                                    !=='customer'
+                                                                                                                                                                                    )
+                                                                                                                                                                                    {
+                                                                                                                                                                                    %>
+                                                                                                                                                                                    <td
+                                                                                                                                                                                        class="desktop-only">
+                                                                                                                                                                                        <% if
+                                                                                                                                                                                            (due>
+                                                                                                                                                                                            0)
+                                                                                                                                                                                            {
+                                                                                                                                                                                            %>
+                                                                                                                                                                                            <div
+                                                                                                                                                                                                style="font-weight: 600;">
+                                                                                                                                                                                                <%= nextDateString
+                                                                                                                                                                                                    %>
+                                                                                                                                                                                            </div>
+                                                                                                                                                                                            <% if
+                                                                                                                                                                                                (isDueForReminder)
+                                                                                                                                                                                                {
+                                                                                                                                                                                                %>
+                                                                                                                                                                                                <div class="req-badge"
+                                                                                                                                                                                                    style="color: #ef4444; font-weight:bold; font-size: 11px; margin-top: 4px; background: #fee2e2; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                                                                                                                                                                                                    ⚠️
+                                                                                                                                                                                                    Action
+                                                                                                                                                                                                    Required
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                <% }
+                                                                                                                                                                                                    %>
+                                                                                                                                                                                                    <% } else
+                                                                                                                                                                                                        {
+                                                                                                                                                                                                        %>
+                                                                                                                                                                                                        <span
+                                                                                                                                                                                                            style="color: #cbd5e1;">--</span>
+                                                                                                                                                                                                        <% }
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                    </td>
+
+                                                                                                                                                                                    <td class="desktop-only"
+                                                                                                                                                                                        style="text-align: right; padding-right: 20px;">
+                                                                                                                                                                                        <% if
+                                                                                                                                                                                            (due>
+                                                                                                                                                                                            0
+                                                                                                                                                                                            &&
+                                                                                                                                                                                            isDueForReminder)
+                                                                                                                                                                                            {
+                                                                                                                                                                                            %>
+                                                                                                                                                                                            <div class="action-buttons"
+                                                                                                                                                                                                style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
+
+                                                                                                                                                                                                <a href="javascript:void(0)"
+                                                                                                                                                                                                    onclick="sendMsg(this, 'wa')"
+                                                                                                                                                                                                    data-id="<%= customer._id %>"
+                                                                                                                                                                                                    data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                    data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                    data-email="<%= customer.email %>"
+                                                                                                                                                                                                    data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                                                                                                    data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                                                                                                    data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                    data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                                                                                                    data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                                                                                                    data-due="<%= due %>"
+                                                                                                                                                                                                    data-diff="<%= diffDays %>"
+                                                                                                                                                                                                    data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                                                                                                    style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
+                                                                                                                                                                                                        src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                                                                                                                                                                                                        width="16"
+                                                                                                                                                                                                        height="16"></a>
+
+                                                                                                                                                                                                <a href="javascript:void(0)"
+                                                                                                                                                                                                    onclick="sendMsg(this, 'sms')"
+                                                                                                                                                                                                    data-id="<%= customer._id %>"
+                                                                                                                                                                                                    data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                    data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                    data-email="<%= customer.email %>"
+                                                                                                                                                                                                    data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                                                                                                    data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                                                                                                    data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                    data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                                                                                                    data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                                                                                                    data-due="<%= due %>"
+                                                                                                                                                                                                    data-diff="<%= diffDays %>"
+                                                                                                                                                                                                    data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                                                                                                    style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
+
+                                                                                                                                                                                                <a href="javascript:void(0)"
+                                                                                                                                                                                                    onclick="sendMsg(this, 'email')"
+                                                                                                                                                                                                    data-id="<%= customer._id %>"
+                                                                                                                                                                                                    data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                    data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                    data-email="<%= customer.email %>"
+                                                                                                                                                                                                    data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                                                                                                    data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                                                                                                    data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                    data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                                                                                                    data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                                                                                                    data-due="<%= due %>"
+                                                                                                                                                                                                    data-diff="<%= diffDays %>"
+                                                                                                                                                                                                    data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                                                                                                    style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
+
+                                                                                                                                                                                            </div>
+                                                                                                                                                                                            <% }
+                                                                                                                                                                                                %>
+
+                                                                                                                                                                                                <% if
+                                                                                                                                                                                                    (role==='admin'
+                                                                                                                                                                                                    ||
+                                                                                                                                                                                                    role==='staff'
+                                                                                                                                                                                                    )
+                                                                                                                                                                                                    {
+                                                                                                                                                                                                    %>
+                                                                                                                                                                                                    <button
+                                                                                                                                                                                                        class="btn-table transaction-btn"
+                                                                                                                                                                                                        data-id="<%= customer._id %>"
+                                                                                                                                                                                                        data-company="<%= customer.companyName %>">💳
+                                                                                                                                                                                                        Update
+                                                                                                                                                                                                        Balance</button>
+                                                                                                                                                                                                    <% if
+                                                                                                                                                                                                        (due>
+                                                                                                                                                                                                        0)
+                                                                                                                                                                                                        {
+                                                                                                                                                                                                        %><button
+                                                                                                                                                                                                            class="btn-table reminder-btn"
+                                                                                                                                                                                                            data-id="<%= customer._id %>"
+                                                                                                                                                                                                            data-company="<%= customer.companyName %>">📅
+                                                                                                                                                                                                            Set
+                                                                                                                                                                                                            Action
+                                                                                                                                                                                                            Date</button>
+                                                                                                                                                                                                        <% }
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                            <% }
+                                                                                                                                                                                                                %>
+
+                                                                                                                                                                                                                <% if
+                                                                                                                                                                                                                    (role==='admin'
+                                                                                                                                                                                                                    )
+                                                                                                                                                                                                                    {
+                                                                                                                                                                                                                    %>
+                                                                                                                                                                                                                    <div
+                                                                                                                                                                                                                        style="display:flex; gap: 5px;">
+                                                                                                                                                                                                                        <button
+                                                                                                                                                                                                                            class="btn-table edit-btn"
+                                                                                                                                                                                                                            style="flex:1;"
+                                                                                                                                                                                                                            data-id="<%= customer._id %>"
+                                                                                                                                                                                                                            data-company="<%= customer.companyName %>"
+                                                                                                                                                                                                                            data-contact="<%= customer.contactPerson %>"
+                                                                                                                                                                                                                            data-email="<%= customer.email %>"
+                                                                                                                                                                                                                            data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                                            data-whatsapp="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                                            data-other="<%= customer.otherNumbers %>"
+                                                                                                                                                                                                                            data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                                            data-paid="<%= customer.paidAmount %>">✏️
+                                                                                                                                                                                                                            Edit</button>
+                                                                                                                                                                                                                        <form
+                                                                                                                                                                                                                            action="/customers/<%= customer._id %>?_method=DELETE"
+                                                                                                                                                                                                                            method="POST"
+                                                                                                                                                                                                                            style="margin:0; display: flex;"
+                                                                                                                                                                                                                            onsubmit="return confirm('Permanently delete this party?');">
+                                                                                                                                                                                                                            <button
+                                                                                                                                                                                                                                type="submit"
+                                                                                                                                                                                                                                class="btn-table btn-table-red"
+                                                                                                                                                                                                                                title="Delete Party">🗑️</button>
+                                                                                                                                                                                                                        </form>
+                                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                                    <% }
+                                                                                                                                                                                                                        %>
+                                                                                                                                                                                    </td>
+                                                                                                                                                                                    <% }
+                                                                                                                                                                                        %>
+
+                                                                                                                                                                                        <td
+                                                                                                                                                                                            class="mobile-only">
+                                                                                                                                                                                            <div
+                                                                                                                                                                                                class="m-top">
+                                                                                                                                                                                                <div
+                                                                                                                                                                                                    class="m-name">
+                                                                                                                                                                                                    <% if
+                                                                                                                                                                                                        (role==='admin'
+                                                                                                                                                                                                        )
+                                                                                                                                                                                                        {
+                                                                                                                                                                                                        %>
+                                                                                                                                                                                                        <input
+                                                                                                                                                                                                            type="checkbox"
+                                                                                                                                                                                                            class="customer-checkbox checkbox-custom"
+                                                                                                                                                                                                            value="<%= customer._id %>"
+                                                                                                                                                                                                            style="margin-top: 4px; flex-shrink: 0;">
+                                                                                                                                                                                                        <% }
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                            <div>
+                                                                                                                                                                                                                <strong>
+                                                                                                                                                                                                                    <%= customer.companyName
+                                                                                                                                                                                                                        || 'Unknown Party'
+                                                                                                                                                                                                                        %>
+                                                                                                                                                                                                                </strong>
+                                                                                                                                                                                                                <span>
+                                                                                                                                                                                                                    <%= customer.contactPerson
+                                                                                                                                                                                                                        || 'No Company Name'
+                                                                                                                                                                                                                        %>
+                                                                                                                                                                                                                </span><br>
+                                                                                                                                                                                                                <a href="tel:+<%= customer.phone %>"
+                                                                                                                                                                                                                    style="color:var(--secondary); text-decoration:none; font-weight:bold; font-size:14px; display:inline-block; margin-top:6px;">📞
+                                                                                                                                                                                                                    +
+                                                                                                                                                                                                                    <%= customer.phone
+                                                                                                                                                                                                                        %>
+                                                                                                                                                                                                                        </a>
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                <div
+                                                                                                                                                                                                    class="m-fin">
+                                                                                                                                                                                                    <div
+                                                                                                                                                                                                        class="m-fin-top">
+                                                                                                                                                                                                        Total
+                                                                                                                                                                                                        ₹
+                                                                                                                                                                                                        <%= customer.totalAmount
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                    <div
+                                                                                                                                                                                                        class="m-fin-paid">
+                                                                                                                                                                                                        Paid
+                                                                                                                                                                                                        ₹
+                                                                                                                                                                                                        <%= customer.paidAmount
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                    <% if
+                                                                                                                                                                                                        (due>
+                                                                                                                                                                                                        0)
+                                                                                                                                                                                                        {
+                                                                                                                                                                                                        %>
+                                                                                                                                                                                                        <div
+                                                                                                                                                                                                            class="m-fin-due dynamic-due-m">
+                                                                                                                                                                                                            Due
+                                                                                                                                                                                                            ₹
+                                                                                                                                                                                                            <%= due
+                                                                                                                                                                                                                %>
+                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                        <% } else
+                                                                                                                                                                                                            {
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                            <div
+                                                                                                                                                                                                                style="color: #15803d; font-weight: bold; margin-top: 4px;">
+                                                                                                                                                                                                                Fully
+                                                                                                                                                                                                                Paid
+                                                                                                                                                                                                                🎉
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            <% }
+                                                                                                                                                                                                                %>
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                            </div>
+
+                                                                                                                                                                                            <% if
+                                                                                                                                                                                                (role
+                                                                                                                                                                                                !=='customer'
+                                                                                                                                                                                                )
+                                                                                                                                                                                                {
+                                                                                                                                                                                                %>
+                                                                                                                                                                                                <% if
+                                                                                                                                                                                                    (due>
+                                                                                                                                                                                                    0)
+                                                                                                                                                                                                    {
+                                                                                                                                                                                                    %>
+                                                                                                                                                                                                    <div
+                                                                                                                                                                                                        style="font-size: 13px; color: var(--text-muted); padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
+                                                                                                                                                                                                        📅
+                                                                                                                                                                                                        Action
+                                                                                                                                                                                                        Date:
+                                                                                                                                                                                                        <strong
+                                                                                                                                                                                                            style="color:var(--text-dark);">
+                                                                                                                                                                                                            <%= nextDateString
+                                                                                                                                                                                                                %>
+                                                                                                                                                                                                        </strong>
+                                                                                                                                                                                                        <% if
+                                                                                                                                                                                                            (isDueForReminder)
+                                                                                                                                                                                                            {
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                            <span
+                                                                                                                                                                                                                class="req-badge"
+                                                                                                                                                                                                                style="color:white; background: #ef4444; padding: 2px 8px; border-radius: 10px; font-weight:bold; float:right; font-size: 11px;">Action
+                                                                                                                                                                                                                Required</span>
+                                                                                                                                                                                                            <% }
+                                                                                                                                                                                                                %>
+                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                    <% }
+                                                                                                                                                                                                        %>
+
+                                                                                                                                                                                                        <% if
+                                                                                                                                                                                                            (due>
+                                                                                                                                                                                                            0
+                                                                                                                                                                                                            &&
+                                                                                                                                                                                                            isDueForReminder)
+                                                                                                                                                                                                            {
+                                                                                                                                                                                                            %>
+                                                                                                                                                                                                            <div
+                                                                                                                                                                                                                class="m-circles">
+                                                                                                                                                                                                                <a href="javascript:void(0)"
+                                                                                                                                                                                                                    onclick="sendMsg(this, 'wa')"
+                                                                                                                                                                                                                    data-id="<%= customer._id %>"
+                                                                                                                                                                                                                    data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                                    data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                                    data-email="<%= customer.email %>"
+                                                                                                                                                                                                                    data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                                                                                                                    data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                                                                                                                    data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                                    data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                                                                                                                    data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                                                                                                                    data-due="<%= due %>"
+                                                                                                                                                                                                                    data-diff="<%= diffDays %>"
+                                                                                                                                                                                                                    data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                                                                                                                    class="m-circle"
+                                                                                                                                                                                                                    style="background: #dcfce7; border-color: #bbf7d0;"><img
+                                                                                                                                                                                                                        src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                                                                                                                                                                                                                        alt="WA"
+                                                                                                                                                                                                                        width="22"
+                                                                                                                                                                                                                        height="22"></a>
+                                                                                                                                                                                                                <a href="javascript:void(0)"
+                                                                                                                                                                                                                    onclick="sendMsg(this, 'sms')"
+                                                                                                                                                                                                                    data-id="<%= customer._id %>"
+                                                                                                                                                                                                                    data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                                    data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                                    data-email="<%= customer.email %>"
+                                                                                                                                                                                                                    data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                                                                                                                    data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                                                                                                                    data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                                    data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                                                                                                                    data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                                                                                                                    data-due="<%= due %>"
+                                                                                                                                                                                                                    data-diff="<%= diffDays %>"
+                                                                                                                                                                                                                    data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                                                                                                                    class="m-circle">💬</a>
+                                                                                                                                                                                                                <a href="javascript:void(0)"
+                                                                                                                                                                                                                    onclick="sendMsg(this, 'email')"
+                                                                                                                                                                                                                    data-id="<%= customer._id %>"
+                                                                                                                                                                                                                    data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                                    data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                                    data-email="<%= customer.email %>"
+                                                                                                                                                                                                                    data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                                                                                                                    data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                                                                                                                    data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                                    data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                                                                                                                    data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                                                                                                                    data-due="<%= due %>"
+                                                                                                                                                                                                                    data-diff="<%= diffDays %>"
+                                                                                                                                                                                                                    data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                                                                                                                    class="m-circle">📧</a>
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            <% }
+                                                                                                                                                                                                                %>
+
+                                                                                                                                                                                                                <div
+                                                                                                                                                                                                                    class="m-tools">
+                                                                                                                                                                                                                    <% if
+                                                                                                                                                                                                                        (role==='admin'
+                                                                                                                                                                                                                        ||
+                                                                                                                                                                                                                        role==='staff'
+                                                                                                                                                                                                                        )
+                                                                                                                                                                                                                        {
+                                                                                                                                                                                                                        %>
+                                                                                                                                                                                                                        <button
+                                                                                                                                                                                                                            class="m-tool-btn transaction-btn"
+                                                                                                                                                                                                                            data-id="<%= customer._id %>"
+                                                                                                                                                                                                                            data-company="<%= customer.companyName %>"
+                                                                                                                                                                                                                            title="Update Payment">💳</button>
+                                                                                                                                                                                                                        <% if
+                                                                                                                                                                                                                            (due>
+                                                                                                                                                                                                                            0)
+                                                                                                                                                                                                                            {
+                                                                                                                                                                                                                            %>
+                                                                                                                                                                                                                            <button
+                                                                                                                                                                                                                                class="m-tool-btn reminder-btn"
+                                                                                                                                                                                                                                data-id="<%= customer._id %>"
+                                                                                                                                                                                                                                data-company="<%= customer.companyName %>"
+                                                                                                                                                                                                                                title="Set Next Action Date">📅</button>
+                                                                                                                                                                                                                            <% }
+                                                                                                                                                                                                                                %>
+                                                                                                                                                                                                                                <% }
+                                                                                                                                                                                                                                    %>
+
+                                                                                                                                                                                                                                    <% if
+                                                                                                                                                                                                                                        (role==='admin'
+                                                                                                                                                                                                                                        )
+                                                                                                                                                                                                                                        {
+                                                                                                                                                                                                                                        %>
+                                                                                                                                                                                                                                        <button
+                                                                                                                                                                                                                                            class="m-tool-btn edit-btn"
+                                                                                                                                                                                                                                            data-id="<%= customer._id %>"
+                                                                                                                                                                                                                                            data-company="<%= customer.companyName %>"
+                                                                                                                                                                                                                                            data-contact="<%= customer.contactPerson %>"
+                                                                                                                                                                                                                                            data-email="<%= customer.email %>"
+                                                                                                                                                                                                                                            data-phone="<%= customer.phone %>"
+                                                                                                                                                                                                                                            data-whatsapp="<%= customer.whatsappNumber %>"
+                                                                                                                                                                                                                                            data-other="<%= customer.otherNumbers %>"
+                                                                                                                                                                                                                                            data-total="<%= customer.totalAmount %>"
+                                                                                                                                                                                                                                            data-paid="<%= customer.paidAmount %>"
+                                                                                                                                                                                                                                            title="Edit Customer Details">✏️</button>
+                                                                                                                                                                                                                                        <form
+                                                                                                                                                                                                                                            action="/customers/<%= customer._id %>?_method=DELETE"
+                                                                                                                                                                                                                                            method="POST"
+                                                                                                                                                                                                                                            style="margin:0; display: flex;"
+                                                                                                                                                                                                                                            onsubmit="return confirm('Permanently delete this party?');">
+                                                                                                                                                                                                                                            <button
+                                                                                                                                                                                                                                                type="submit"
+                                                                                                                                                                                                                                                class="m-tool-btn"
+                                                                                                                                                                                                                                                style="color:#ef4444;"
+                                                                                                                                                                                                                                                title="Delete Party">🗑️</button>
+                                                                                                                                                                                                                                        </form>
+                                                                                                                                                                                                                                        <% }
+                                                                                                                                                                                                                                            %>
+                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                <% }
+                                                                                                                                                                                                                    %>
+                                                                                                                                                                                        </td>
+                                                                                                                                                                    </tr>
+                                                                                                                                                                    <% }
+                                                                                                                                                                        %>
                                     </tbody>
                                 </table>
                             </div>
@@ -1496,13 +1754,6 @@
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
-                /* ADMIN BANK INFO */
-                var adminBankName = "<%= adminUser.bankName || '' %>";
-                var adminAccName = "<%= adminUser.accountName || '' %>";
-                var adminAccNo = "<%= adminUser.accountNumber || '' %>";
-                var adminIfsc = "<%= adminUser.ifscCode || '' %>";
-                var adminUpi = "<%= adminUser.upiDetails || '' %>";
-
                 var actionFilterActive = false;
 
                 function toggleFilterPanel() {
@@ -1611,7 +1862,11 @@
                 }
 
                 var searchBox = document.getElementById('searchInput');
-                if (searchBox) { searchBox.addEventListener('keyup', function () { runAllFilters('search'); }); }
+                if (searchBox) {
+                    searchBox.addEventListener('keyup', function () {
+                        runAllFilters('search');
+                    });
+                }
 
                 function sendMsg(element, type) {
                     var id = element.getAttribute('data-id');
@@ -1619,50 +1874,71 @@
                     var wa = element.getAttribute('data-wa');
                     var email = element.getAttribute('data-email');
 
-                    var cname = element.getAttribute('data-cname');
-                    var pname = element.getAttribute('data-pname');
+                    var cname = decodeURIComponent(element.getAttribute('data-cname') || '');
+                    var pname = decodeURIComponent(element.getAttribute('data-pname') || '');
+                    var admin = decodeURIComponent(element.getAttribute('data-admin') || '');
+
                     var total = element.getAttribute('data-total');
                     var paidamount = element.getAttribute('data-paidamount');
-                    var lastpaid = element.getAttribute('data-lastpaid');
+                    var lastpaid = decodeURIComponent(element.getAttribute('data-lastpaid') || '');
                     var due = element.getAttribute('data-due');
                     var diff = parseInt(element.getAttribute('data-diff') || '0');
-                    var admin = element.getAttribute('data-admin');
 
-                    var paidStr = "Rs " + paidamount;
-                    if (parseInt(paidamount) > 0 && lastpaid) { paidStr += " (Last paid: " + lastpaid + ")"; }
+                    var bName = decodeURIComponent("<%= encodeURIComponent(adminUser.bankName || '') %>");
+                    var aName = decodeURIComponent("<%= encodeURIComponent(adminUser.accountName || '') %>");
+                    var aNo = decodeURIComponent("<%= encodeURIComponent(adminUser.accountNumber || '') %>");
+                    var ifsc = decodeURIComponent("<%= encodeURIComponent(adminUser.ifscCode || '') %>");
+                    var upi = decodeURIComponent("<%= encodeURIComponent(adminUser.upiDetails || '') %>");
 
-                    var bankStr = "";
-                    if (adminBankName || adminAccNo || adminUpi) {
-                        bankStr += "🏦 *Payment Details:*\n";
-                        if (adminBankName) bankStr += "Bank: " + adminBankName + "\n";
-                        if (adminAccName) bankStr += "Name: " + adminAccName + "\n";
-                        if (adminAccNo) bankStr += "A/C No: " + adminAccNo + "\n";
-                        if (adminIfsc) bankStr += "IFSC: " + adminIfsc + "\n";
-                        if (adminUpi) bankStr += "UPI: " + adminUpi + "\n";
-                        bankStr += "\n";
+                    var m = [];
+                    var cStr = cname;
+                    if (pname.length > 0) {
+                        cStr += " (" + pname + ")";
                     }
 
-                    var contactStr = cname;
-                    if (pname && pname.length > 0) contactStr += " (" + pname + ")";
+                    m.push("Hello, this is " + admin + ".");
+                    m.push("");
+                    m.push("This is a gentle payment reminder for " + cStr + ".");
+                    m.push("");
+                    m.push("📊 *Account Summary:*");
+                    m.push("- Total Bill Amount: Rs " + total);
 
-                    var msg = "Hello, this is " + admin + ".\n\n";
-                    msg += "This is a gentle payment reminder for " + contactStr + ".\n\n";
-                    msg += "📊 *Account Summary:*\n";
-                    msg += "- Total Bill Amount: Rs " + total + "\n";
-                    msg += "- Total Amount Paid: " + paidStr + "\n";
-                    msg += "- Current Outstanding Due: *Rs " + due + "*\n\n";
-                    if (diff > 0) { msg += "_It is " + diff + " days past the set action date._\n\n"; }
-                    msg += "Please arrange the payment for the pending amount at your earliest convenience.\n\n";
+                    var pStr = "Rs " + paidamount;
+                    if (parseInt(paidamount) > 0 && lastpaid) {
+                        pStr += " (Last paid: " + lastpaid + ")";
+                    }
 
-                    msg += bankStr;
+                    m.push("- Total Amount Paid: " + pStr);
+                    m.push("- Current Outstanding Due: *Rs " + due + "*");
+                    m.push("");
 
-                    msg += "Thank you,\n" + admin;
+                    if (diff > 0) {
+                        m.push("_It is " + diff + " days past the set action date._");
+                        m.push("");
+                    }
 
-                    var encoded = encodeURIComponent(msg);
+                    m.push("Please arrange the payment for the pending amount at your earliest convenience.");
+                    m.push("");
 
-                    if (type === 'wa') { window.open('https://wa.me/' + wa + '?text=' + encoded, '_blank'); }
-                    if (type === 'sms') { window.open('sms:+' + phone + '?body=' + encoded, '_self'); }
-                    if (type === 'email') { window.open('mailto:' + email + '?subject=Payment Reminder&body=' + encoded, '_self'); }
+                    if (bName || aNo || upi) {
+                        m.push("🏦 *Payment Details:*");
+                        if (bName) m.push("Bank: " + bName);
+                        if (aName) m.push("Name: " + aName);
+                        if (aNo) m.push("A/C No: " + aNo);
+                        if (ifsc) m.push("IFSC: " + ifsc);
+                        if (upi) m.push("UPI: " + upi);
+                        m.push("");
+                    }
+
+                    m.push("Thank you,");
+                    m.push(admin);
+
+                    var finalMsg = m.join('\n');
+                    var encoded = encodeURIComponent(finalMsg);
+
+                    if (type === 'wa') window.open('https://wa.me/' + wa + '?text=' + encoded, '_blank');
+                    if (type === 'sms') window.open('sms:+' + phone + '?body=' + encoded, '_self');
+                    if (type === 'email') window.open('mailto:' + email + '?subject=Payment Reminder&body=' + encoded, '_self');
 
                     var container1 = element.closest('.action-buttons');
                     var container2 = element.closest('.m-circles');
@@ -1672,7 +1948,9 @@
                     var row = element.closest('tr');
                     if (row) {
                         var warnings = row.querySelectorAll('.req-badge');
-                        for (var i = 0; i < warnings.length; i++) { warnings[i].style.display = 'none'; }
+                        for (var i = 0; i < warnings.length; i++) {
+                            warnings[i].style.display = 'none';
+                        }
                     }
 
                     fetch('/customers/' + id + '/auto-snooze', { method: 'POST' }).catch(function (e) { });
@@ -1716,22 +1994,47 @@
                     });
                 }
 
-                function openAddModal() { window.history.pushState({ modal: true }, '', '#add'); document.getElementById('addModal').style.display = "block"; }
-                function closeAllModals() { var modals = document.querySelectorAll('.modal'); for (var i = 0; i < modals.length; i++) { modals[i].style.display = "none"; } }
+                function openAddModal() {
+                    window.history.pushState({ modal: true }, '', '#add');
+                    document.getElementById('addModal').style.display = "block";
+                }
+                function closeAllModals() {
+                    var modals = document.querySelectorAll('.modal');
+                    for (var i = 0; i < modals.length; i++) { modals[i].style.display = "none"; }
+                }
                 function closeTransactionModal() { window.history.back(); }
                 function closeActionModal() { window.history.back(); }
                 function closeEditModal() { window.history.back(); }
                 function closeAddModal() { window.history.back(); }
                 window.addEventListener('popstate', function (event) { closeAllModals(); });
-                window.onclick = function (event) { if (event.target.classList.contains('modal')) { if (window.location.hash) window.history.back(); else closeAllModals(); } }
+                window.onclick = function (event) {
+                    if (event.target.classList.contains('modal')) {
+                        if (window.location.hash) window.history.back(); else closeAllModals();
+                    }
+                }
 
                 function downloadPDF() {
-                    var elementToPrint = document.createElement('div');
+                    var el = document.createElement('div');
                     var d = new Date().toLocaleDateString('en-IN');
-                    elementToPrint.innerHTML = '<h1 style="text-align: center; font-family: sans-serif; color: #1e293b;">Customer Financial Report</h1><h3 style="text-align: center; color: #64748b; font-family: sans-serif;">Generated: ' + d + '</h3>' + document.querySelector('.aging-card').outerHTML + document.querySelector('table').outerHTML;
-                    var toHide = elementToPrint.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
-                    for (var i = 0; i < toHide.length; i++) { toHide[i].style.display = 'none'; }
-                    html2pdf().set({ margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } }).from(elementToPrint).save();
+                    var html = '<h1 style="text-align:center;color:#1e293b;">Financial Report</h1>';
+                    html += '<h3 style="text-align:center;color:#64748b;">Generated: ' + d + '</h3>';
+                    html += document.querySelector('.aging-card').outerHTML;
+                    html += document.querySelector('table').outerHTML;
+                    el.innerHTML = html;
+
+                    var hideNodes = el.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
+                    for (var i = 0; i < hideNodes.length; i++) {
+                        hideNodes[i].style.display = 'none';
+                    }
+
+                    var opt = {
+                        margin: 0.5,
+                        filename: 'Financial_Report.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2 },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+                    };
+                    html2pdf().set(opt).from(el).save();
                 }
 
                 var selectAllBtn = document.getElementById('selectAll');
@@ -1742,28 +2045,45 @@
 
                 function updateBulkBar() {
                     var count = 0;
-                    for (var i = 0; i < checkboxes.length; i++) { if (checkboxes[i].checked) count++; }
-                    if (count > 0) { bulkBar.classList.add('visible'); countText.innerText = count + ' Selected'; } else { bulkBar.classList.remove('visible'); }
+                    for (var i = 0; i < checkboxes.length; i++) {
+                        if (checkboxes[i].checked) count++;
+                    }
+                    if (count > 0) {
+                        bulkBar.classList.add('visible');
+                        countText.innerText = count + ' Selected';
+                    } else {
+                        bulkBar.classList.remove('visible');
+                    }
                 }
 
                 if (selectAllBtn) {
                     selectAllBtn.addEventListener('change', function () {
                         var checked = this.checked;
                         var visibleBoxes = document.querySelectorAll('tbody tr:not([style*="display: none"]) .customer-checkbox');
-                        for (var i = 0; i < visibleBoxes.length; i++) { visibleBoxes[i].checked = checked; }
+                        for (var i = 0; i < visibleBoxes.length; i++) {
+                            visibleBoxes[i].checked = checked;
+                        }
                         updateBulkBar();
                     });
                 }
 
-                for (var i = 0; i < checkboxes.length; i++) { checkboxes[i].addEventListener('change', updateBulkBar); }
+                for (var i = 0; i < checkboxes.length; i++) {
+                    checkboxes[i].addEventListener('change', updateBulkBar);
+                }
 
                 function confirmBulkDelete() {
                     var selected = [];
-                    for (var i = 0; i < checkboxes.length; i++) { if (checkboxes[i].checked) selected.push(checkboxes[i]); }
+                    for (var i = 0; i < checkboxes.length; i++) {
+                        if (checkboxes[i].checked) selected.push(checkboxes[i]);
+                    }
                     if (confirm("⚠️ WARNING: You are about to permanently delete " + selected.length + " parties. Proceed?")) {
                         hiddenInputs.innerHTML = '';
                         for (var j = 0; j < selected.length; j++) {
-                            var input = document.createElement('input'); input.type = 'hidden'; input.name = 'customerIds'; input.value = selected[j].value; hiddenInputs.appendChild(input);
+                            var input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'customerIds';
+                            input.value = selected[j].value;
+                            hiddenInputs.appendChild(input);
                         }
                         document.getElementById('bulkForm').submit();
                     }
