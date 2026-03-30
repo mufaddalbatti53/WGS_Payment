@@ -935,9 +935,45 @@
 
                                                 var lpDate = customer.lastPaymentDate ? new
                                                 Date(customer.lastPaymentDate).toLocaleDateString('en-IN') : "";
-                                                var rawCname = customer.companyName || "Unknown Party";
-                                                var rawPname = customer.contactPerson || "";
-                                                var rawAname = adminUser.companyName || "Our Company";
+
+                                                // Because labels are swapped: companyName represents the Party.
+                                                contactPerson represents the Company.
+                                                var cName = customer.companyName || "Party";
+                                                var pName = customer.contactPerson || "";
+                                                var aName = adminUser.companyName || "Our Company";
+
+                                                var contactStrEJS = cName;
+                                                if (pName && pName.length > 0) contactStrEJS += " (" + pName + ")";
+
+                                                var bankStrEJS = "";
+                                                if (adminUser.bankName || adminUser.accountNumber ||
+                                                adminUser.upiDetails) {
+                                                bankStrEJS += "🏦 *Payment Details:*%0A";
+                                                if (adminUser.bankName) bankStrEJS += "Bank: " + adminUser.bankName +
+                                                "%0A";
+                                                if (adminUser.accountName) bankStrEJS += "Name: " +
+                                                adminUser.accountName + "%0A";
+                                                if (adminUser.accountNumber) bankStrEJS += "A/C No: " +
+                                                adminUser.accountNumber + "%0A";
+                                                if (adminUser.ifscCode) bankStrEJS += "IFSC: " + adminUser.ifscCode +
+                                                "%0A";
+                                                if (adminUser.upiDetails) bankStrEJS += "UPI: " + adminUser.upiDetails +
+                                                "%0A";
+                                                bankStrEJS += "%0A";
+                                                }
+
+                                                var paidText = "Rs " + customer.paidAmount;
+                                                if (customer.paidAmount > 0 && customer.lastPaymentDate) { paidText += "
+                                                (Last paid: " + lpDate + ")"; }
+
+                                                // 🚨 THE FIXED DESKTOP GREETING
+                                                var rawMsg = "Hello, this is " + aName + ".%0A%0AThis is a gentle
+                                                payment reminder for " + contactStrEJS + ".%0A%0A*Account Summary:*%0A-
+                                                Bill Amount: Rs " + customer.totalAmount + "%0A- Paid: " + paidText +
+                                                "%0A- Due: *Rs " + due + "*%0A%0A" + (diffDays > 0 ? "_It is " +
+                                                diffDays + " days past the set action date._%0A%0A" : "") + "Please
+                                                arrange payment at your earliest convenience.%0A%0A" + bankStrEJS +
+                                                "Thank you,%0A" + aName;
 
                                                 var ag = customer.aging || {};
                                                 var ag_u30 = ag.under30 || 0;
@@ -1046,52 +1082,17 @@
                                                                     <% if (due> 0 && isDueForReminder) { %>
                                                                         <div class="action-buttons"
                                                                             style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
-                                                                            <a href="javascript:void(0)"
-                                                                                onclick="sendMsg(this, 'wa')"
-                                                                                data-id="<%= customer._id %>"
-                                                                                data-phone="<%= customer.phone %>"
-                                                                                data-wa="<%= customer.whatsappNumber %>"
-                                                                                data-email="<%= customer.email %>"
-                                                                                data-cname="<%= rawCname %>"
-                                                                                data-pname="<%= rawPname %>"
-                                                                                data-total="<%= customer.totalAmount %>"
-                                                                                data-paidamount="<%= customer.paidAmount %>"
-                                                                                data-lastpaid="<%= lpDate %>"
-                                                                                data-due="<%= due %>"
-                                                                                data-diff="<%= diffDays %>"
-                                                                                data-admin="<%= rawAname %>"
+                                                                            <a href="https://wa.me/<%= customer.whatsappNumber %>?text=<%= rawMsg %>"
+                                                                                target="_blank"
+                                                                                onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                 style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
                                                                                     src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
                                                                                     width="16" height="16"></a>
-                                                                            <a href="javascript:void(0)"
-                                                                                onclick="sendMsg(this, 'sms')"
-                                                                                data-id="<%= customer._id %>"
-                                                                                data-phone="<%= customer.phone %>"
-                                                                                data-wa="<%= customer.whatsappNumber %>"
-                                                                                data-email="<%= customer.email %>"
-                                                                                data-cname="<%= rawCname %>"
-                                                                                data-pname="<%= rawPname %>"
-                                                                                data-total="<%= customer.totalAmount %>"
-                                                                                data-paidamount="<%= customer.paidAmount %>"
-                                                                                data-lastpaid="<%= lpDate %>"
-                                                                                data-due="<%= due %>"
-                                                                                data-diff="<%= diffDays %>"
-                                                                                data-admin="<%= rawAname %>"
+                                                                            <a href="sms:+<%= customer.phone %>?body=<%= rawMsg %>"
+                                                                                onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                 style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">💬</a>
-                                                                            <a href="javascript:void(0)"
-                                                                                onclick="sendMsg(this, 'email')"
-                                                                                data-id="<%= customer._id %>"
-                                                                                data-phone="<%= customer.phone %>"
-                                                                                data-wa="<%= customer.whatsappNumber %>"
-                                                                                data-email="<%= customer.email %>"
-                                                                                data-cname="<%= rawCname %>"
-                                                                                data-pname="<%= rawPname %>"
-                                                                                data-total="<%= customer.totalAmount %>"
-                                                                                data-paidamount="<%= customer.paidAmount %>"
-                                                                                data-lastpaid="<%= lpDate %>"
-                                                                                data-due="<%= due %>"
-                                                                                data-diff="<%= diffDays %>"
-                                                                                data-admin="<%= rawAname %>"
+                                                                            <a href="mailto:<%= customer.email %>?subject=Payment Reminder&body=<%= rawMsg %>"
+                                                                                onclick="triggerAutoSnooze(this, '<%= customer._id %>')"
                                                                                 style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; transition: transform 0.2s;">📧</a>
                                                                         </div>
                                                                         <% } %>
@@ -1470,7 +1471,7 @@
 
                         <div style="border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 15px;">
                             <h4
-                                style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: var(--primary-dark);">
+                                style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: var(--secondary-dark);">
                                 🏦 Bank & UPI Details (Optional)</h4>
                             <label class="trans-label">Bank Name</label><input type="text" name="bankName"
                                 value="<%= adminUser.bankName || '' %>" class="input-style">
@@ -1497,7 +1498,7 @@
 
             <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
             <script>
-                // 🚨 GET ADMIN BANK INFO SECURELY FROM BACKEND
+                // 🚨 GET ADMIN BANK INFO SECURELY FROM BACKEND FOR MOBILE BUTTONS
                 var adminBankName = "<%= adminUser.bankName || '' %>";
                 var adminAccName = "<%= adminUser.accountName || '' %>";
                 var adminAccNo = "<%= adminUser.accountNumber || '' %>";
@@ -1619,8 +1620,9 @@
                     var phone = element.getAttribute('data-phone');
                     var wa = element.getAttribute('data-wa');
                     var email = element.getAttribute('data-email');
-                    var cname = element.getAttribute('data-cname'); // Now this represents Party
-                    var pname = element.getAttribute('data-pname'); // Now this represents Company
+
+                    var cname = element.getAttribute('data-cname'); // Contains Party Name
+                    var pname = element.getAttribute('data-pname'); // Contains Company Name
                     var total = element.getAttribute('data-total');
                     var paidamount = element.getAttribute('data-paidamount');
                     var lastpaid = element.getAttribute('data-lastpaid');
@@ -1643,12 +1645,12 @@
                         bankStr += "\n";
                     }
 
-                    // Note: Swapped pname and cname order because "Party" is now first
                     var contactStr = cname;
                     if (pname && pname.length > 0) contactStr += " (" + pname + ")";
 
-                    var msg = "Hello I am " + contactStr + ",\n\n";
-                    msg += "This is a gentle payment reminder " + ".\n\n";
+                    // 🚨 THE FIXED MOBILE GREETING
+                    var msg = "Hello, this is " + admin + ".\n\n";
+                    msg += "This is a gentle payment reminder for " + contactStr + ".\n\n";
                     msg += "📊 *Account Summary:*\n";
                     msg += "- Total Bill Amount: Rs " + total + "\n";
                     msg += "- Total Amount Paid: " + paidStr + "\n";
@@ -1656,7 +1658,7 @@
                     if (diff > 0) { msg += "_It is " + diff + " days past the set action date._\n\n"; }
                     msg += "Please arrange the payment for the pending amount at your earliest convenience.\n\n";
 
-                    msg += bankStr; // 🚨 Inject Bank Details
+                    msg += bankStr; // 🚨 Inject Bank Details into Mobile logic
 
                     msg += "Thank you,\n" + admin;
 
