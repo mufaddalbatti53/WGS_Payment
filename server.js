@@ -227,7 +227,7 @@ app.put('/settings', requireLogin, async (req, res) => {
     await logActivity(req, "Company Profile", "Updated company profile and bank details.");
     res.redirect('/');
 });
-
+app.get('/register', (req, res) => { res.render('register'); });
 app.post('/register', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
