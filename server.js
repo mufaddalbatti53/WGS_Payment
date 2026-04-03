@@ -290,8 +290,15 @@ app.get('/export', requireLogin, async (req, res) => {
         worksheet.addRow(['Sundry Debtors']);
         worksheet.addRow(['Group Outstandings']);
 
-        const currentYear = new Date().getFullYear();
-        const dateRange = `1-Apr-${currentYear - 1} to 31-Mar-${currentYear}`;
+        // 🚨 SMART FINANCIAL YEAR CALCULATION
+        const exportDate = new Date();
+        const currentMonth = exportDate.getMonth(); // 0 is Jan, 3 is April
+
+        // If we are in Jan, Feb, or Mar, the FY started last year. Otherwise, it starts this year.
+        const startYear = currentMonth < 3 ? exportDate.getFullYear() - 1 : exportDate.getFullYear();
+        const endYear = startYear + 1;
+
+        const dateRange = `1-Apr-${startYear} to 31-Mar-${endYear}`;
         worksheet.addRow([dateRange]);
 
         const compName = admin.companyName || 'Company';
