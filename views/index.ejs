@@ -709,7 +709,6 @@
             gap: 10px;
         }
         #filterActiveHeader.show { display: flex; }
-    </style>
 
         /* DUPLICATE WARNING TOAST */
         .dup-warning {
@@ -744,9 +743,14 @@
         }
         .dup-alert.show { display: block; }
 
-        /* APP LAUNCHER HOME GRID */
+        /* APP LAUNCHER HOME GRID — mobile only */
         .home-launcher {
             display: none;
+        }
+        /* On desktop, NEVER show the launcher */
+        @media (min-width: 769px) {
+            .home-launcher { display: none !important; }
+            .back-to-launcher { display: none !important; }
         }
         .home-header-card {
             background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
@@ -2400,7 +2404,10 @@
                 var mainDashboard = document.getElementById('mainDashboard');
                 var backBtn = document.getElementById('backToLauncher');
 
+                var isMobile = window.innerWidth < 769;
+
                 function showLauncher() {
+                    if (!isMobile) return; // desktop always shows dashboard
                     if (homeLauncher) homeLauncher.style.display = 'block';
                     if (mainDashboard) mainDashboard.style.display = 'none';
                     if (backBtn) backBtn.style.display = 'none';
@@ -2409,23 +2416,23 @@
                 function showDashboard() {
                     if (homeLauncher) homeLauncher.style.display = 'none';
                     if (mainDashboard) mainDashboard.style.display = 'block';
-                    if (backBtn) backBtn.style.display = 'inline-block';
+                    if (backBtn && isMobile) backBtn.style.display = 'inline-block';
                 }
 
-                // On load: show launcher for non-customer (unless ?dup=1 which means stay on dashboard)
+                // On load
                 (function() {
                     var params = new URLSearchParams(window.location.search);
                     var isDup = params.get('dup') === '1';
                     var dupName = params.get('dupname') || '';
+
                     <% if (role !== 'customer') { %>
-                    if (!isDup) {
+                    if (isMobile && !isDup) {
                         showLauncher();
                     } else {
                         showDashboard();
                     }
                     <% } %>
 
-                    // Show duplicate warning if redirected with ?dup=1
                     if (isDup) {
                         var warn = document.getElementById('dupWarning');
                         var warnText = document.getElementById('dupWarningText');
@@ -2433,7 +2440,6 @@
                             warnText.innerText = '⚠️ Duplicate Blocked: A party named "' + decodeURIComponent(dupName) + '" or with the same phone already exists. Please check before adding.';
                             warn.style.display = 'flex';
                         }
-                        // Clean the URL without reloading
                         if (window.history.replaceState) {
                             window.history.replaceState({}, document.title, '/');
                         }
