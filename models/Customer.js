@@ -12,8 +12,11 @@ const customerSchema = new mongoose.Schema({
     paidAmount: { type: Number, default: 0 },
     lastPaymentDate: { type: Date, default: null },
     nextActionDate: { type: Date, default: null },
-    
-    // THE UPGRADE: Aging Buckets (from Tally/Busy Export)
+
+    // Tracks when aging buckets were last shifted (for daily auto-aging)
+    agingLastShifted: { type: Date, default: null },
+
+    // Aging Buckets (from Tally/Busy Export)
     aging: {
         under30: { type: Number, default: 0 },
         days30to60: { type: Number, default: 0 },

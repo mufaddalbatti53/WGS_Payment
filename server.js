@@ -19,13 +19,18 @@ const app = express();
 const dbURI = 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
 
 mongoose.connect(dbURI)
-    .then(() => console.log("✅ DB Connected Successfully"))
+    .then(() => {
+        console.log("✅ DB Connected Successfully");
+        shiftAgingBuckets();
+        setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
+    })
     .catch(err => console.log("❌ DB Connection Error: ", err));
 
 // --- CONFIGURATION ---
 app.set('view engine', 'ejs');
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
 
@@ -56,6 +61,80 @@ async function logActivity(req, action, details) {
         });
     } catch (err) {
         console.error("Activity Log Error:", err.message);
+    }
+}
+
+// ========================================================
+// AGING BUCKET AUTO-SHIFT
+// Every 30 days amounts move: under30 -> 30_60 -> 60_90...
+// Tracked per customer via agingLastShifted field
+// ========================================================
+async function shiftAgingBuckets() {
+    try {
+        console.log("Running daily aging bucket shift...");
+        const customers = await Customer.find({});
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let shiftedCount = 0;
+
+        for (const cust of customers) {
+            if (!cust.aging) continue;
+
+            const lastShifted = cust.agingLastShifted ? new Date(cust.agingLastShifted) : null;
+            if (!lastShifted) {
+                cust.agingLastShifted = today;
+                await cust.save();
+                continue;
+            }
+
+            lastShifted.setHours(0, 0, 0, 0);
+            const daysSinceShift = Math.floor((today - lastShifted) / (1000 * 60 * 60 * 24));
+            if (daysSinceShift < 1) continue;
+
+            const periods = Math.floor(daysSinceShift / 30);
+            if (periods < 1) continue;
+
+            const ag = {
+                under30: cust.aging.under30 || 0,
+                days30to60: cust.aging.days30to60 || 0,
+                days60to90: cust.aging.days60to90 || 0,
+                days90to120: cust.aging.days90to120 || 0,
+                days120to150: cust.aging.days120to150 || 0,
+                days150to180: cust.aging.days150to180 || 0,
+                above180: cust.aging.above180 || 0,
+                onAccount: cust.aging.onAccount || 0
+            };
+
+            for (let p = 0; p < periods; p++) {
+                ag.above180    += ag.days150to180;
+                ag.days150to180 = ag.days120to150;
+                ag.days120to150 = ag.days90to120;
+                ag.days90to120  = ag.days60to90;
+                ag.days60to90   = ag.days30to60;
+                ag.days30to60   = ag.under30;
+                ag.under30      = 0;
+            }
+
+            cust.aging.under30      = ag.under30;
+            cust.aging.days30to60   = ag.days30to60;
+            cust.aging.days60to90   = ag.days60to90;
+            cust.aging.days90to120  = ag.days90to120;
+            cust.aging.days120to150 = ag.days120to150;
+            cust.aging.days150to180 = ag.days150to180;
+            cust.aging.above180     = ag.above180;
+            cust.markModified('aging');
+
+            const newLastShifted = new Date(lastShifted);
+            newLastShifted.setDate(newLastShifted.getDate() + (periods * 30));
+            cust.agingLastShifted = newLastShifted;
+
+            await cust.save();
+            shiftedCount++;
+        }
+
+        console.log(`Aging shift complete. Shifted ${shiftedCount} customers.`);
+    } catch (err) {
+        console.error("Aging shift error:", err.message);
     }
 }
 
@@ -92,6 +171,7 @@ app.post('/login', async (req, res) => {
         if (isMatch) {
             req.session.userId = user._id;
             req.session.role = user.role;
+            req.session.username = user.username;
             req.session.adminId = user.role === 'admin' ? user._id : user.adminId;
             return res.redirect('/');
         } else {
@@ -108,12 +188,9 @@ app.post('/forgot-password', async (req, res) => {
     const { username, securityQuestion, securityAnswer, newPassword } = req.body;
     const user = await User.findOne({ username });
     if (!user) return res.render('forgot', { error: "Username not found" });
-
     if (user.securityQuestion !== securityQuestion) return res.render('forgot', { error: "Wrong Security Question" });
-
     const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
     if (!isMatch) return res.render('forgot', { error: "Wrong Security Answer" });
-
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     await user.save();
@@ -133,11 +210,10 @@ app.post('/customers/:id/auto-snooze', async (req, res) => {
             newDate.setDate(newDate.getDate() + 10);
             customer.nextActionDate = newDate;
             await customer.save();
-
             await ActivityLog.create({
                 adminId: req.session.adminId,
                 userId: req.session.userId,
-                username: req.session.role.toUpperCase(),
+                username: req.session.role ? req.session.role.toUpperCase() : 'USER',
                 action: "Reminder Sent",
                 details: `Sent payment reminder to ${customer.companyName || 'Party'}. Auto-snoozed for 10 days.`
             });
@@ -200,7 +276,6 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
         const { filterType, startDate, endDate } = req.body;
         let query = { adminId: req.session.adminId };
         const now = new Date();
-
         if (filterType === 'older_than_30') {
             query.createdAt = { $lt: new Date(now.setDate(now.getDate() - 30)) };
         } else if (filterType === 'last_30') {
@@ -211,7 +286,6 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
                 $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
             };
         }
-
         await ActivityLog.deleteMany(query);
         res.redirect('/activity');
     } catch (err) { res.status(500).send("Failed to delete logs."); }
@@ -221,12 +295,15 @@ app.put('/settings', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     await User.findByIdAndUpdate(req.session.adminId, {
         companyName: req.body.companyName, addressLine1: req.body.addressLine1, addressLine2: req.body.addressLine2,
-        addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo, contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
-        bankName: req.body.bankName, accountName: req.body.accountName, accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails
+        addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo,
+        contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
+        bankName: req.body.bankName, accountName: req.body.accountName,
+        accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails
     });
     await logActivity(req, "Company Profile", "Updated company profile and bank details.");
     res.redirect('/');
 });
+
 app.get('/register', (req, res) => { res.render('register'); });
 app.post('/register', async (req, res) => {
     try {
@@ -275,7 +352,6 @@ app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
         const admin = await User.findById(req.session.adminId).lean();
-
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Sundry Debtors');
 
@@ -290,38 +366,27 @@ app.get('/export', requireLogin, async (req, res) => {
         worksheet.addRow(['Sundry Debtors']);
         worksheet.addRow(['Group Outstandings']);
 
-        // 🚨 SMART FINANCIAL YEAR CALCULATION
         const exportDate = new Date();
-        const currentMonth = exportDate.getMonth(); // 0 is Jan, 3 is April
-
-        // If we are in Jan, Feb, or Mar, the FY started last year. Otherwise, it starts this year.
+        const currentMonth = exportDate.getMonth();
         const startYear = currentMonth < 3 ? exportDate.getFullYear() - 1 : exportDate.getFullYear();
         const endYear = startYear + 1;
-
         const dateRange = `1-Apr-${startYear} to 31-Mar-${endYear}`;
         worksheet.addRow([dateRange]);
 
         const compName = admin.companyName || 'Company';
-
         worksheet.addRow(['', '', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors']);
         worksheet.addRow(['', '', '', compName, compName, compName, '', compName, compName, compName, compName, compName, compName]);
-
-        // 🚨 UPDATED HEADERS TO REFLECT "PARTY NAME"
         worksheet.addRow(['Party Name', 'Company Name', 'Telephone No.', dateRange, dateRange, dateRange, '', dateRange, dateRange, dateRange, dateRange, dateRange, dateRange]);
-
         worksheet.addRow(['', '', '', 'Pending Bills', '(< 30 days )', '30 to 60 days', '', '60 to 90 days', '90 to 120 days', '120 to 150 days', '150 to 180 days', '(> 180 days )', 'On Account']);
         worksheet.addRow(['', '', '', 'Debit', 'Debit', 'Debit', 'Credit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit']);
         worksheet.addRow([]);
 
-        worksheet.getColumn(1).width = 35;
-        worksheet.getColumn(2).width = 25;
-        worksheet.getColumn(3).width = 15;
+        worksheet.getColumn(1).width = 35; worksheet.getColumn(2).width = 25; worksheet.getColumn(3).width = 15;
         for (let i = 4; i <= 13; i++) worksheet.getColumn(i).width = 15;
 
         customers.forEach((c) => {
             const aging = c.aging || {};
             const totalDue = (c.totalAmount || 0) - (c.paidAmount || 0);
-
             worksheet.addRow([
                 c.companyName || '', c.contactPerson || '', c.phone ? String(c.phone) : '',
                 totalDue > 0 ? totalDue : 0,
@@ -341,7 +406,6 @@ app.get('/export', requireLogin, async (req, res) => {
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="Sundry_Debtors_Export.xlsx"');
-
         await workbook.xlsx.write(res);
         res.end();
     } catch (err) { res.status(500).send("Failed to export Excel."); }
@@ -365,14 +429,12 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
             const partyName = row[0] ? String(row[0]).trim() : '';
-
             if (!partyName || partyName.toLowerCase() === 'grand total') continue;
 
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
             const contactPerson = row[1] ? String(row[1]).trim() : '';
             const rawPhoneStr = row[2] ? String(row[2]).trim() : '';
             const phoneArray = rawPhoneStr.split(',').map(n => n.trim()).filter(n => n);
-
             let finalPhone = ''; let finalWhatsapp = ''; let finalOther = '';
 
             if (phoneArray.length > 0) {
@@ -394,7 +456,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             };
 
             let cust = await Customer.findOne({ companyName: partyName, adminId: req.session.adminId });
-
             if (!cust) {
                 cust = new Customer({ companyName: partyName, adminId: req.session.adminId });
                 let d = new Date(); d.setDate(d.getDate() + 10);
@@ -406,6 +467,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
 
             cust.contactPerson = contactPerson; cust.phone = finalPhone; cust.whatsappNumber = finalWhatsapp;
             cust.otherNumbers = finalOther; cust.totalAmount = totalPending; cust.aging = agingData;
+            cust.agingLastShifted = new Date(); // Reset shift tracking on import
 
             await cust.save();
             importedCount++;
@@ -416,6 +478,36 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
     } catch (err) { res.status(500).send("Import failed."); }
 });
 
+// --- DUPLICATE CHECK API ---
+app.get('/customers/check-duplicate', requireLogin, async (req, res) => {
+    try {
+        const name = (req.query.name || '').trim();
+        const phone = (req.query.phone || '').trim().replace(/[^0-9]/g, '');
+        if (!name && !phone) return res.json({ isDuplicate: false });
+
+        const conditions = [];
+        if (name) {
+            conditions.push({ companyName: { $regex: new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } });
+        }
+        if (phone && phone.length >= 10) {
+            conditions.push({ phone: { $regex: new RegExp(phone.slice(-10) + '$') } });
+        }
+        if (conditions.length === 0) return res.json({ isDuplicate: false });
+
+        const existing = await Customer.findOne({ adminId: req.session.adminId, $or: conditions }).lean();
+        if (existing) {
+            return res.json({
+                isDuplicate: true,
+                matchedName: existing.companyName,
+                matchReason: existing.companyName.toLowerCase() === name.toLowerCase() ? 'name' : 'phone'
+            });
+        }
+        res.json({ isDuplicate: false });
+    } catch (err) {
+        res.json({ isDuplicate: false });
+    }
+});
+
 app.post('/customers', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
     try {
@@ -424,9 +516,28 @@ app.post('/customers', async (req, res) => {
         const autoDate = new Date();
         autoDate.setDate(autoDate.getDate() + 10);
 
+        // Server-side duplicate guard
+        const phoneDigits = phoneCombined.replace(/[^0-9]/g, '');
+        const orConditions = [];
+        if (req.body.companyName) {
+            orConditions.push({ companyName: { $regex: new RegExp('^' + req.body.companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } });
+        }
+        if (phoneDigits.length >= 10) {
+            orConditions.push({ phone: { $regex: new RegExp(phoneDigits.slice(-10) + '$') } });
+        }
+
+        if (orConditions.length > 0) {
+            const dupCheck = await Customer.findOne({ adminId: req.session.adminId, $or: orConditions });
+            if (dupCheck) {
+                return res.redirect('/?dup=1&dupname=' + encodeURIComponent(dupCheck.companyName));
+            }
+        }
+
         await Customer.create({
             companyName: req.body.companyName, contactPerson: req.body.contactPerson, email: req.body.email,
-            phone: phoneCombined, whatsappNumber: req.body.whatsappNumber, totalAmount: totalAmt, adminId: req.session.adminId, nextActionDate: autoDate,
+            phone: phoneCombined, whatsappNumber: req.body.whatsappNumber, totalAmount: totalAmt,
+            adminId: req.session.adminId, nextActionDate: autoDate,
+            agingLastShifted: new Date(),
             aging: { under30: totalAmt, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 }
         });
 
@@ -437,13 +548,11 @@ app.post('/customers', async (req, res) => {
 
 app.put('/customers/:id/edit', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
-
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.redirect('/');
 
         const oldDue = (Number(customer.totalAmount) || 0) - (Number(customer.paidAmount) || 0);
-
         customer.companyName = req.body.companyName;
         customer.contactPerson = req.body.contactPerson;
         customer.email = req.body.email;
@@ -456,7 +565,6 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
 
         const newDue = customer.totalAmount - customer.paidAmount;
         const dueDiff = newDue - oldDue;
-
         if (dueDiff !== 0) {
             if (!customer.aging) {
                 customer.aging = { under30: 0, days30to60: 0, days60to90: 0, days90to120: 0, days120to150: 0, days150to180: 0, above180: 0, onAccount: 0 };
@@ -523,8 +631,8 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
         await customer.save();
 
         let details = "";
-        if (req.body.newPurchase > 0) details += `Bought goods worth ₹${req.body.newPurchase}. `;
-        if (req.body.payment > 0) details += `Paid ₹${req.body.payment}.`;
+        if (req.body.newPurchase > 0) details += `Bought goods worth Rs ${req.body.newPurchase}. `;
+        if (req.body.payment > 0) details += `Paid Rs ${req.body.payment}.`;
         if (details !== "") await logActivity(req, "Payment Updated", `Updated ${customer.companyName || 'Party'}. ${details}`);
 
         res.redirect('/');
@@ -557,4 +665,4 @@ app.post('/customers/bulk', requireLogin, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
+app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
