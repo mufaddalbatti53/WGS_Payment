@@ -2457,17 +2457,17 @@
                     var params = new URLSearchParams(window.location.search);
                     var isDup = params.get('dup') === '1';
                     var dupName = params.get('dupname') || '';
+                    var userRole = '<%= role %>';
 
-                    <% if (role !== 'customer') { %>
-                    if (isMobile && !isDup) {
-                        showLauncher();
-                    } else {
-                        // Desktop: show both sections normally
-                        if (viewDashboard) viewDashboard.style.display = 'block';
-                        if (viewParties) viewParties.style.display = 'block';
-                        if (mainDashboard) mainDashboard.style.display = 'block';
+                    if (userRole !== 'customer') {
+                        if (isMobile && !isDup) {
+                            showLauncher();
+                        } else {
+                            if (viewDashboard) viewDashboard.style.display = 'block';
+                            if (viewParties) viewParties.style.display = 'block';
+                            if (mainDashboard) mainDashboard.style.display = 'block';
+                        }
                     }
-                    <% } %>
 
                     if (isDup) {
                         var warn = document.getElementById('dupWarning');
