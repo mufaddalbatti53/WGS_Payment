@@ -860,15 +860,15 @@
                 </div>
             </div>
             <div class="launcher-grid">
-                <a class="launcher-tile" onclick="showDashboard(); return false;" href="#">
+                <a class="launcher-tile" onclick="showSection('dashboard'); return false;" href="#">
                     <div class="launcher-icon" style="background: #e0f2fe;">📊</div>
                     <strong>Dashboard</strong>
-                    <span>KPIs &amp; Charts</span>
+                    <span>KPIs &amp; Aging Buckets</span>
                 </a>
-                <a class="launcher-tile" onclick="showDashboard(); return false;" href="#">
+                <a class="launcher-tile" onclick="showSection('parties'); return false;" href="#">
                     <div class="launcher-icon" style="background: #dcfce7;">🏢</div>
                     <strong>Parties</strong>
-                    <span>View &amp; Manage</span>
+                    <span>Search &amp; Manage</span>
                 </a>
                 <% if (role === 'admin') { %>
                 <a class="launcher-tile" href="/staff">
@@ -901,7 +901,7 @@
             </div>
         </div>
 
-        <!-- BACK BUTTON (shown when dashboard is open) -->
+        <!-- BACK BUTTON (shown when inside a section on mobile) -->
         <button class="back-to-launcher" id="backToLauncher" onclick="showLauncher()">← Home</button>
         <% } %>
 
@@ -974,6 +974,7 @@
                 }
                 %>
 
+                <div id="viewDashboard">
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-title">Total Parties</div>
@@ -987,7 +988,7 @@
                             <%= fMoney(totalPending) %>
                         </div>
                     </div>
-                    <div class="stat-card warning action-btn" id="actionStatCard" onclick="runAllFilters('action')">
+                    <div class="stat-card warning action-btn" id="actionStatCard" onclick="showSection('parties'); runAllFilters('action')">
                         <div class="stat-title" style="color: var(--secondary-dark);">Action Required</div>
                         <div class="stat-value" style="color: var(--secondary-dark);">
                             <%= actionRequiredCount %>
@@ -1088,9 +1089,11 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- /viewDashboard -->
                 <% } %>
 
                     <% if (role !=='customer' ) { %>
+                        <div id="viewParties">
                         <div class="toolbar-wrapper">
                             <div class="table-controls">
                                 <button id="toggleFilterBtn" class="btn-secondary"
@@ -1820,6 +1823,8 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div><!-- /viewParties -->
+                        <% } %>
     </div><!-- /mainDashboard -->
 
     <% if (role==='admin' ) { %>
@@ -2044,9 +2049,14 @@
                 var _activeBucketKey = null;
 
                 function filterByBucket(bucketKey, label, count, amtStr) {
-                    // Scroll to table
-                    var tableSection = document.getElementById('filterActiveHeader');
-                    if (tableSection) tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // On mobile: switch to Parties view first
+                    showSection('parties');
+
+                    // Scroll to filter header
+                    setTimeout(function() {
+                        var tableSection = document.getElementById('filterActiveHeader');
+                        if (tableSection) tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
 
                     // Deactivate previously active bucket row
                     var prevActive = document.querySelector('.aging-clickable.active-bucket');
@@ -2073,8 +2083,6 @@
                     }
 
                     // Show the dashboard if we're on launcher
-                    showDashboard();
-
                     runAllFilters('standard');
                 }
 
@@ -2403,20 +2411,45 @@
                 var homeLauncher = document.getElementById('homeLauncher');
                 var mainDashboard = document.getElementById('mainDashboard');
                 var backBtn = document.getElementById('backToLauncher');
+                var viewDashboard = document.getElementById('viewDashboard');
+                var viewParties = document.getElementById('viewParties');
 
                 var isMobile = window.innerWidth < 769;
 
+                // showSection: 'dashboard' | 'parties'
+                function showSection(section) {
+                    if (!isMobile) {
+                        // Desktop: always show everything, just scroll to right part
+                        if (viewDashboard) viewDashboard.style.display = '';
+                        if (viewParties) viewParties.style.display = '';
+                        if (mainDashboard) mainDashboard.style.display = 'block';
+                        return;
+                    }
+                    // Mobile: hide launcher, show mainDashboard, toggle inner views
+                    if (homeLauncher) homeLauncher.style.display = 'none';
+                    if (mainDashboard) mainDashboard.style.display = 'block';
+                    if (backBtn) {
+                        backBtn.style.display = 'inline-block';
+                        backBtn.textContent = section === 'dashboard' ? '← Home  |  📊 Dashboard' : '← Home  |  🏢 Parties';
+                    }
+                    if (section === 'dashboard') {
+                        if (viewDashboard) viewDashboard.style.display = 'block';
+                        if (viewParties) viewParties.style.display = 'none';
+                    } else {
+                        if (viewDashboard) viewDashboard.style.display = 'none';
+                        if (viewParties) viewParties.style.display = 'block';
+                    }
+                }
+
+                // Keep old names for any existing code that calls them
+                function showDashboard() { showSection('dashboard'); }
+                function showParties() { showSection('parties'); }
+
                 function showLauncher() {
-                    if (!isMobile) return; // desktop always shows dashboard
+                    if (!isMobile) return;
                     if (homeLauncher) homeLauncher.style.display = 'block';
                     if (mainDashboard) mainDashboard.style.display = 'none';
                     if (backBtn) backBtn.style.display = 'none';
-                }
-
-                function showDashboard() {
-                    if (homeLauncher) homeLauncher.style.display = 'none';
-                    if (mainDashboard) mainDashboard.style.display = 'block';
-                    if (backBtn && isMobile) backBtn.style.display = 'inline-block';
                 }
 
                 // On load
@@ -2429,7 +2462,10 @@
                     if (isMobile && !isDup) {
                         showLauncher();
                     } else {
-                        showDashboard();
+                        // Desktop: show both sections normally
+                        if (viewDashboard) viewDashboard.style.display = 'block';
+                        if (viewParties) viewParties.style.display = 'block';
+                        if (mainDashboard) mainDashboard.style.display = 'block';
                     }
                     <% } %>
 
