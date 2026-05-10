@@ -244,12 +244,74 @@ app.get('/', async (req, res) => {
 
         const adminUser = await User.findById(req.session.adminId).lean() || {};
 
+        // --- Pre-compute all dashboard stats so EJS has zero logic ---
+        let totalPending = 0, actionRequiredCount = 0;
+        let b_u30=0, b_30_60=0, b_60_90=0, b_90_120=0;
+        let b_120_150=0, b_150_180=0, b_a180=0, b_onAcc=0;
+        let cnt_u30=0, cnt_30_60=0, cnt_60_90=0, cnt_90_120=0;
+        let cnt_120_150=0, cnt_150_180=0, cnt_a180=0, cnt_onAcc=0;
+
+        const today = new Date(); today.setHours(0,0,0,0);
+
+        for (const c of finalCustomers) {
+            const due = (c.totalAmount || 0) - (c.paidAmount || 0);
+            totalPending += due;
+
+            if (c.nextActionDate) {
+                const nd = new Date(c.nextActionDate); nd.setHours(0,0,0,0);
+                if (due > 0 && today >= nd) actionRequiredCount++;
+            } else if (due > 0) {
+                actionRequiredCount++;
+            }
+
+            const ag = c.aging || {};
+            b_u30     += ag.under30     || 0;
+            b_30_60   += ag.days30to60  || 0;
+            b_60_90   += ag.days60to90  || 0;
+            b_90_120  += ag.days90to120 || 0;
+            b_120_150 += ag.days120to150|| 0;
+            b_150_180 += ag.days150to180|| 0;
+            b_a180    += ag.above180    || 0;
+            b_onAcc   += ag.onAccount   || 0;
+
+            if ((ag.under30     || 0) > 0) cnt_u30++;
+            if ((ag.days30to60  || 0) > 0) cnt_30_60++;
+            if ((ag.days60to90  || 0) > 0) cnt_60_90++;
+            if ((ag.days90to120 || 0) > 0) cnt_90_120++;
+            if ((ag.days120to150|| 0) > 0) cnt_120_150++;
+            if ((ag.days150to180|| 0) > 0) cnt_150_180++;
+            if ((ag.above180    || 0) > 0) cnt_a180++;
+            if ((ag.onAccount   || 0) > 0) cnt_onAcc++;
+        }
+
+        const maxBucket = Math.max(b_u30, b_30_60, b_60_90, b_90_120, b_120_150, b_150_180, b_a180) || 1;
+
+        const fmtINR = (n) => '₹ ' + Number(n).toLocaleString('en-IN');
+
+        const stats = {
+            totalPending, actionRequiredCount,
+            totalParties: finalCustomers.length,
+            buckets: {
+                u30:     { amt: b_u30,     fmt: fmtINR(b_u30),     cnt: cnt_u30,     pct: Math.round((b_u30/maxBucket)*100)     },
+                d30_60:  { amt: b_30_60,   fmt: fmtINR(b_30_60),   cnt: cnt_30_60,   pct: Math.round((b_30_60/maxBucket)*100)   },
+                d60_90:  { amt: b_60_90,   fmt: fmtINR(b_60_90),   cnt: cnt_60_90,   pct: Math.round((b_60_90/maxBucket)*100)   },
+                d90_120: { amt: b_90_120,  fmt: fmtINR(b_90_120),  cnt: cnt_90_120,  pct: Math.round((b_90_120/maxBucket)*100)  },
+                d120_150:{ amt: b_120_150, fmt: fmtINR(b_120_150), cnt: cnt_120_150, pct: Math.round((b_120_150/maxBucket)*100) },
+                d150_180:{ amt: b_150_180, fmt: fmtINR(b_150_180), cnt: cnt_150_180, pct: Math.round((b_150_180/maxBucket)*100) },
+                a180:    { amt: b_a180,    fmt: fmtINR(b_a180),    cnt: cnt_a180,    pct: Math.round((b_a180/maxBucket)*100)    },
+                onAcc:   { amt: b_onAcc,   fmt: fmtINR(b_onAcc),   cnt: cnt_onAcc,   pct: 0                                     }
+            },
+            totalPendingFmt: fmtINR(totalPending)
+        };
+
         res.render('index', {
             customers: finalCustomers,
             role: req.session.role,
-            adminUser: adminUser
+            adminUser: adminUser,
+            stats: stats
         });
     } catch (err) {
+        console.error('Dashboard error:', err);
         res.status(500).send("Error loading dashboard.");
     }
 });

@@ -947,148 +947,94 @@
         <% } %>
 
         <% if (role !== 'customer') { %>
-            <% var totalPending=0; var actionRequiredCount=0; var b_u30=0; var b_30_60=0; var b_60_90=0; var b_90_120=0;
-                var b_120_150=0; var b_150_180=0; var b_a180=0; var b_onAcc=0; var td2=new Date();
-                td2.setHours(0,0,0,0); for(var i=0; i<customers.length; i++) { var c=customers[i]; var due=c.totalAmount
-                - c.paidAmount; totalPending +=due; if (c.nextActionDate) { var nd2=new Date(c.nextActionDate);
-                nd2.setHours(0,0,0,0); if (due> 0 && td2 >= nd2) {
-                actionRequiredCount++;
-                }
-                } else if (due > 0) {
-                actionRequiredCount++;
-                }
-
-                if (c.aging) {
-                b_u30 += (c.aging.under30 || 0);
-                b_30_60 += (c.aging.days30to60 || 0);
-                b_60_90 += (c.aging.days60to90 || 0);
-                b_90_120 += (c.aging.days90to120 || 0);
-                b_120_150 += (c.aging.days120to150 || 0);
-                b_150_180 += (c.aging.days150to180 || 0);
-                b_a180 += (c.aging.above180 || 0);
-                b_onAcc += (c.aging.onAccount || 0);
-                }
-                }
-
-                var maxBucket = Math.max(b_u30, b_30_60, b_60_90, b_90_120, b_120_150, b_150_180, b_a180) || 1;
-                %><%
-                var fMoney = function(amt) {
-                return '\u20B9 ' + amt.toLocaleString('en-IN');
-                };
-                %>
 
                 <div id="viewDashboard">
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-title">Total Parties</div>
-                        <div class="stat-value">
-                            <%= customers.length %>
-                        </div>
+                        <div class="stat-value"><%= stats.totalParties %></div>
                     </div>
                     <div class="stat-card alert">
                         <div class="stat-title">Total Pending Bills</div>
-                        <div class="stat-value" style="color: #b91c1c;">
-                            <%= fMoney(totalPending) %>
-                        </div>
+                        <div class="stat-value" style="color:#b91c1c;"><%= stats.totalPendingFmt %></div>
                     </div>
                     <div class="stat-card warning action-btn" id="actionStatCard" onclick="showSection('parties'); runAllFilters('action')">
-                        <div class="stat-title" style="color: var(--secondary-dark);">Action Required</div>
-                        <div class="stat-value" style="color: var(--secondary-dark);">
-                            <%= actionRequiredCount %>
-                        </div>
-                        <div
-                            style="font-size: 11px; color: #2980b9; margin-top: 8px; font-weight: bold; background: #f0f7ff; padding: 4px; border-radius: 10px;">
-                            Click to filter &rarr;</div>
+                        <div class="stat-title" style="color:var(--secondary-dark);">Action Required</div>
+                        <div class="stat-value" style="color:var(--secondary-dark);"><%= stats.actionRequiredCount %></div>
+                        <div style="font-size:11px;color:#2980b9;margin-top:8px;font-weight:bold;background:#f0f7ff;padding:4px;border-radius:10px;">Click to filter &rarr;</div>
                     </div>
                 </div>
 
-                <%
-                // Count parties per bucket (only those with amount > 0 in that bucket)
-                var cnt_u30=0, cnt_30_60=0, cnt_60_90=0, cnt_90_120=0, cnt_120_150=0, cnt_150_180=0, cnt_a180=0, cnt_onAcc=0;
-                for(var ci=0; ci<customers.length; ci++){
-                    var ca = customers[ci].aging || {};
-                    if((ca.under30||0)>0) cnt_u30++;
-                    if((ca.days30to60||0)>0) cnt_30_60++;
-                    if((ca.days60to90||0)>0) cnt_60_90++;
-                    if((ca.days90to120||0)>0) cnt_90_120++;
-                    if((ca.days120to150||0)>0) cnt_120_150++;
-                    if((ca.days150to180||0)>0) cnt_150_180++;
-                    if((ca.above180||0)>0) cnt_a180++;
-                    if((ca.onAccount||0)>0) cnt_onAcc++;
-                }
-                %>
                 <div class="floating-card aging-card">
                     <h2 style="margin-top:0;font-size:20px;font-weight:800;border-bottom:1px solid #f1f5f9;padding-bottom:15px;margin-bottom:20px;">
                         📅 Aging Buckets
                         <span style="font-size:12px;color:var(--text-muted);font-weight:500;margin-left:8px;">Click any row to filter parties</span>
                     </h2>
-
-                    <!-- Active filter banner -->
-                    <div id="agingFilterBanner" style="display:none;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:12px;padding:10px 15px;margin-bottom:15px;font-size:13px;font-weight:700;color:#0369a1;display:none;align-items:center;gap:10px;">
+                    <div id="agingFilterBanner" style="display:none;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:12px;padding:10px 15px;margin-bottom:15px;font-size:13px;font-weight:700;color:#0369a1;align-items:center;gap:10px;">
                         <span id="agingFilterBannerText"></span>
                         <button onclick="clearAgingFilter()" style="margin-left:auto;background:#0369a1;color:white;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;">✕ Clear</button>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('u30','&lt; 30 Days',<%= cnt_u30 %>,'<%= fMoney(b_u30) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('u30','&lt; 30 Days',<%= stats.buckets.u30.cnt %>,'<%= stats.buckets.u30.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span>&lt; 30 DAYS <span class="bucket-count"><%= cnt_u30 %> parties</span></span>
-                            <span><%= fMoney(b_u30) %></span>
+                            <span>&lt; 30 DAYS <span class="bucket-count"><%= stats.buckets.u30.cnt %> parties</span></span>
+                            <span><%= stats.buckets.u30.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill" style="width:<%= (b_u30/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill" style="width:<%= stats.buckets.u30.pct %>%;"></div></div>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('d30_60','30-60 Days',<%= cnt_30_60 %>,'<%= fMoney(b_30_60) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('d30_60','30-60 Days',<%= stats.buckets.d30_60.cnt %>,'<%= stats.buckets.d30_60.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span>30-60 DAYS <span class="bucket-count"><%= cnt_30_60 %> parties</span></span>
-                            <span><%= fMoney(b_30_60) %></span>
+                            <span>30-60 DAYS <span class="bucket-count"><%= stats.buckets.d30_60.cnt %> parties</span></span>
+                            <span><%= stats.buckets.d30_60.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill" style="width:<%= (b_30_60/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill" style="width:<%= stats.buckets.d30_60.pct %>%;"></div></div>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('d60_90','60-90 Days',<%= cnt_60_90 %>,'<%= fMoney(b_60_90) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('d60_90','60-90 Days',<%= stats.buckets.d60_90.cnt %>,'<%= stats.buckets.d60_90.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span>60-90 DAYS <span class="bucket-count"><%= cnt_60_90 %> parties</span></span>
-                            <span><%= fMoney(b_60_90) %></span>
+                            <span>60-90 DAYS <span class="bucket-count"><%= stats.buckets.d60_90.cnt %> parties</span></span>
+                            <span><%= stats.buckets.d60_90.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill" style="width:<%= (b_60_90/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill" style="width:<%= stats.buckets.d60_90.pct %>%;"></div></div>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('d90_120','90-120 Days',<%= cnt_90_120 %>,'<%= fMoney(b_90_120) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('d90_120','90-120 Days',<%= stats.buckets.d90_120.cnt %>,'<%= stats.buckets.d90_120.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span>90-120 DAYS <span class="bucket-count"><%= cnt_90_120 %> parties</span></span>
-                            <span><%= fMoney(b_90_120) %></span>
+                            <span>90-120 DAYS <span class="bucket-count"><%= stats.buckets.d90_120.cnt %> parties</span></span>
+                            <span><%= stats.buckets.d90_120.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill fill-warning" style="width:<%= (b_90_120/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill fill-warning" style="width:<%= stats.buckets.d90_120.pct %>%;"></div></div>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('d120_150','120-150 Days',<%= cnt_120_150 %>,'<%= fMoney(b_120_150) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('d120_150','120-150 Days',<%= stats.buckets.d120_150.cnt %>,'<%= stats.buckets.d120_150.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span style="color:#ef4444;">120-150 DAYS <span class="bucket-count" style="background:#fee2e2;color:#b91c1c;"><%= cnt_120_150 %> parties</span></span>
-                            <span style="color:#ef4444;"><%= fMoney(b_120_150) %></span>
+                            <span style="color:#ef4444;">120-150 DAYS <span class="bucket-count" style="background:#fee2e2;color:#b91c1c;"><%= stats.buckets.d120_150.cnt %> parties</span></span>
+                            <span style="color:#ef4444;"><%= stats.buckets.d120_150.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill fill-danger" style="width:<%= (b_120_150/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill fill-danger" style="width:<%= stats.buckets.d120_150.pct %>%;"></div></div>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('d150_180','150-180 Days',<%= cnt_150_180 %>,'<%= fMoney(b_150_180) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('d150_180','150-180 Days',<%= stats.buckets.d150_180.cnt %>,'<%= stats.buckets.d150_180.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span style="color:#ef4444;">150-180 DAYS <span class="bucket-count" style="background:#fee2e2;color:#b91c1c;"><%= cnt_150_180 %> parties</span></span>
-                            <span style="color:#ef4444;"><%= fMoney(b_150_180) %></span>
+                            <span style="color:#ef4444;">150-180 DAYS <span class="bucket-count" style="background:#fee2e2;color:#b91c1c;"><%= stats.buckets.d150_180.cnt %> parties</span></span>
+                            <span style="color:#ef4444;"><%= stats.buckets.d150_180.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill fill-danger" style="width:<%= (b_150_180/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill fill-danger" style="width:<%= stats.buckets.d150_180.pct %>%;"></div></div>
                     </div>
 
-                    <div class="aging-row aging-clickable" onclick="filterByBucket('a180','&gt; 180 Days',<%= cnt_a180 %>,'<%= fMoney(b_a180) %>')" title="Click to see all parties in this bucket">
+                    <div class="aging-row aging-clickable" onclick="filterByBucket('a180','&gt; 180 Days',<%= stats.buckets.a180.cnt %>,'<%= stats.buckets.a180.fmt %>')" title="Click to see all parties in this bucket">
                         <div class="aging-labels">
-                            <span style="color:#ef4444;">&gt; 180 DAYS <span class="bucket-count" style="background:#fee2e2;color:#b91c1c;"><%= cnt_a180 %> parties</span></span>
-                            <span style="color:#ef4444;"><%= fMoney(b_a180) %></span>
+                            <span style="color:#ef4444;">&gt; 180 DAYS <span class="bucket-count" style="background:#fee2e2;color:#b91c1c;"><%= stats.buckets.a180.cnt %> parties</span></span>
+                            <span style="color:#ef4444;"><%= stats.buckets.a180.fmt %></span>
                         </div>
-                        <div class="progress-bg"><div class="progress-fill fill-danger" style="width:<%= (b_a180/maxBucket)*100 %>%;"></div></div>
+                        <div class="progress-bg"><div class="progress-fill fill-danger" style="width:<%= stats.buckets.a180.pct %>%;"></div></div>
                     </div>
 
                     <div class="aging-row" style="margin-bottom:0;padding-top:15px;border-top:1px dashed #e2e8f0;">
                         <div class="aging-labels" style="color:var(--text-muted);">
-                            <span>ON ACCOUNT (ADVANCE) <span class="bucket-count"><%= cnt_onAcc %> parties</span></span>
-                            <span><%= fMoney(b_onAcc) %></span>
+                            <span>ON ACCOUNT (ADVANCE) <span class="bucket-count"><%= stats.buckets.onAcc.cnt %> parties</span></span>
+                            <span><%= stats.buckets.onAcc.fmt %></span>
                         </div>
                     </div>
                 </div>
