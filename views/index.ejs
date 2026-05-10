@@ -971,9 +971,10 @@
                 }
 
                 var maxBucket = Math.max(b_u30, b_30_60, b_60_90, b_90_120, b_120_150, b_150_180, b_a180) || 1;
-                function fMoney(amt) {
-                return '₹ ' + amt.toLocaleString('en-IN');
-                }
+                %><%
+                var fMoney = function(amt) {
+                return '\u20B9 ' + amt.toLocaleString('en-IN');
+                };
                 %>
 
                 <div id="viewDashboard">
