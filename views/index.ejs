@@ -944,7 +944,9 @@
                     <button type="submit" class="btn-primary" style="padding: 10px 20px;">📤 Import Data</button>
                 </form>
             </div>
+        <% } %>
 
+        <% if (role !== 'customer') { %>
             <% var totalPending=0; var actionRequiredCount=0; var b_u30=0; var b_30_60=0; var b_60_90=0; var b_90_120=0;
                 var b_120_150=0; var b_150_180=0; var b_a180=0; var b_onAcc=0; var td2=new Date();
                 td2.setHours(0,0,0,0); for(var i=0; i<customers.length; i++) { var c=customers[i]; var due=c.totalAmount
@@ -1090,10 +1092,8 @@
                     </div>
                 </div>
                 </div><!-- /viewDashboard -->
-                <% } %>
 
-                    <% if (role !=='customer' ) { %>
-                        <div id="viewParties">
+                    <div id="viewParties">
                         <div class="toolbar-wrapper">
                             <div class="table-controls">
                                 <button id="toggleFilterBtn" class="btn-secondary"
