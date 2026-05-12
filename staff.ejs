@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manage Staff — WGS</title>
+    <meta name="theme-color" content="#1a1f2e">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f0f2f8;
+            --surface: #ffffff;
+            --surface2: #f8f9fc;
+            --border: rgba(30,40,80,0.08);
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-glow: rgba(37,99,235,0.15);
+            --success: #059669;
+            --success-bg: #ecfdf5;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --text: #0f172a;
+            --text-2: #475569;
+            --text-3: #94a3b8;
+            --shadow-sm: 0 2px 8px rgba(15,23,42,0.06);
+            --shadow-md: 0 8px 24px rgba(15,23,42,0.10);
+            --radius: 18px;
+            --radius-sm: 12px;
+            --radius-xs: 8px;
+        }
+        body.dark {
+            --bg: #0d1117; --surface: #161b27; --surface2: #1c2333;
+            --border: rgba(255,255,255,0.07);
+            --text: #e2e8f0; --text-2: #94a3b8; --text-3: #475569;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.3); --shadow-md: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .shell { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; }
+
+        /* TOP BAR */
+        .top-bar {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--surface); border-radius: var(--radius);
+            padding: 12px 18px; margin-bottom: 20px;
+            border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        }
+        .back-link {
+            display: flex; align-items: center; gap: 6px;
+            text-decoration: none; color: var(--primary);
+            font-weight: 700; font-size: 13px;
+            background: var(--primary-glow); padding: 7px 14px;
+            border-radius: 50px; transition: all 0.18s;
+        }
+        .back-link:hover { background: var(--primary); color: white; }
+        .page-title { font-size: 17px; font-weight: 800; color: var(--text); flex: 1; }
+
+        /* CARDS */
+        .card {
+            background: var(--surface); border-radius: var(--radius);
+            padding: 22px; border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm); margin-bottom: 18px;
+        }
+        .card-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+        /* INPUTS */
+        .inp-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 5px; margin-top: 12px; }
+        .inp {
+            width: 100%; padding: 11px 14px;
+            border: 1.5px solid var(--border); border-radius: var(--radius-xs);
+            font-family: 'DM Sans', sans-serif; font-size: 14px;
+            background: var(--surface2); color: var(--text); outline: none; transition: all 0.2s;
+        }
+        .inp:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px var(--primary-glow); }
+        .inp-row { display: flex; gap: 10px; }
+        .inp-row > div { flex: 1; }
+
+        /* BUTTONS */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white; border: none; padding: 12px 20px;
+            border-radius: var(--radius-xs); font-family: 'DM Sans', sans-serif;
+            font-size: 14px; font-weight: 800; cursor: pointer; width: 100%;
+            box-shadow: 0 4px 14px var(--primary-glow); transition: all 0.2s; margin-top: 14px;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--primary-glow); }
+        .btn-blue {
+            background: var(--primary); color: white; border: none;
+            padding: 9px 16px; border-radius: var(--radius-xs);
+            font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+            transition: all 0.18s; white-space: nowrap;
+        }
+        .btn-blue:hover { background: var(--primary-dark); }
+        .btn-danger {
+            background: var(--danger-bg); color: var(--danger);
+            border: 1.5px solid rgba(220,38,38,0.2);
+            padding: 9px 16px; border-radius: var(--radius-xs);
+            font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+            transition: all 0.18s;
+        }
+        .btn-danger:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+        /* STAFF LIST */
+        .staff-list { display: flex; flex-direction: column; gap: 12px; }
+        .staff-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 18px;
+            box-shadow: var(--shadow-sm); transition: all 0.2s;
+        }
+        .staff-card:hover { box-shadow: var(--shadow-md); }
+        .staff-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px; padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .staff-info { display: flex; align-items: center; gap: 12px; }
+        .staff-avatar {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 800; color: white; flex-shrink: 0;
+        }
+        .staff-name { font-size: 16px; font-weight: 800; color: var(--text); }
+        .staff-role {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: var(--primary-glow); color: var(--primary);
+            font-size: 10px; font-weight: 800; text-transform: uppercase;
+            padding: 3px 9px; border-radius: 20px;
+            border: 1px solid rgba(37,99,235,0.15); margin-top: 3px;
+        }
+        .reset-form {
+            display: flex; gap: 8px; align-items: flex-end;
+        }
+        .reset-form > div { flex: 1; }
+        .staff-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .staff-actions form { flex: 1; }
+        .staff-actions .btn-danger { width: 100%; }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center; padding: 50px 20px;
+            color: var(--text-3);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text-2); }
+
+        /* DESKTOP TABLE (hidden on mobile) */
+        .desktop-table { display: block; }
+        .mobile-staff { display: none; }
+        @media (max-width: 768px) {
+            .desktop-table { display: none; }
+            .mobile-staff { display: block; }
+            .reset-form { flex-direction: column; gap: 8px; }
+            .reset-form .btn-blue { width: 100%; padding: 12px; }
+        }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+        thead th {
+            background: var(--surface2); color: var(--text-3);
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+            padding: 12px 14px; text-align: left;
+        }
+        tbody td { padding: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: var(--surface2); }
+        .table-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden; }
+
+        .inp-inline {
+            padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-xs);
+            font-family: 'DM Sans', sans-serif; font-size: 13px;
+            background: var(--surface2); color: var(--text); outline: none;
+            transition: border-color 0.18s; width: 180px;
+        }
+        .inp-inline:focus { border-color: var(--primary); }
+    </style>
+</head>
+<body>
+<div class="shell">
+
+    <div class="top-bar">
+        <a href="/" class="back-link">← Back</a>
+        <div class="page-title">👤 Manage Staff</div>
+        <span style="font-size:12px;color:var(--text-3);font-weight:600;"><%= role.toUpperCase() %></span>
+    </div>
+
+    <!-- CREATE STAFF -->
+    <div class="card">
+        <div class="card-title">➕ Create New Staff Account</div>
+        <form action="/create-staff" method="POST">
+            <div class="inp-row">
+                <div>
+                    <label class="inp-label">Username</label>
+                    <input type="text" name="username" placeholder="e.g. staff_rahul" required class="inp">
+                </div>
+                <div>
+                    <label class="inp-label">Password</label>
+                    <input type="password" name="password" placeholder="Min 6 characters" required class="inp">
+                </div>
+            </div>
+            <button type="submit" class="btn-primary">Create Staff Account</button>
+        </form>
+    </div>
+
+    <!-- STAFF LIST -->
+    <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:18px 22px 0;">
+            <div class="card-title">👥 Staff Members (<%= staffMembers.length %>)</div>
+        </div>
+
+        <!-- DESKTOP TABLE -->
+        <div class="desktop-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="padding-left:22px;">Staff Member</th>
+                        <th>Role</th>
+                        <th>Reset Password</th>
+                        <th style="text-align:right;padding-right:22px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (staffMembers.length === 0) { %>
+                    <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-3);">No staff members yet. Create one above.</td></tr>
+                    <% } %>
+                    <% staffMembers.forEach(function(staff) { %>
+                    <tr>
+                        <td style="padding-left:22px;">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),#7c3aed);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:15px;flex-shrink:0;">
+                                    <%= staff.username.charAt(0).toUpperCase() %>
+                                </div>
+                                <strong style="font-size:14px;"><%= staff.username %></strong>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="background:var(--primary-glow);color:var(--primary);font-size:10px;font-weight:800;text-transform:uppercase;padding:3px 10px;border-radius:20px;border:1px solid rgba(37,99,235,0.15);">
+                                <%= staff.role.toUpperCase() %>
+                            </span>
+                        </td>
+                        <td>
+                            <form action="/reset-staff-password" method="POST" style="display:flex;gap:8px;align-items:center;">
+                                <input type="hidden" name="staffId" value="<%= staff._id %>">
+                                <input type="password" name="newPassword" placeholder="New password..." required class="inp-inline">
+                                <button type="submit" class="btn-blue">Reset</button>
+                            </form>
+                        </td>
+                        <td style="text-align:right;padding-right:22px;">
+                            <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete <%= staff.username %> permanently?');" style="margin:0;display:inline;">
+                                <button type="submit" class="btn-danger">🗑️ Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- MOBILE CARDS -->
+        <div class="mobile-staff" style="padding:0 16px 16px;">
+            <% if (staffMembers.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">👤</div>
+                <div class="empty-title">No staff yet</div>
+                <div>Create a staff account above to get started.</div>
+            </div>
+            <% } %>
+            <% staffMembers.forEach(function(staff) { %>
+            <div class="staff-card">
+                <div class="staff-header">
+                    <div class="staff-info">
+                        <div class="staff-avatar"><%= staff.username.charAt(0).toUpperCase() %></div>
+                        <div>
+                            <div class="staff-name"><%= staff.username %></div>
+                            <span class="staff-role">● <%= staff.role.toUpperCase() %></span>
+                        </div>
+                    </div>
+                </div>
+                <form action="/reset-staff-password" method="POST">
+                    <input type="hidden" name="staffId" value="<%= staff._id %>">
+                    <label class="inp-label">🔑 Reset Password</label>
+                    <div class="reset-form">
+                        <div>
+                            <input type="password" name="newPassword" placeholder="Enter new password..." required class="inp" style="margin-bottom:0;">
+                        </div>
+                        <button type="submit" class="btn-blue">Reset</button>
+                    </div>
+                </form>
+                <div class="staff-actions">
+                    <form action="/staff/<%= staff._id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete <%= staff.username %> permanently?');">
+                        <button type="submit" class="btn-danger">🗑️ Delete Account</button>
+                    </form>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+    </div>
+
+</div>
+<script>
+    (function(){
+        if (localStorage.getItem('wgs-dark') === '1') document.body.classList.add('dark');
+    })();
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ const methodOverride = require('method-override');
 const xlsx = require('xlsx');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 const Customer = require('./models/Customer');
 const User = require('./models/User');
@@ -29,8 +29,8 @@ mongoose.connect(dbURI)
 // --- CONFIGURATION ---
 app.set('view engine', 'ejs');
 app.use(express.static('public', { dotfiles: 'allow' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
 app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
 
@@ -724,6 +724,254 @@ app.post('/customers/bulk', requireLogin, async (req, res) => {
         }
     } catch (err) { }
     res.redirect('/');
+});
+
+// ============================================================
+// BACKUP — full JSON download of all admin data
+// ============================================================
+app.get('/backup-data', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+    try {
+        const adminUser  = await User.findById(req.session.adminId).lean();
+        const customers  = await Customer.find({ adminId: req.session.adminId }).lean();
+        const staff      = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
+        const activities = await ActivityLog.find({ adminId: req.session.adminId }).lean();
+
+        // Redact password hashes from backup for safety
+        if (adminUser) delete adminUser.password;
+        staff.forEach(s => delete s.password);
+
+        const backup = {
+            _meta: {
+                appName: 'WGS Payment Manager',
+                version: '1.0.0',
+                exportedAt: new Date().toISOString(),
+                adminId: req.session.adminId,
+                totalParties: customers.length,
+                totalStaff: staff.length,
+                totalActivityLogs: activities.length
+            },
+            companyProfile: adminUser,
+            customers,
+            staff,
+            activityLogs: activities
+        };
+
+        await logActivity(req, 'Backup Created', `Full data backup downloaded by ${req.session.username || 'Admin'}.`);
+        res.json(backup);
+    } catch (err) {
+        console.error('Backup error:', err);
+        res.status(500).json({ error: 'Backup failed' });
+    }
+});
+
+// ============================================================
+// BACKUP — Excel format download
+// ============================================================
+app.get('/backup-data-excel', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
+    try {
+        const customers  = await Customer.find({ adminId: req.session.adminId }).lean();
+        const staff      = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
+        const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).lean();
+        const adminUser  = await User.findById(req.session.adminId).lean();
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'WGS Payment Manager';
+
+        // Sheet 1 — Parties
+        const partiesSheet = workbook.addWorksheet('Parties');
+        partiesSheet.columns = [
+            { header: 'Company Name', key: 'companyName', width: 30 },
+            { header: 'Contact Person', key: 'contactPerson', width: 20 },
+            { header: 'Phone', key: 'phone', width: 18 },
+            { header: 'WhatsApp', key: 'whatsappNumber', width: 18 },
+            { header: 'Email', key: 'email', width: 25 },
+            { header: 'Total Amount', key: 'totalAmount', width: 15 },
+            { header: 'Paid Amount', key: 'paidAmount', width: 15 },
+            { header: 'Due Amount', key: 'dueAmount', width: 15 },
+            { header: '<30 Days', key: 'under30', width: 13 },
+            { header: '30-60 Days', key: 'days30to60', width: 13 },
+            { header: '60-90 Days', key: 'days60to90', width: 13 },
+            { header: '90-120 Days', key: 'days90to120', width: 13 },
+            { header: '120-150 Days', key: 'days120to150', width: 14 },
+            { header: '150-180 Days', key: 'days150to180', width: 14 },
+            { header: '>180 Days', key: 'above180', width: 13 },
+            { header: 'On Account', key: 'onAccount', width: 13 },
+            { header: 'Last Payment Date', key: 'lastPaymentDate', width: 20 },
+            { header: 'Next Action Date', key: 'nextActionDate', width: 20 },
+        ];
+        partiesSheet.getRow(1).font = { bold: true };
+        customers.forEach(c => {
+            partiesSheet.addRow({
+                companyName: c.companyName || '',
+                contactPerson: c.contactPerson || '',
+                phone: c.phone || '',
+                whatsappNumber: c.whatsappNumber || '',
+                email: c.email || '',
+                totalAmount: c.totalAmount || 0,
+                paidAmount: c.paidAmount || 0,
+                dueAmount: (c.totalAmount || 0) - (c.paidAmount || 0),
+                under30: c.aging?.under30 || 0,
+                days30to60: c.aging?.days30to60 || 0,
+                days60to90: c.aging?.days60to90 || 0,
+                days90to120: c.aging?.days90to120 || 0,
+                days120to150: c.aging?.days120to150 || 0,
+                days150to180: c.aging?.days150to180 || 0,
+                above180: c.aging?.above180 || 0,
+                onAccount: c.aging?.onAccount || 0,
+                lastPaymentDate: c.lastPaymentDate ? new Date(c.lastPaymentDate).toLocaleDateString('en-IN') : '',
+                nextActionDate: c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : '',
+            });
+        });
+
+        // Sheet 2 — Staff
+        const staffSheet = workbook.addWorksheet('Staff');
+        staffSheet.columns = [
+            { header: 'Username', key: 'username', width: 20 },
+            { header: 'Role', key: 'role', width: 12 },
+        ];
+        staffSheet.getRow(1).font = { bold: true };
+        staff.forEach(s => staffSheet.addRow({ username: s.username, role: s.role }));
+
+        // Sheet 3 — Activity Logs
+        const actSheet = workbook.addWorksheet('Activity Logs');
+        actSheet.columns = [
+            { header: 'Date & Time', key: 'date', width: 22 },
+            { header: 'User', key: 'username', width: 18 },
+            { header: 'Action', key: 'action', width: 22 },
+            { header: 'Details', key: 'details', width: 50 },
+        ];
+        actSheet.getRow(1).font = { bold: true };
+        activities.forEach(a => {
+            actSheet.addRow({
+                date: a.createdAt ? new Date(a.createdAt).toLocaleString('en-IN') : '',
+                username: a.username || '',
+                action: a.action || '',
+                details: a.details || '',
+            });
+        });
+
+        // Sheet 4 — Company Profile
+        const profileSheet = workbook.addWorksheet('Company Profile');
+        if (adminUser) {
+            [
+                ['Company Name', adminUser.companyName],
+                ['Address Line 1', adminUser.addressLine1],
+                ['Address Line 2', adminUser.addressLine2],
+                ['Address Line 3', adminUser.addressLine3],
+                ['DL No.', adminUser.dlNo],
+                ['MSME No.', adminUser.msmeNo],
+                ['Contact No.', adminUser.contactNo],
+                ['Email', adminUser.companyEmail],
+                ['Bank Name', adminUser.bankName],
+                ['Account Name', adminUser.accountName],
+                ['Account Number', adminUser.accountNumber],
+                ['IFSC Code', adminUser.ifscCode],
+                ['UPI Details', adminUser.upiDetails],
+            ].forEach(row => profileSheet.addRow(row));
+        }
+
+        await logActivity(req, 'Backup Created (Excel)', `Excel backup downloaded by ${req.session.username || 'Admin'}.`);
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="WGS_Backup_${new Date().toISOString().slice(0,10)}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (err) {
+        console.error('Excel backup error:', err);
+        res.status(500).send('Excel backup failed.');
+    }
+});
+
+// ============================================================
+// RESTORE — upload JSON backup and restore all data
+// ============================================================
+app.post('/restore-backup', upload.single('backupFile'), requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
+    try {
+        if (!req.file) return res.redirect('/?restoreError=nofile');
+
+        let backup;
+        try {
+            backup = JSON.parse(req.file.buffer.toString('utf8'));
+        } catch (e) {
+            return res.redirect('/?restoreError=invalid');
+        }
+
+        // Validate it's our backup format
+        if (!backup._meta || !backup.customers) {
+            return res.redirect('/?restoreError=invalid');
+        }
+
+        const adminId = req.session.adminId;
+
+        // Restore customers — upsert by companyName
+        if (Array.isArray(backup.customers)) {
+            // Delete existing, then re-insert
+            await Customer.deleteMany({ adminId });
+            const toInsert = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
+            if (toInsert.length > 0) await Customer.insertMany(toInsert, { ordered: false });
+        }
+
+        // Restore company profile fields (not password)
+        if (backup.companyProfile) {
+            const p = backup.companyProfile;
+            await User.findByIdAndUpdate(adminId, {
+                companyName: p.companyName, addressLine1: p.addressLine1,
+                addressLine2: p.addressLine2, addressLine3: p.addressLine3,
+                dlNo: p.dlNo, msmeNo: p.msmeNo, contactNo: p.contactNo,
+                companyEmail: p.companyEmail, bankName: p.bankName,
+                accountName: p.accountName, accountNumber: p.accountNumber,
+                ifscCode: p.ifscCode, upiDetails: p.upiDetails
+            });
+        }
+
+        await logActivity(req, 'Backup Restored', `Data restored from backup file (${backup.customers.length} parties, exported ${backup._meta.exportedAt || 'unknown date'}).`);
+        res.redirect('/?restoreSuccess=1');
+    } catch (err) {
+        console.error('Restore error:', err);
+        res.redirect('/?restoreError=failed');
+    }
+});
+
+// ============================================================
+// CHANGE PASSWORD
+// ============================================================
+app.post('/change-password', requireLogin, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) return res.json({ success: false, error: 'All fields required' });
+        if (newPassword.length < 6) return res.json({ success: false, error: 'Password must be at least 6 characters' });
+
+        const user = await User.findById(req.session.userId);
+        if (!user) return res.json({ success: false, error: 'User not found' });
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.json({ success: false, error: 'Current password is incorrect' });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        await logActivity(req, 'Password Changed', `Admin changed their login password.`);
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: 'Server error' });
+    }
+});
+
+// ============================================================
+// CLEAR ALL PARTY DATA (Danger Zone)
+// ============================================================
+app.post('/clear-all-data', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
+    try {
+        const result = await Customer.deleteMany({ adminId: req.session.adminId });
+        await logActivity(req, 'Data Cleared', `All party data permanently deleted (${result.deletedCount} parties removed).`);
+        res.redirect('/');
+    } catch (err) {
+        res.status(500).send('Failed to clear data.');
+    }
 });
 
 const PORT = process.env.PORT || 3000;

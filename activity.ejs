@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Activity Log — WGS</title>
+    <meta name="theme-color" content="#1a1f2e">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f0f2f8;
+            --surface: #ffffff;
+            --surface2: #f8f9fc;
+            --border: rgba(30,40,80,0.08);
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-glow: rgba(37,99,235,0.15);
+            --success: #059669;
+            --success-bg: #ecfdf5;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --warning: #d97706;
+            --warning-bg: #fffbeb;
+            --text: #0f172a;
+            --text-2: #475569;
+            --text-3: #94a3b8;
+            --shadow-sm: 0 2px 8px rgba(15,23,42,0.06);
+            --shadow-md: 0 8px 24px rgba(15,23,42,0.10);
+            --radius: 18px;
+            --radius-sm: 12px;
+            --radius-xs: 8px;
+        }
+        body.dark {
+            --bg: #0d1117; --surface: #161b27; --surface2: #1c2333;
+            --border: rgba(255,255,255,0.07);
+            --text: #e2e8f0; --text-2: #94a3b8; --text-3: #475569;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .shell { max-width: 1060px; margin: 0 auto; padding: 20px 16px 80px; }
+
+        /* TOP BAR */
+        .top-bar {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--surface); border-radius: var(--radius);
+            padding: 12px 18px; margin-bottom: 20px;
+            border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        }
+        .back-link {
+            display: flex; align-items: center; gap: 6px;
+            text-decoration: none; color: var(--primary);
+            font-weight: 700; font-size: 13px;
+            background: var(--primary-glow); padding: 7px 14px;
+            border-radius: 50px; transition: all 0.18s;
+        }
+        .back-link:hover { background: var(--primary); color: white; }
+        .page-title { font-size: 17px; font-weight: 800; flex: 1; }
+        .log-count {
+            background: var(--surface2); color: var(--text-3);
+            font-size: 11px; font-weight: 700; padding: 4px 10px;
+            border-radius: 20px; border: 1px solid var(--border);
+        }
+
+        /* CARD */
+        .card {
+            background: var(--surface); border-radius: var(--radius);
+            padding: 20px 22px; border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm); margin-bottom: 16px;
+        }
+
+        /* SEARCH */
+        .search-input {
+            width: 100%; padding: 11px 16px;
+            border: 1.5px solid var(--border); border-radius: 50px;
+            font-family: 'DM Sans', sans-serif; font-size: 14px;
+            background: var(--surface); color: var(--text); outline: none;
+            transition: all 0.2s; box-shadow: var(--shadow-sm);
+        }
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+        /* DELETE CONTROLS */
+        .delete-controls {
+            margin-top: 16px; padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .delete-label {
+            font-size: 11px; font-weight: 800; color: var(--text-3);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: block;
+        }
+        .delete-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+        .inp {
+            padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-xs);
+            font-family: 'DM Sans', sans-serif; font-size: 13px;
+            background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.18s;
+        }
+        .inp:focus { border-color: var(--primary); }
+        .select-inp { flex: 1; min-width: 160px; }
+        .btn-danger {
+            background: var(--danger); color: white; border: none;
+            padding: 10px 20px; border-radius: var(--radius-xs);
+            font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 800;
+            cursor: pointer; white-space: nowrap; transition: all 0.18s;
+            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+        }
+        .btn-danger:hover { background: #b91c1c; transform: translateY(-1px); }
+        .date-range { display: none; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .date-range.show { display: flex; }
+
+        /* STATS ROW */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 10px; margin-bottom: 16px;
+        }
+        .mini-stat {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 14px 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .mini-stat-val { font-size: 22px; font-weight: 800; color: var(--text); }
+        .mini-stat-lbl { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+        @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+
+        /* TABLE (desktop) */
+        .table-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+        thead th {
+            background: var(--surface2); color: var(--text-3);
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+            padding: 12px 16px; text-align: left;
+        }
+        tbody td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: var(--surface2); }
+        .action-badge {
+            display: inline-block; font-weight: 800; font-size: 12px;
+            color: var(--primary); background: var(--primary-glow);
+            padding: 3px 9px; border-radius: 6px;
+        }
+        .user-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-weight: 700; font-size: 12px; color: var(--text-2);
+        }
+        .user-dot {
+            width: 22px; height: 22px; border-radius: 6px;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 10px; font-weight: 800;
+        }
+        .timestamp {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px; color: var(--text-3); line-height: 1.5;
+        }
+        .timestamp strong { color: var(--text-2); font-family: 'DM Sans', sans-serif; }
+
+        /* ACTION COLORS */
+        .action-payment { color: var(--success) !important; background: var(--success-bg) !important; }
+        .action-delete { color: var(--danger) !important; background: var(--danger-bg) !important; }
+        .action-import { color: var(--warning) !important; background: var(--warning-bg) !important; }
+
+        /* MOBILE LOG CARDS */
+        .mobile-logs { display: none; }
+        .desktop-table { display: block; }
+        @media (max-width: 768px) {
+            .desktop-table { display: none; }
+            .mobile-logs { display: block; }
+            .delete-row { flex-direction: column; gap: 10px; }
+            .btn-danger { width: 100%; padding: 12px; }
+        }
+
+        .log-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 16px;
+            margin-bottom: 10px; box-shadow: var(--shadow-sm);
+        }
+        .log-card-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .log-card-action { font-size: 15px; font-weight: 800; }
+        .log-card-time { font-size: 11px; color: var(--text-3); text-align: right; line-height: 1.4; font-family: 'DM Mono', monospace; }
+        .log-card-user { font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .log-card-details {
+            font-size: 13px; color: var(--text-2);
+            background: var(--surface2); padding: 12px 14px;
+            border-radius: var(--radius-xs); border: 1px solid var(--border);
+            line-height: 1.5;
+        }
+
+        /* EMPTY STATE */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-3); }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-title { font-size: 16px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+<div class="shell">
+
+    <div class="top-bar">
+        <a href="/" class="back-link">← Back</a>
+        <div class="page-title">📜 Activity Log</div>
+        <span class="log-count"><%= activities.length %> entries</span>
+    </div>
+
+    <%
+    // Pre-compute stats
+    var todayCount = 0, weekCount = 0, paymentCount = 0, deleteCount = 0;
+    var now = new Date();
+    activities.forEach(function(log) {
+        var d = log.createdAt ? new Date(log.createdAt) : null;
+        if (d) {
+            var diffMs = now - d;
+            if (diffMs < 86400000) todayCount++;
+            if (diffMs < 7*86400000) weekCount++;
+        }
+        if ((log.action||'').toLowerCase().indexOf('payment') !== -1) paymentCount++;
+        if ((log.action||'').toLowerCase().indexOf('delete') !== -1 || (log.action||'').toLowerCase().indexOf('deleted') !== -1) deleteCount++;
+    });
+    %>
+
+    <!-- STATS -->
+    <div class="stats-row">
+        <div class="mini-stat">
+            <div class="mini-stat-val"><%= activities.length %></div>
+            <div class="mini-stat-lbl">Total Logs</div>
+        </div>
+        <div class="mini-stat">
+            <div class="mini-stat-val"><%= todayCount %></div>
+            <div class="mini-stat-lbl">Today</div>
+        </div>
+        <div class="mini-stat">
+            <div class="mini-stat-val"><%= paymentCount %></div>
+            <div class="mini-stat-lbl">Payments</div>
+        </div>
+        <div class="mini-stat">
+            <div class="mini-stat-val"><%= deleteCount %></div>
+            <div class="mini-stat-lbl">Deletions</div>
+        </div>
+    </div>
+
+    <!-- SEARCH + BULK DELETE -->
+    <div class="card">
+        <input type="text" id="activitySearch" class="search-input" placeholder="🔍 Search by user, action, or details...">
+
+        <% if (role === 'admin') { %>
+        <div class="delete-controls">
+            <span class="delete-label">🗑️ Bulk Clear Logs</span>
+            <form action="/activity/delete-bulk" method="POST" onsubmit="return confirm('Delete these logs permanently?');">
+                <div class="delete-row">
+                    <select name="filterType" id="filterType" class="inp select-inp" onchange="toggleCustomDates()">
+                        <option value="older_than_30">Older than 30 Days</option>
+                        <option value="last_30">Last 30 Days</option>
+                        <option value="custom">Custom Date Range</option>
+                        <option value="all">Delete ALL Logs</option>
+                    </select>
+                    <div id="customDateBoxes" class="date-range">
+                        <input type="date" name="startDate" class="inp">
+                        <span style="color:var(--text-3);font-weight:700;font-size:13px;">to</span>
+                        <input type="date" name="endDate" class="inp">
+                    </div>
+                    <button type="submit" class="btn-danger">Clear Now</button>
+                </div>
+            </form>
+        </div>
+        <% } %>
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="desktop-table">
+        <div class="table-card">
+            <% if (activities.length === 0) { %>
+            <div class="empty-state">
+                <div class="empty-icon">📜</div>
+                <div class="empty-title">No activity logs yet</div>
+                <div>Actions taken in the app will appear here.</div>
+            </div>
+            <% } else { %>
+            <table id="activityTable">
+                <thead>
+                    <tr>
+                        <th style="padding-left:20px;">Date & Time</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% activities.forEach(function(log) {
+                        var rawDate = log.createdAt || log.date || log.timestamp;
+                        var hasDate = !!rawDate;
+                        var vd = hasDate ? new Date(rawDate) : null;
+                        var actionLower = (log.action||'').toLowerCase();
+                        var badgeClass = '';
+                        if (actionLower.indexOf('payment') !== -1) badgeClass = 'action-payment';
+                        else if (actionLower.indexOf('delete') !== -1 || actionLower.indexOf('deleted') !== -1) badgeClass = 'action-delete';
+                        else if (actionLower.indexOf('import') !== -1 || actionLower.indexOf('export') !== -1) badgeClass = 'action-import';
+                    %>
+                    <tr>
+                        <td style="padding-left:20px;">
+                            <div class="timestamp">
+                                <% if (hasDate) { %>
+                                <%= vd.toLocaleDateString('en-IN') %><br>
+                                <strong><%= vd.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}) %></strong>
+                                <% } else { %><span style="color:var(--text-3);">Unknown</span><% } %>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="user-badge">
+                                <div class="user-dot"><%= (log.username||'A').charAt(0).toUpperCase() %></div>
+                                <%= log.username || 'Admin' %>
+                            </div>
+                        </td>
+                        <td><span class="action-badge <%= badgeClass %>"><%= log.action %></span></td>
+                        <td style="color:var(--text-2);max-width:340px;line-height:1.5;"><%= log.details %></td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- MOBILE LOG CARDS -->
+    <div class="mobile-logs">
+        <% if (activities.length === 0) { %>
+        <div class="empty-state">
+            <div class="empty-icon">📜</div>
+            <div class="empty-title">No activity logs yet</div>
+        </div>
+        <% } %>
+        <% activities.forEach(function(log) {
+            var rawDate = log.createdAt || log.date || log.timestamp;
+            var hasDate = !!rawDate;
+            var vd = hasDate ? new Date(rawDate) : null;
+            var actionLower = (log.action||'').toLowerCase();
+            var color = 'var(--primary)';
+            if (actionLower.indexOf('payment') !== -1) color = 'var(--success)';
+            else if (actionLower.indexOf('delete') !== -1 || actionLower.indexOf('deleted') !== -1) color = 'var(--danger)';
+            else if (actionLower.indexOf('import') !== -1 || actionLower.indexOf('export') !== -1) color = 'var(--warning)';
+        %>
+        <div class="log-card" data-log>
+            <div class="log-card-header">
+                <div class="log-card-action" style="color:<%= color %>;"><%= log.action %></div>
+                <div class="log-card-time">
+                    <% if (hasDate) { %>
+                    <%= vd.toLocaleDateString('en-IN') %><br>
+                    <strong style="color:var(--text-2);font-family:'DM Sans',sans-serif;"><%= vd.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) %></strong>
+                    <% } else { %>Unknown<% } %>
+                </div>
+            </div>
+            <div class="log-card-user">
+                <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--primary),#7c3aed);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:800;">
+                    <%= (log.username||'A').charAt(0).toUpperCase() %>
+                </div>
+                <%= log.username || 'Admin' %>
+            </div>
+            <div class="log-card-details"><%= log.details %></div>
+        </div>
+        <% }) %>
+    </div>
+
+</div>
+
+<script>
+    (function(){ if (localStorage.getItem('wgs-dark') === '1') document.body.classList.add('dark'); })();
+
+    function toggleCustomDates() {
+        var box = document.getElementById('customDateBoxes');
+        if (box) box.classList.toggle('show', document.getElementById('filterType').value === 'custom');
+    }
+
+    document.getElementById('activitySearch').addEventListener('keyup', function() {
+        var filter = this.value.toLowerCase();
+        // Desktop
+        document.querySelectorAll('#activityTable tbody tr').forEach(function(row) {
+            row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
+        });
+        // Mobile
+        document.querySelectorAll('.log-card[data-log]').forEach(function(card) {
+            card.style.display = card.innerText.toLowerCase().includes(filter) ? '' : 'none';
+        });
+    });
+</script>
+</body>
+</html>
