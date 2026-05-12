@@ -927,21 +927,31 @@
 
             <div class="floating-card">
                 <h3 style="margin-top: 0; color: var(--text-dark); font-size: 16px;">Data Management</h3>
-
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <a href="/export" class="btn-primary"
                         style="background: #3498db; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);">📥 Export Excel</a>
                     <button onclick="downloadPDF()" class="btn-primary"
-                        style="background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);">📄 Export
-                        PDF</button>
+                        style="background: #ef4444; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);">📄 Export PDF</button>
+                    <a href="/backup-data-excel" class="btn-primary"
+                        style="background: #8e44ad; box-shadow: 0 4px 10px rgba(142, 68, 173, 0.2);">📦 Download Full Backup</a>
                 </div>
-
+            
+                <form action="/restore-backup" method="POST" enctype="multipart/form-data"
+                    onsubmit="return showLoadingBtn(this, 'restoreBtn', '⏳ Restoring Data...')"
+                    style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fdf4ff; padding: 15px; border-radius: 12px; border: 1px dashed #d8b4e2; margin-bottom: 15px;">
+                    <strong style="font-size: 13px; color: var(--text-muted);">Restore JSON Backup:</strong>
+                    <input type="file" name="backupFile" accept=".json" required style="font-size: 13px; flex: 1;">
+                    <button type="submit" id="restoreBtn" class="btn-primary" style="background: #9b59b6; padding: 10px 20px;">🔄
+                        Restore Data</button>
+                </form>
+            
                 <form action="/import" method="POST" enctype="multipart/form-data"
+                    onsubmit="return showLoadingBtn(this, 'importBtn', '⏳ Importing...')"
                     style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1;">
                     <strong style="font-size: 13px; color: var(--text-muted);">Upload Tally/Busy Excel:</strong>
-                    <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required
-                        style="font-size: 13px; flex: 1;">
-                    <button type="submit" class="btn-primary" style="padding: 10px 20px;">📤 Import Data</button>
+                    <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required style="font-size: 13px; flex: 1;">
+                    <button type="submit" id="importBtn" class="btn-primary" style="padding: 10px 20px;">📤 Import Data</button>
                 </form>
             </div>
         <% } %>
@@ -2445,7 +2455,15 @@
                     if (hdrCb) hdrCb.checked = _selectAllState;
                     updateBulkBar();
                 }
-
+    function showLoadingBtn(form, btnId, loadingText) {
+        var btn = document.getElementById(btnId);
+        if (btn) {
+            btn.innerHTML = loadingText;
+            btn.style.opacity = '0.6';
+            btn.style.pointerEvents = 'none'; // prevents double-clicking
+        }
+        return true;
+    }
                 // ============================================================
                 // REAL-TIME DUPLICATE CHECK in Add Modal
                 // ============================================================

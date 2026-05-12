@@ -474,6 +474,7 @@ app.get('/export', requireLogin, async (req, res) => {
 });
 
 // --- SMART IMPORT ---
+// --- SMART IMPORT (Optimized with BulkWrite) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -487,6 +488,8 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             const firstColumn = rawData[i][0] ? String(rawData[i][0]).trim().toLowerCase() : '';
             if (firstColumn === 'party name' || firstColumn === 'particulars') { dataStartIndex = i + 1; break; }
         }
+
+        const bulkOps = []; // Holds all database operations
 
         for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
@@ -517,27 +520,41 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 above180: cleanMoney(row[11]), onAccount: cleanMoney(row[12])
             };
 
-            let cust = await Customer.findOne({ companyName: partyName, adminId: req.session.adminId });
-            if (!cust) {
-                cust = new Customer({ companyName: partyName, adminId: req.session.adminId });
-                let d = new Date(); d.setDate(d.getDate() + 10);
-                cust.nextActionDate = d;
-            } else if (!cust.nextActionDate) {
-                let d = new Date(); d.setDate(d.getDate() + 10);
-                cust.nextActionDate = d;
-            }
+            let d = new Date(); d.setDate(d.getDate() + 10);
 
-            cust.contactPerson = contactPerson; cust.phone = finalPhone; cust.whatsappNumber = finalWhatsapp;
-            cust.otherNumbers = finalOther; cust.totalAmount = totalPending; cust.aging = agingData;
-            cust.agingLastShifted = new Date(); // Reset shift tracking on import
-
-            await cust.save();
+            // Create a bulk operation for each row
+            bulkOps.push({
+                updateOne: {
+                    filter: { companyName: partyName, adminId: req.session.adminId },
+                    update: {
+                        $set: {
+                            contactPerson: contactPerson,
+                            phone: finalPhone,
+                            whatsappNumber: finalWhatsapp,
+                            otherNumbers: finalOther,
+                            totalAmount: totalPending,
+                            aging: agingData,
+                            agingLastShifted: new Date()
+                        },
+                        $setOnInsert: { nextActionDate: d }
+                    },
+                    upsert: true
+                }
+            });
             importedCount++;
+        }
+
+        // Send all updates to the database at once
+        if (bulkOps.length > 0) {
+            await Customer.bulkWrite(bulkOps);
         }
 
         await logActivity(req, "Excel Import", `Imported ${importedCount} customers from Excel.`);
         res.redirect('/');
-    } catch (err) { res.status(500).send("Import failed."); }
+    } catch (err) {
+        console.error("Import Error:", err);
+        res.status(500).send("Import failed.");
+    }
 });
 
 // --- DUPLICATE CHECK API ---
