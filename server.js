@@ -29,7 +29,7 @@ mongoose.connect(dbURI)
 // --- CONFIGURATION ---
 app.set('view engine', 'ejs');
 app.use(express.static('public', { dotfiles: 'allow' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 100000 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
 app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
@@ -712,17 +712,44 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
 
 app.post('/customers/bulk', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-    const { action, customerIds } = req.body;
+
+    // Accept both JSON (fetch) and urlencoded (form) bodies
+    const body = req.body;
+    const action = body.action;
+
     let ids = [];
-    if (Array.isArray(customerIds)) ids = customerIds;
-    else if (customerIds) ids = [customerIds];
-    if (ids.length === 0) return res.redirect('/');
+    // JSON body sends { customerIds: [...] }
+    if (Array.isArray(body.customerIds)) ids = body.customerIds;
+    else if (body.customerIds) ids = [body.customerIds];
+
+    // "delete-all" action ignores IDs and deletes everything for this admin
     try {
-        if (action === 'delete') {
-            const result = await Customer.deleteMany({ _id: { $in: ids }, adminId: req.session.adminId });
-            await logActivity(req, "Bulk Delete", `Permanently deleted ${result.deletedCount} parties at once.`);
+        if (action === 'delete-all') {
+            const result = await Customer.deleteMany({ adminId: req.session.adminId });
+            await logActivity(req, "Bulk Delete", `Deleted ALL ${result.deletedCount} parties.`);
+        } else if (action === 'delete' && ids.length > 0) {
+            // Process in chunks of 500 to avoid any MongoDB document limit issues
+            let totalDeleted = 0;
+            const chunkSize = 500;
+            for (let i = 0; i < ids.length; i += chunkSize) {
+                const chunk = ids.slice(i, i + chunkSize);
+                const result = await Customer.deleteMany({ _id: { $in: chunk }, adminId: req.session.adminId });
+                totalDeleted += result.deletedCount;
+            }
+            await logActivity(req, "Bulk Delete", `Permanently deleted ${totalDeleted} parties at once.`);
         }
-    } catch (err) { }
+    } catch (err) {
+        console.error('Bulk delete error:', err);
+        // If JSON request, return JSON error
+        if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+    }
+
+    // If JSON request (fetch), return JSON success
+    if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+        return res.json({ success: true });
+    }
     res.redirect('/');
 });
 

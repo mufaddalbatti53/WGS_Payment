@@ -1728,16 +1728,32 @@ function toggleSelectAll() {
 
 function confirmBulkDelete() {
     var selected = [];
-    checkboxes.forEach(function(cb){ if(cb.checked) selected.push(cb); });
-    if (confirm('⚠️ Delete ' + selected.length + ' parties permanently?')) {
-        hiddenInputs.innerHTML = '';
-        selected.forEach(function(cb){
-            var inp = document.createElement('input');
-            inp.type='hidden'; inp.name='customerIds'; inp.value=cb.value;
-            hiddenInputs.appendChild(inp);
-        });
-        document.getElementById('bulkForm').submit();
-    }
+    checkboxes.forEach(function(cb){ if(cb.checked) selected.push(cb.value); });
+    if (selected.length === 0) return;
+    if (!confirm('⚠️ Delete ' + selected.length + ' parties permanently? This cannot be undone.')) return;
+
+    // Use fetch + JSON to avoid form parameterLimit issues with large selections
+    var btn = document.querySelector('.bulk-delete-btn');
+    if (btn) { btn.textContent = '⏳ Deleting...'; btn.disabled = true; }
+
+    fetch('/customers/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', customerIds: selected })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            window.location.reload();
+        } else {
+            alert('Delete failed: ' + (d.error || 'Unknown error'));
+            if (btn) { btn.textContent = '🗑️ Delete All'; btn.disabled = false; }
+        }
+    })
+    .catch(function(err) {
+        alert('Network error during delete. Please try again.');
+        if (btn) { btn.textContent = '🗑️ Delete All'; btn.disabled = false; }
+    });
 }
 
 // ===== MOBILE LAUNCHER =====
