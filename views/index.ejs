@@ -1393,67 +1393,72 @@
                         <% if (role==='admin' ) { %>
                             <div id="viewData" class="section-view">
                                 <h1 class="desktop-only" style="margin-top:0;">🗄️ Data Management</h1>
-
+                        
                                 <div class="floating-card">
-                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup</h3>
-                                    <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database directly to a hidden app folder
-                                        in your Google Drive.</p>
-                                    <div style="display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap;">
-                                
+                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup (WhatsApp Style)</h3>
+                                    <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database directly to a hidden app
+                                        folder in your Google Drive.</p>
+                                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
                                         <% if (adminUser.googleDriveToken) { %>
                                             <button class="btn-secondary"
-                                                style="background: #e6f4ea; color: #1e8e3e; border-color: #ceead6; cursor: default;">
-                                                ✅ Google Drive Linked
-                                            </button>
+                                                style="background: #e6f4ea; color: #1e8e3e; border-color: #ceead6; cursor: default;">✅ Google
+                                                Drive Linked</button>
                                             <% } else { %>
-                                                <a href="/auth/google" class="btn-primary" style="background: #4285F4;">
-                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
-                                                        width="16" style="vertical-align: middle; margin-right: 5px;">
-                                                    Link Google Drive
-                                                </a>
+                                                <a href="/auth/google" class="btn-primary" style="background: #4285F4;"><img
+                                                        src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
+                                                        width="16" style="vertical-align: middle; margin-right: 5px;"> Link Google Drive</a>
                                                 <% } %>
-                                
-                                                    <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58;">☁️ Backup
-                                                        Now</button>
-                                
+                                                    <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58;">☁️
+                                                        Backup Now</button>
                                                     <button onclick="triggerDriveRestore()" class="btn-primary"
                                                         style="background: #eab308; color: #713f12;">🔄 Restore from Cloud</button>
                                     </div>
-                                </div>
-
-                                <div class="floating-card">
-                                    <h3 style="margin-top: 0; font-size: 18px;">Local Export & Backup Options</h3>
-                                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-                                        <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export
-                                            Excel</a>
-                                        <button onclick="downloadPDF()" class="btn-primary"
-                                            style="background: #ef4444;">📄 Export PDF</button>
-                                        <a href="/backup-data-excel" class="btn-primary" style="background: #8e44ad;">📦
-                                            Download JSON Backup</a>
-                                    </div>
-
-                                    <h3
-                                        style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">
-                                        Import & Restore Options</h3>
-                                    <form action="/restore-backup" method="POST" enctype="multipart/form-data"
-                                        onsubmit="return showLoadingBtn(this, 'restoreBtn', '⏳ Restoring Data...')"
-                                        style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fdf4ff; padding: 20px; border-radius: 12px; border: 1px dashed #d8b4e2; margin-bottom: 15px;">
-                                        <strong style="font-size: 14px; color: #8e44ad;">Restore JSON Backup:</strong>
-                                        <input type="file" name="backupFile" accept=".json" required
-                                            style="font-size: 14px; flex: 1;">
-                                        <button type="submit" id="restoreBtn" class="btn-primary"
-                                            style="background: #9b59b6;">🔄 Restore Database</button>
+                        
+                                    <h3 style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">🤖 Automated
+                                        Background Backup</h3>
+                                    <form action="/settings/auto-backup?_method=PUT" method="POST"
+                                        style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                        <div style="flex: 1; min-width: 200px;">
+                                            <label class="trans-label" style="color: #15803d; margin-bottom: 2px;">Auto-Backup Every X
+                                                Days</label>
+                                            <p style="font-size: 11px; color: #166534; margin: 0;">Set to <b>0</b> to disable. (Requires Drive
+                                                to be linked).</p>
+                                        </div>
+                                        <input type="number" name="autoBackupInterval" value="<%= adminUser.autoBackupInterval || 0 %>" min="0"
+                                            max="365" class="input-style" style="margin-bottom: 0; width: 100px;">
+                                        <button type="submit" class="btn-primary" style="background: #15803d; margin: 0;">💾 Save
+                                            Automation</button>
                                     </form>
-
+                                </div>
+                        
+                                <div class="floating-card">
+                                    <h3 style="margin-top: 0; font-size: 18px;">Local Export Options</h3>
+                                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                                        <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export Excel</a>
+                                        <button onclick="downloadPDF()" class="btn-primary" style="background: #ef4444;">📄 Export PDF</button>
+                                        <a href="/backup-data-excel" class="btn-primary" style="background: #8e44ad;">📦 Download JSON
+                                            Backup</a>
+                                    </div>
+                        
+                                    <h3 style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">Import
+                                        Tally/Busy Excel</h3>
                                     <form action="/import" method="POST" enctype="multipart/form-data"
                                         onsubmit="return showLoadingBtn(this, 'importBtn', '⏳ Importing...')"
                                         style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
-                                        <strong style="font-size: 14px; color: var(--secondary-dark);">Upload Tally/Busy
-                                            Excel:</strong>
+                                        <strong style="font-size: 14px; color: var(--secondary-dark);">Upload File:</strong>
                                         <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required
                                             style="font-size: 14px; flex: 1;">
-                                        <button type="submit" id="importBtn" class="btn-primary"
-                                            style="background: var(--secondary);">📤 Import Excel</button>
+                                        <button type="submit" id="importBtn" class="btn-primary" style="background: var(--secondary);">📤 Import
+                                            Excel</button>
+                                    </form>
+                        
+                                    <form action="/restore-backup" method="POST" enctype="multipart/form-data"
+                                        onsubmit="return showLoadingBtn(this, 'restoreBtn', '⏳ Restoring Data...')"
+                                        style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fdf4ff; padding: 15px; border-radius: 12px; border: 1px dashed #d8b4e2; margin-top: 15px;">
+                                        <strong style="font-size: 13px; color: #8e44ad;">Manual JSON Restore:</strong>
+                                        <input type="file" name="backupFile" accept=".json" required style="font-size: 13px; flex: 1;">
+                                        <button type="submit" id="restoreBtn" class="btn-primary"
+                                            style="background: #9b59b6; padding: 8px 15px;">🔄 Local Restore</button>
                                     </form>
                                 </div>
                             </div>
@@ -1600,17 +1605,6 @@
                     </div>
                     <label class="trans-label">UPI ID</label><input type="text" name="upiDetails"
                         value="<%= adminUser.upiDetails || '' %>" class="input-style">
-                    <h4
-                        style="margin-bottom: 10px; font-size: 14px; color: var(--secondary-dark); border-top:1px solid #ccc; padding-top:10px;">
-                        ☁️ Automation</h4>
-                    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bbf7d0;">
-                        <label class="trans-label" style="color: #15803d;">Auto-Backup to Google Drive Every X Days</label>
-                        <p style="font-size: 11px; color: #166534; margin-top: 0; margin-bottom: 10px;">Set to <b>0</b> to disable automatic
-                            backups. (Requires Drive to be Linked first).</p>
-                        <input type="number" name="autoBackupInterval" value="<%= adminUser.autoBackupInterval || 0 %>" min="0" max="365"
-                            class="input-style" style="margin-bottom: 0;">
-                    </div>
-                    
                     <button type="submit" class="btn-primary" style="width:100%;">💾 Save Profile & Settings</button>
                 </form>
             </div>

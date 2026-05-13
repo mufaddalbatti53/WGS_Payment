@@ -90,11 +90,17 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // 1. Route to start Google Drive Connection
+// 1. Route to start Google Drive Connection
 app.get('/auth/google', requireLogin, (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline',
-        scope: ['https://www.googleapis.com/auth/drive.file'] // Only gives access to files created by this app
+        // We MUST ask Google for the hidden appDataFolder permission here:
+        scope: [
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/drive.appdata'
+        ],
+        prompt: 'consent' // Forces Google to give us a fresh refresh token
     });
     res.redirect(url);
 });
@@ -542,12 +548,23 @@ app.put('/settings', requireLogin, async (req, res) => {
         contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
         bankName: req.body.bankName, accountName: req.body.accountName,
         accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails,
-        autoBackupInterval: Number(req.body.autoBackupInterval) || 0 // <-- Added this line
     });
     await logActivity(req, "Company Profile", "Updated company profile and settings.");
     res.redirect('/?msg=party_edited');
 });
-
+// --- SAVE AUTO-BACKUP SETTINGS ---
+app.put('/settings/auto-backup', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+    try {
+        await User.findByIdAndUpdate(req.session.adminId, {
+            autoBackupInterval: Number(req.body.autoBackupInterval) || 0
+        });
+        await logActivity(req, "Automation Updated", `Set Google Drive auto-backup interval to ${req.body.autoBackupInterval} days.`);
+        res.redirect('/?msg=auto_backup_saved');
+    } catch (err) {
+        res.status(500).send("Failed to save settings.");
+    }
+});
 app.get('/register', (req, res) => { res.render('register'); });
 app.post('/register', async (req, res) => {
     try {
