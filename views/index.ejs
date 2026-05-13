@@ -1756,29 +1756,6 @@
                     });
                 }
     (function () {
-        var params = new URLSearchParams(window.location.search);
-
-        // Catch Google Drive Success
-        if (params.get('driveConnected') === 'true') {
-            alert("✅ Google Drive linked successfully! You can now click 'Backup Now'.");
-            window.history.replaceState({}, document.title, '/'); // Remove from URL
-        }
-
-        // Catch Duplicate Warning
-        if (params.get('dup') === '1') {
-            var warn = document.getElementById('dupWarning');
-            if (warn) { document.getElementById('dupWarningText').innerText = '⚠️ Duplicate Blocked: "' + decodeURIComponent(params.get('dupname') || '') + '" already exists.'; warn.style.display = 'flex'; }
-            window.history.replaceState({}, document.title, '/'); // Remove from URL
-        }
-
-        // Restore the tab the user was last on!
-        var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
-        if (!isMobile) {
-            switchTab(savedTab);
-        } else if (savedTab && savedTab !== 'home') {
-            openMobileSection(savedTab);
-        }
-    })();
                 // --- BULK SELECTION ---
                 function toggleSelectAll() {
                     var cb = document.getElementById('selectAll');
@@ -1837,23 +1814,6 @@
                 var addPhoneInput = document.getElementById('addPhone');
                 if (addNameInput) addNameInput.addEventListener('input', checkDuplicate);
                 if (addPhoneInput) addPhoneInput.addEventListener('input', checkDuplicate);
-
-                // --- PDF EXPORT ---
-                function downloadPDF() {
-                    var el = document.createElement('div');
-                    var d = new Date().toLocaleDateString('en-IN');
-                    var html = '<h1 style="text-align:center;color:#1e293b;">Financial Report</h1>';
-                    html += '<h3 style="text-align:center;color:#64748b;">Generated: ' + d + '</h3>';
-                    html += document.getElementById('pdfExportArea').outerHTML;
-                    html += document.querySelector('table').outerHTML;
-                    el.innerHTML = html;
-
-                    var hideNodes = el.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
-                    hideNodes.forEach(n => n.style.display = 'none');
-
-                    var opt = { margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } };
-                    html2pdf().set(opt).from(el).save();
-                }
 
                 // --- WHATSAPP / SMS / EMAIL LOGIC ---
                 function sendMsg(element, type) {
@@ -1946,26 +1906,26 @@
 
                 // Initialization
                 (function () {
-                    if (!isMobile) switchTab('aging');
                     var params = new URLSearchParams(window.location.search);
+
+                    if (params.get('driveConnected') === 'true') {
+                        alert("✅ Google Drive linked successfully! You can now click 'Backup Now'.");
+                        window.history.replaceState({}, document.title, '/');
+                    }
+
                     if (params.get('dup') === '1') {
                         var warn = document.getElementById('dupWarning');
                         if (warn) { document.getElementById('dupWarningText').innerText = '⚠️ Duplicate Blocked: "' + decodeURIComponent(params.get('dupname') || '') + '" already exists.'; warn.style.display = 'flex'; }
                         window.history.replaceState({}, document.title, '/');
                     }
-                })();
-    // 1. IMMEDIATE TAB RESTORATION
-                    const savedTab = localStorage.getItem('activeWgsTab') || 'aging';
-                    if (!isMobile) {switchTab(savedTab); }
-                    else if (savedTab !== 'home') {openMobileSection(savedTab); }
 
-                    function switchTab(tabId) {
-                        localStorage.setItem('activeWgsTab', tabId);
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                    document.getElementById('nav-' + tabId)?.classList.add('active');
-        document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-                    document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1))?.classList.add('active');
-    }
+                    var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
+                    if (!isMobile) {
+                        switchTab(savedTab);
+                    } else if (savedTab && savedTab !== 'home') {
+                        openMobileSection(savedTab);
+                    }
+                })();
 
                     // 2. PROFESSIONAL TALLY-STYLE PDF EXPORT
                     function downloadPDF() {
