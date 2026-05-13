@@ -1,7 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
-const MongoStore = require('connect-mongo'); // Add this line
+const connectMongo = require('connect-mongo');
+const MongoStore = connectMongo.default || connectMongo;
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
 
