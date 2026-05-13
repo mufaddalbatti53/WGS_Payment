@@ -17,7 +17,13 @@ const userSchema = new mongoose.Schema({
     msmeNo: { type: String },
     contactNo: { type: String },
     companyEmail: { type: String },
+    // ☁️ Add this line right here!
+    googleDriveToken: { type: Object },
+    autoBackupInterval: { type: Number, default: 0 }, // 0 means disabled
+    lastAutoBackupDate: { type: Date },
 
+    // 🏦 Bank & UPI Details (Optional)
+    bankName: { type: String },
     // 🏦 Bank & UPI Details (Optional)
     bankName: { type: String },
     accountName: { type: String },

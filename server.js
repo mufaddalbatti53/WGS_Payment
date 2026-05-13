@@ -24,7 +24,9 @@ mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ DB Connected Successfully");
         shiftAgingBuckets();
+        runAutoBackups(); // Run on startup
         setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
+        setInterval(runAutoBackups, 24 * 60 * 60 * 1000); // Check for backups every 24 hours
     })
     .catch(err => console.log("❌ DB Connection Error: ", err));
 
@@ -145,7 +147,55 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
         res.status(500).json({ success: false, message: "Drive Backup Failed" });
     }
 });
-// ========================================================
+// 4. The "WhatsApp Style" Silent Restore Route
+app.get('/drive-restore', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+    try {
+        const adminUser = await User.findById(req.session.adminId).lean();
+        if (!adminUser.googleDriveToken) {
+            return res.status(400).json({ success: false, message: "Google Drive not linked." });
+        }
+
+        oauth2Client.setCredentials(adminUser.googleDriveToken);
+        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+        // 1. Find the latest backup file in the hidden folder
+        const response = await drive.files.list({
+            spaces: 'appDataFolder',
+            fields: 'files(id, name, createdTime)',
+            orderBy: 'createdTime desc',
+            pageSize: 1
+        });
+
+        if (!response.data.files || response.data.files.length === 0) {
+            return res.json({ success: false, message: "No backup found in Google Drive." });
+        }
+
+        // 2. Download the file content
+        const latestFileId = response.data.files[0].id;
+        const file = await drive.files.get({ fileId: latestFileId, alt: 'media' });
+        const backup = file.data;
+
+        if (!backup || !backup.customers) {
+            return res.json({ success: false, message: "Backup file is invalid or empty." });
+        }
+
+        // 3. Restore the data (Overwrite current parties with backup)
+        const adminId = req.session.adminId;
+        if (Array.isArray(backup.customers)) {
+            await Customer.deleteMany({ adminId });
+            const toInsert = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
+            if (toInsert.length > 0) await Customer.insertMany(toInsert, { ordered: false });
+        }
+
+        await logActivity(req, 'Cloud Restored', `Restored data from Google Drive backup.`);
+        res.json({ success: true, message: "Database successfully restored from Google Drive!" });
+
+    } catch (err) {
+        console.error("Drive Restore Error:", err);
+        res.status(500).json({ success: false, message: "Failed to pull from Google Drive. Please try again." });
+    }
+});
 // AGING BUCKET AUTO-SHIFT
 // Every 30 days amounts move: under30 -> 30_60 -> 60_90...
 // Tracked per customer via agingLastShifted field
@@ -218,7 +268,57 @@ async function shiftAgingBuckets() {
         console.error("Aging shift error:", err.message);
     }
 }
+// ========================================================
+// GOOGLE DRIVE AUTO-BACKUP ENGINE
+// Runs daily to check if an admin is due for a backup
+// ========================================================
+async function runAutoBackups() {
+    try {
+        console.log("Checking for scheduled Auto-Backups...");
+        // Find all admins who have auto-backup turned on (interval > 0)
+        const admins = await User.find({ role: 'admin', autoBackupInterval: { $gt: 0 } });
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
+        for (const admin of admins) {
+            if (!admin.googleDriveToken) continue; // Skip if they never linked their drive
+
+            // Check how many days since their last backup
+            const lastBackup = admin.lastAutoBackupDate ? new Date(admin.lastAutoBackupDate) : new Date(0);
+            lastBackup.setHours(0, 0, 0, 0);
+            const daysSinceBackup = Math.floor((today - lastBackup) / (1000 * 60 * 60 * 24));
+
+            // If enough days have passed, trigger the silent backup!
+            if (daysSinceBackup >= admin.autoBackupInterval) {
+                try {
+                    oauth2Client.setCredentials(admin.googleDriveToken);
+                    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+                    const customers = await Customer.find({ adminId: admin._id }).lean();
+                    const backupData = JSON.stringify({ customers: customers, timestamp: new Date() });
+
+                    await drive.files.create({
+                        resource: {
+                            name: `WGS_AutoBackup_${new Date().toISOString().slice(0, 10)}.json`,
+                            parents: ['appDataFolder']
+                        },
+                        media: { mimeType: 'application/json', body: backupData },
+                        fields: 'id'
+                    });
+
+                    // Update their last backup date so it resets the timer
+                    admin.lastAutoBackupDate = new Date();
+                    await admin.save();
+                    console.log(`✅ Auto-backup successful for: ${admin.companyName || admin.username}`);
+                } catch (err) {
+                    console.error(`❌ Auto-backup failed for ${admin.username}:`, err.message);
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Auto-backup job error:", err.message);
+    }
+}
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
     if (req.session.userId) return res.redirect('/');
@@ -441,10 +541,11 @@ app.put('/settings', requireLogin, async (req, res) => {
         addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo,
         contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
         bankName: req.body.bankName, accountName: req.body.accountName,
-        accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails
+        accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails,
+        autoBackupInterval: Number(req.body.autoBackupInterval) || 0 // <-- Added this line
     });
-    await logActivity(req, "Company Profile", "Updated company profile and bank details.");
-    res.redirect('/');
+    await logActivity(req, "Company Profile", "Updated company profile and settings.");
+    res.redirect('/?msg=party_edited');
 });
 
 app.get('/register', (req, res) => { res.render('register'); });

@@ -1415,6 +1415,9 @@
                                 
                                                     <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58;">☁️ Backup
                                                         Now</button>
+                                
+                                                    <button onclick="triggerDriveRestore()" class="btn-primary"
+                                                        style="background: #eab308; color: #713f12;">🔄 Restore from Cloud</button>
                                     </div>
                                 </div>
 
@@ -1597,7 +1600,18 @@
                     </div>
                     <label class="trans-label">UPI ID</label><input type="text" name="upiDetails"
                         value="<%= adminUser.upiDetails || '' %>" class="input-style">
-                    <button type="submit" class="btn-primary" style="width:100%;">💾 Save Profile</button>
+                    <h4
+                        style="margin-bottom: 10px; font-size: 14px; color: var(--secondary-dark); border-top:1px solid #ccc; padding-top:10px;">
+                        ☁️ Automation</h4>
+                    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bbf7d0;">
+                        <label class="trans-label" style="color: #15803d;">Auto-Backup to Google Drive Every X Days</label>
+                        <p style="font-size: 11px; color: #166534; margin-top: 0; margin-bottom: 10px;">Set to <b>0</b> to disable automatic
+                            backups. (Requires Drive to be Linked first).</p>
+                        <input type="number" name="autoBackupInterval" value="<%= adminUser.autoBackupInterval || 0 %>" min="0" max="365"
+                            class="input-style" style="margin-bottom: 0;">
+                    </div>
+                    
+                    <button type="submit" class="btn-primary" style="width:100%;">💾 Save Profile & Settings</button>
                 </form>
             </div>
         </div>
@@ -1905,7 +1919,21 @@
                             else alert("❌ Backup failed. Did you Link your Google Drive first?");
                         }).catch(e => alert("Error communicating with server."));
                 }
-
+    function triggerDriveRestore() {
+        if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
+            showToast("⏳ Downloading backup from Google Drive...");
+            fetch('/drive-restore')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("✅ " + data.message);
+                        window.location.reload(); // Refresh the page to show the restored data!
+                    } else {
+                        alert("❌ " + data.message);
+                    }
+                }).catch(e => alert("Error communicating with server."));
+        }
+    }
                 function showLoadingBtn(form, btnId, loadingText) {
                     var btn = document.getElementById(btnId);
                     if (btn) { btn.innerHTML = loadingText; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
