@@ -167,6 +167,7 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
 });
 
 // 4. The "WhatsApp Style" Silent Restore Route
+// 4. The "WhatsApp Style" Silent Restore Route
 app.get('/drive-restore', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
@@ -178,8 +179,11 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
         oauth2Client.setCredentials(adminUser.googleDriveToken);
         const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
+        // 🚀 UPGRADE: Search BOTH the hidden appData folder AND the main drive!
+        // We also specifically filter for files containing "WGS_" so we don't accidentally grab a random JSON file.
         const response = await drive.files.list({
-            spaces: 'appDataFolder',
+            spaces: 'appDataFolder, drive',
+            q: "name contains 'WGS_'",
             fields: 'files(id, name, createdTime)',
             orderBy: 'createdTime desc',
             pageSize: 1
@@ -189,6 +193,7 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "No backup found in Google Drive." });
         }
 
+        // 2. Download the file content
         const latestFileId = response.data.files[0].id;
         const file = await drive.files.get({ fileId: latestFileId, alt: 'media' });
         const backup = file.data;
@@ -197,6 +202,7 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "Backup file is invalid or empty." });
         }
 
+        // 3. Restore the data (Overwrite current parties with backup)
         const adminId = req.session.adminId;
         if (Array.isArray(backup.customers)) {
             await Customer.deleteMany({ adminId });
