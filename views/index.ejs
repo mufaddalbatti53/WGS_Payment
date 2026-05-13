@@ -1395,17 +1395,26 @@
                                 <h1 class="desktop-only" style="margin-top:0;">🗄️ Data Management</h1>
 
                                 <div class="floating-card">
-                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup (WhatsApp Style)</h3>
-                                    <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database
-                                        directly to a hidden app folder in your Google Drive.</p>
+                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup</h3>
+                                    <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database directly to a hidden app folder
+                                        in your Google Drive.</p>
                                     <div style="display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap;">
-                                        <a href="/auth/google" class="btn-primary" style="background: #4285F4;">
-                                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
-                                                width="16" style="vertical-align: middle; margin-right: 5px;">
-                                            Link Google Drive
-                                        </a>
-                                        <button onclick="triggerDriveBackup()" class="btn-primary"
-                                            style="background: #0f9d58;">☁️ Backup Now</button>
+                                
+                                        <% if (adminUser.googleDriveToken) { %>
+                                            <button class="btn-secondary"
+                                                style="background: #e6f4ea; color: #1e8e3e; border-color: #ceead6; cursor: default;">
+                                                ✅ Google Drive Linked
+                                            </button>
+                                            <% } else { %>
+                                                <a href="/auth/google" class="btn-primary" style="background: #4285F4;">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
+                                                        width="16" style="vertical-align: middle; margin-right: 5px;">
+                                                    Link Google Drive
+                                                </a>
+                                                <% } %>
+                                
+                                                    <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58;">☁️ Backup
+                                                        Now</button>
                                     </div>
                                 </div>
 
@@ -1610,7 +1619,9 @@
                 var mobileHistory = [];
 
                 // --- NAVIGATION LOGIC ---
+               // --- NAVIGATION LOGIC WITH MEMORY ---
                 function switchTab(tabId) {
+                    localStorage.setItem('activeWgsTab', tabId); // Save state!
                     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
                     var nav = document.getElementById('nav-' + tabId); if (nav) nav.classList.add('active');
                     document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
@@ -1619,6 +1630,7 @@
 
                 function openMobileSection(sectionId, fromSection) {
                     if (!isMobile) return;
+                    localStorage.setItem('activeWgsTab', sectionId); // Save state!
                     if (fromSection) mobileHistory.push(fromSection); else mobileHistory = ['home'];
                     document.getElementById('homeLauncher').style.display = 'none';
                     document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
@@ -1636,6 +1648,7 @@
                     var lastStop = mobileHistory.pop();
                     if (lastStop === 'aging') { openMobileSection('aging'); mobileHistory = ['home']; }
                     else {
+                        localStorage.removeItem('activeWgsTab'); // Clear state to show home launcher
                         document.getElementById('homeLauncher').style.display = 'block';
                         document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
                         document.getElementById('backBtn').style.display = 'none';
@@ -1643,7 +1656,6 @@
                         clearFilter();
                     }
                 }
-
                 // --- MODAL TRIGGERS ---
                 function openEditModal(id, comp, cont, ph, wa, em, tot, paid, oth) {
                     document.getElementById('editComp').value = comp; document.getElementById('editCont').value = cont;
@@ -1725,7 +1737,30 @@
                         if (isVis) row.classList.remove('d-none'); else row.classList.add('d-none');
                     });
                 }
+    (function () {
+        var params = new URLSearchParams(window.location.search);
 
+        // Catch Google Drive Success
+        if (params.get('driveConnected') === 'true') {
+            alert("✅ Google Drive linked successfully! You can now click 'Backup Now'.");
+            window.history.replaceState({}, document.title, '/'); // Remove from URL
+        }
+
+        // Catch Duplicate Warning
+        if (params.get('dup') === '1') {
+            var warn = document.getElementById('dupWarning');
+            if (warn) { document.getElementById('dupWarningText').innerText = '⚠️ Duplicate Blocked: "' + decodeURIComponent(params.get('dupname') || '') + '" already exists.'; warn.style.display = 'flex'; }
+            window.history.replaceState({}, document.title, '/'); // Remove from URL
+        }
+
+        // Restore the tab the user was last on!
+        var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
+        if (!isMobile) {
+            switchTab(savedTab);
+        } else if (savedTab && savedTab !== 'home') {
+            openMobileSection(savedTab);
+        }
+    })();
                 // --- BULK SELECTION ---
                 function toggleSelectAll() {
                     var cb = document.getElementById('selectAll');

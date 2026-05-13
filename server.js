@@ -628,19 +628,18 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
 
             const totalPending = cleanMoney(row[3]); // Column D (Pending Bills Debit)
 
-            // CORRECTED MAPPING: Tally exports have "Debit" and "Credit" sub-columns for every bucket.
-            // This means the data is spaced out by 2 columns (index 5, 7, 9, 11, etc.)
+            // CORRECTED MAPPING: Tally exports space columns by 2 (Debit/Credit).
+            // Since your Excel merges 120-180 into one column, everything shifts!
             const agingData = {
-                under30: cleanMoney(row[5]),       // < 30 days (Debit)
-                days30to60: cleanMoney(row[7]),    // 30 to 60 days (Debit)
-                days60to90: cleanMoney(row[9]),    // 60 to 90 days (Debit)
-                days90to120: cleanMoney(row[11]),  // 90 to 120 days (Debit)
-                days120to150: cleanMoney(row[13]), // 120 to 150 days (Debit)
-                days150to180: cleanMoney(row[15]), // 150 to 180 days (Debit)
-                above180: cleanMoney(row[17]),     // > 180 days (Debit)
-                onAccount: cleanMoney(row[19])     // On Account (Debit)
+                under30: cleanMoney(row[5]),       // < 30 days
+                days30to60: cleanMoney(row[7]),    // 30 to 60 days
+                days60to90: cleanMoney(row[9]),    // 60 to 90 days
+                days90to120: cleanMoney(row[11]),  // 90 to 120 days
+                days120to150: cleanMoney(row[13]), // Your Excel's "120 to 180" goes here
+                days150to180: 0,                   // Leave zero! Your Excel skipped this column.
+                above180: cleanMoney(row[15]),     // Your Excel's "> 180 days" is actually located here!
+                onAccount: cleanMoney(row[17])     // On Account
             };
-
             let nextAction = new Date();
             nextAction.setDate(nextAction.getDate() + 10);
 
