@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
+const MongoStore = require('connect-mongo'); // Add this line
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
 
@@ -32,7 +33,20 @@ app.use(express.static('public', { dotfiles: 'allow' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 100000 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
-app.use(session({ secret: 'secretKey', resave: false, saveUninitialized: false }));
+app.use(session({
+    secret: 'secretkey', // Keep whatever secret you already have here
+    resave: false,
+    saveUninitialized: false,
+    // Add the store configuration below:
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin', // Use your actual MongoDB connection string variable
+        collectionName: 'sessions', // This will create a new collection in your DB called 'sessions'
+        autoRemove: 'native' // Automatically deletes expired sessions
+    }),
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24 // Sets session to expire in 1 day (optional)
+    }
+}));
 
 const requireLogin = (req, res, next) => {
     if (!req.session.userId) return res.redirect('/login');
@@ -63,7 +77,73 @@ async function logActivity(req, action, details) {
         console.error("Activity Log Error:", err.message);
     }
 }
+const { google } = require('googleapis');
 
+// Replace with your keys from Step 1
+const oauth2Client = new google.auth.OAuth2(
+    '636131280622-8ptviiun9hnh3538urpjfhio536as2fi.apps.googleusercontent.com',
+    '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',
+    'https://wgs-payment.onrender.com/auth/google/callback' // Update for production
+);
+
+// 1. Route to start Google Drive Connection
+app.get('/auth/google', requireLogin, (req, res) => {
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+    const url = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: ['https://www.googleapis.com/auth/drive.file'] // Only gives access to files created by this app
+    });
+    res.redirect(url);
+});
+
+// 2. Google Callback (Saves the token)
+app.get('/auth/google/callback', requireLogin, async (req, res) => {
+    const { code } = req.query;
+    const { tokens } = await oauth2Client.getToken(code);
+
+    // Save this token to your User database so they don't have to login every time
+    await User.findByIdAndUpdate(req.session.adminId, { googleDriveToken: tokens });
+    res.redirect('/?driveConnected=true');
+});
+
+// 3. The "WhatsApp Style" Silent Backup Route
+app.get('/drive-backup', requireLogin, async (req, res) => {
+    try {
+        const adminUser = await User.findById(req.session.adminId).lean();
+        if (!adminUser.googleDriveToken) {
+            return res.status(400).send("Google Drive not linked.");
+        }
+
+        oauth2Client.setCredentials(adminUser.googleDriveToken);
+        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+        // Gather all the data
+        const customers = await Customer.find({ adminId: req.session.adminId }).lean();
+        const backupData = JSON.stringify({ customers: customers, timestamp: new Date() });
+
+        // Upload directly to Google Drive
+        const fileMetadata = {
+            name: `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`,
+            parents: ['appDataFolder'] // This hides the file from the user's main drive, just like WhatsApp!
+        };
+        const media = {
+            mimeType: 'application/json',
+            body: backupData
+        };
+
+        await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: 'id'
+        });
+
+        res.json({ success: true, message: "Backed up to Google Drive successfully!" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: "Drive Backup Failed" });
+    }
+});
 // ========================================================
 // AGING BUCKET AUTO-SHIFT
 // Every 30 days amounts move: under30 -> 30_60 -> 60_90...

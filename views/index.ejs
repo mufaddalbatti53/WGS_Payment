@@ -7,6 +7,7 @@
     <title>Payment Manager</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2c3e50">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary: #27ae60;
@@ -118,7 +119,7 @@
             max-width: 100%;
         }
 
-        /* Hide Desktop Elements on Mobile */
+        /* --- MOBILE LAYOUT --- */
         @media (max-width: 850px) {
             .sidebar {
                 display: none;
@@ -132,353 +133,14 @@
             .desktop-only {
                 display: none !important;
             }
-        }
-
-        @media (min-width: 851px) {
-            .mobile-only {
-                display: none !important;
-            }
-
-            /* On desktop, hide home launcher completely */
-            .home-launcher {
-                display: none !important;
-            }
-
-            .back-to-launcher {
-                display: none !important;
-            }
 
             .section-view {
                 display: none;
             }
 
-            .section-view.active {
+            .home-launcher {
                 display: block;
             }
-        }
-
-        /* --- SHARED UI COMPONENTS --- */
-        .floating-card {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: var(--shadow-soft);
-            margin-bottom: 25px;
-            border: 1px solid rgba(44, 62, 80, 0.05);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: var(--shadow-btn);
-            text-decoration: none;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
-        }
-
-        .btn-secondary {
-            background: #f0f7ff;
-            color: var(--secondary-dark);
-            border: 1px solid #bae6fd;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            display: inline-block;
-        }
-
-        .btn-secondary:hover {
-            background: #e0f2fe;
-        }
-
-        /* --- DASHBOARD STATS & AGING --- */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: var(--shadow-soft);
-            text-align: center;
-            border: 1px solid rgba(44, 62, 80, 0.05);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--secondary), var(--primary));
-        }
-
-        .stat-card.alert::before {
-            background: #ef4444;
-        }
-
-        .stat-card.warning::before {
-            background: var(--secondary-dark);
-        }
-
-        .stat-title {
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 700;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--text-dark);
-        }
-
-        .aging-row {
-            margin-bottom: 16px;
-        }
-
-        .aging-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-        }
-
-        .progress-bg {
-            background: #f1f5f9;
-            height: 10px;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            background: linear-gradient(90deg, #2ecc71, var(--primary));
-            height: 100%;
-            border-radius: 10px;
-            transition: width 1s ease;
-        }
-
-        .fill-warning {
-            background: linear-gradient(90deg, #f39c12, #d68910);
-        }
-
-        .fill-danger {
-            background: linear-gradient(90deg, #ef4444, #c0392b);
-        }
-
-        .aging-clickable {
-            cursor: pointer;
-            border-radius: 10px;
-            transition: all 0.2s ease;
-            padding: 6px 8px;
-            margin: 0 -8px;
-        }
-
-        .aging-clickable:hover {
-            background: #f0f7ff;
-            transform: translateX(3px);
-        }
-
-        .aging-clickable.active-bucket {
-            background: #dbeafe;
-            border-left: 3px solid #3b82f6;
-            padding-left: 12px;
-        }
-
-        .bucket-count {
-            display: inline-block;
-            background: #e0f2fe;
-            color: #0369a1;
-            font-size: 11px;
-            font-weight: 700;
-            border-radius: 20px;
-            padding: 2px 8px;
-            margin-left: 6px;
-        }
-
-        /* --- TABLE STYLES --- */
-        .table-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .search-micro {
-            padding: 10px 20px;
-            font-size: 15px;
-            border: 1px solid #cbd5e1;
-            border-radius: 25px;
-            outline: none;
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .search-micro:focus {
-            border-color: var(--secondary);
-            box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 14px;
-        }
-
-        th {
-            background: #f8fafc;
-            padding: 15px 10px;
-            text-align: left;
-            text-transform: uppercase;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        th:first-child {
-            border-top-left-radius: 12px;
-            border-bottom-left-radius: 12px;
-        }
-
-        th:last-child {
-            border-top-right-radius: 12px;
-            border-bottom-right-radius: 12px;
-        }
-
-        td {
-            padding: 15px 10px;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tr.customer-row.d-none {
-            display: none !important;
-        }
-
-        /* --- MODALS & EXTRAS --- */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background: white;
-            margin: 10vh auto;
-            padding: 30px;
-            border-radius: 24px;
-            width: 90%;
-            max-width: 450px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        .close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 28px;
-            cursor: pointer;
-            color: #94a3b8;
-        }
-
-        .input-style {
-            padding: 12px 15px;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            width: 100%;
-            margin-bottom: 15px;
-            background: #f8fafc;
-            outline: none;
-        }
-
-        .input-style:focus {
-            border-color: var(--secondary);
-            background: white;
-        }
-
-        .trans-label {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-muted);
-            display: block;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-
-        .bulk-action-bar {
-            position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--text-dark);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            z-index: 1000;
-            transition: bottom 0.4s;
-        }
-
-        .bulk-action-bar.visible {
-            bottom: 30px;
-        }
-
-        .checkbox-custom {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--primary);
-            cursor: pointer;
-        }
-
-        /* --- MOBILE SPECIFIC STYLES --- */
-        @media screen and (max-width: 850px) {
-            .section-view {
-                display: none;
-            }
-
-            /* Hide sections by default on mobile */
 
             .home-header-card {
                 background: linear-gradient(135deg, #2c3e50, #3498db);
@@ -609,6 +271,7 @@
             .m-tools {
                 display: flex;
                 gap: 10px;
+                flex-wrap: wrap;
             }
 
             .m-tool-btn {
@@ -623,22 +286,78 @@
             .m-circles {
                 display: flex;
                 justify-content: flex-end;
-                gap: 15px;
+                gap: 10px;
                 margin-bottom: 15px;
+                width: 100%;
             }
 
             .m-circle {
-                width: 42px;
-                height: 42px;
+                width: 40px;
+                height: 40px;
                 border-radius: 50%;
                 background: #f8fafc;
                 border: 1px solid #cbd5e1;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 18px;
+                font-size: 16px;
                 text-decoration: none;
             }
+        }
+
+        @media (min-width: 851px) {
+
+            .mobile-only,
+            .home-launcher,
+            .back-to-launcher {
+                display: none !important;
+            }
+
+            .section-view {
+                display: none;
+            }
+
+            .section-view.active {
+                display: block;
+            }
+        }
+
+        /* --- SHARED UI COMPONENTS --- */
+        .floating-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 25px;
+            border: 1px solid rgba(44, 62, 80, 0.05);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: var(--shadow-btn);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .btn-secondary {
+            background: #f0f7ff;
+            color: var(--secondary-dark);
+            border: 1px solid #bae6fd;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-block;
         }
 
         .btn-table {
@@ -657,6 +376,305 @@
         .btn-table:hover {
             border-color: var(--secondary);
             color: var(--secondary);
+        }
+
+        /* --- STATS & AGING --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-soft);
+            text-align: center;
+            border: 1px solid rgba(44, 62, 80, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+        }
+
+        .stat-card.alert::before {
+            background: #ef4444;
+        }
+
+        .stat-card.warning::before {
+            background: var(--secondary-dark);
+        }
+
+        .stat-title {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-dark);
+        }
+
+        .aging-row {
+            margin-bottom: 16px;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            padding: 6px 8px;
+            margin: 0 -8px;
+        }
+
+        .aging-row:hover {
+            background: #f0f7ff;
+            transform: translateX(3px);
+        }
+
+        .aging-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .progress-bg {
+            background: #f1f5f9;
+            height: 10px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #2ecc71, var(--primary));
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s ease;
+        }
+
+        .fill-warning {
+            background: linear-gradient(90deg, #f39c12, #d68910);
+        }
+
+        .fill-danger {
+            background: linear-gradient(90deg, #ef4444, #c0392b);
+        }
+
+        .bucket-count {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 20px;
+            padding: 2px 8px;
+            margin-left: 6px;
+        }
+
+        /* --- TABLE STYLES & FILTERS --- */
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .search-micro {
+            padding: 10px 20px;
+            font-size: 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 25px;
+            outline: none;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-panel {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #cbd5e1;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8fafc;
+            padding: 15px 10px;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr.customer-row.d-none {
+            display: none !important;
+        }
+
+        /* --- MODALS & ALERTS --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5vh auto;
+            padding: 30px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+
+        .input-style {
+            padding: 12px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            width: 100%;
+            margin-bottom: 15px;
+            background: #f8fafc;
+            outline: none;
+        }
+
+        .trans-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .dup-warning {
+            background: #fff3cd;
+            border: 2px solid #f59e0b;
+            border-radius: 16px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            color: #92400e;
+        }
+
+        .dup-alert {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #b91c1c;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .dup-alert.show {
+            display: block;
+        }
+
+        .req-badge {
+            background: #fee2e2;
+            color: #ef4444;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        /* --- BULK ACTION BAR --- */
+        .bulk-action-bar {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text-dark);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 1000;
+            transition: bottom 0.4s;
+        }
+
+        .bulk-action-bar.visible {
+            bottom: 30px;
+        }
+
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+            cursor: pointer;
         }
     </style>
 </head>
@@ -696,434 +714,738 @@
 
         <main class="main-content">
 
-            <% if (role !=='customer' ) { %>
-                <div class="home-launcher" id="homeLauncher">
-                    <div class="home-header-card">
-                        <div class="home-avatar">
-                            <%= (adminUser.companyName || role).charAt(0).toUpperCase() %>
-                        </div>
-                        <div>
-                            <h2 style="margin:0; font-size:22px; font-weight:800;">Hello, <%=
-                                    role.charAt(0).toUpperCase() + role.slice(1) %>
-                            </h2>
-                            <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">
-                                <%= adminUser.companyName || 'WGS Payment Manager' %>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="launcher-grid">
-                        <a class="launcher-tile" onclick="openMobileSection('aging'); return false;">
-                            <div class="launcher-icon" style="background: #e0f2fe;">📊</div>
-                            <strong style="font-size:16px;">Aging Buckets</strong>
-                            <span style="font-size:12px; color:var(--text-muted);">View KPIs & Dues</span>
-                        </a>
-                        <a class="launcher-tile" onclick="openMobileSection('parties'); return false;">
-                            <div class="launcher-icon" style="background: #dcfce7;">🏢</div>
-                            <strong style="font-size:16px;">Parties</strong>
-                            <span style="font-size:12px; color:var(--text-muted);">Search & Manage</span>
-                        </a>
-                        <% if (role==='admin' ) { %>
-                            <a class="launcher-tile" onclick="openMobileSection('data'); return false;">
-                                <div class="launcher-icon" style="background: #f3e8ff;">🗄️</div>
-                                <strong style="font-size:16px;">Data Mgmt</strong>
-                                <span style="font-size:12px; color:var(--text-muted);">Backups & Imports</span>
-                            </a>
-                            <a class="launcher-tile" href="/staff">
-                                <div class="launcher-icon" style="background: #fce7f3;">👤</div>
-                                <strong style="font-size:16px;">Staff</strong>
-                                <span style="font-size:12px; color:var(--text-muted);">Manage Team</span>
-                            </a>
-                            <% } %>
-                                <a class="launcher-tile" href="/activity">
-                                    <div class="launcher-icon" style="background: #fef3c7;">📜</div>
-                                    <strong style="font-size:16px;">Activity Log</strong>
-                                    <span style="font-size:12px; color:var(--text-muted);">Audit Trail</span>
-                                </a>
-                                <% if (role==='admin' ) { %>
-                                    <a class="launcher-tile"
-                                        onclick="document.getElementById('settingsModal').style.display='block'; return false;">
-                                        <div class="launcher-icon" style="background: #e2e8f0;">⚙️</div>
-                                        <strong style="font-size:16px;">Profile</strong>
-                                        <span style="font-size:12px; color:var(--text-muted);">Company Details</span>
-                                    </a>
-                                    <a class="launcher-tile" href="/logout"
-                                        style="grid-column: span 2; align-items:center; flex-direction:row; background: #fee2e2; border-color: #fca5a5;">
-                                        <div class="launcher-icon"
-                                            style="background: white; width:40px; height:40px; font-size:18px;">🚪</div>
-                                        <strong style="font-size:16px; color:#b91c1c;">Logout</strong>
-                                    </a>
-                                    <% } %>
-                    </div>
+            <% var urlStr='' ; %>
+                <div id="dupWarning" class="dup-warning" style="display:none;">
+                    ⚠️ <span id="dupWarningText">A party with this name or phone number already exists.</span>
+                    <button onclick="document.getElementById('dupWarning').style.display='none'"
+                        style="margin-left:auto; background:none; border:none; cursor:pointer; font-size:18px; color:#92400e;">×</button>
                 </div>
 
-                <button class="back-to-launcher" id="backBtn" onclick="handleMobileBack()">← Home</button>
-                <% } %>
+                <% if (role !=='customer' ) { %>
+                    <div class="home-launcher" id="homeLauncher">
+                        <div class="home-header-card">
+                            <div class="home-avatar">
+                                <%= (adminUser.companyName || role).charAt(0).toUpperCase() %>
+                            </div>
+                            <div>
+                                <h2 style="margin:0; font-size:22px; font-weight:800;">Hello, <%=
+                                        role.charAt(0).toUpperCase() + role.slice(1) %>
+                                </h2>
+                                <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">
+                                    <%= adminUser.companyName || 'WGS Payment Manager' %>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="launcher-grid">
+                            <a class="launcher-tile" onclick="openMobileSection('aging'); return false;">
+                                <div class="launcher-icon" style="background: #e0f2fe;">📊</div>
+                                <strong style="font-size:16px;">Aging Buckets</strong>
+                                <span style="font-size:12px; color:var(--text-muted);">View KPIs & Dues</span>
+                            </a>
+                            <a class="launcher-tile" onclick="openMobileSection('parties'); return false;">
+                                <div class="launcher-icon" style="background: #dcfce7;">🏢</div>
+                                <strong style="font-size:16px;">Parties</strong>
+                                <span style="font-size:12px; color:var(--text-muted);">Search & Manage</span>
+                            </a>
+                            <% if (role==='admin' ) { %>
+                                <a class="launcher-tile" onclick="openMobileSection('data'); return false;">
+                                    <div class="launcher-icon" style="background: #f3e8ff;">🗄️</div>
+                                    <strong style="font-size:16px;">Data Mgmt</strong>
+                                    <span style="font-size:12px; color:var(--text-muted);">Backups & Imports</span>
+                                </a>
+                                <a class="launcher-tile" href="/staff">
+                                    <div class="launcher-icon" style="background: #fce7f3;">👤</div>
+                                    <strong style="font-size:16px;">Staff</strong>
+                                    <span style="font-size:12px; color:var(--text-muted);">Manage Team</span>
+                                </a>
+                                <% } %>
+                                    <a class="launcher-tile" href="/activity">
+                                        <div class="launcher-icon" style="background: #fef3c7;">📜</div>
+                                        <strong style="font-size:16px;">Activity Log</strong>
+                                        <span style="font-size:12px; color:var(--text-muted);">Audit Trail</span>
+                                    </a>
+                                    <% if (role==='admin' ) { %>
+                                        <a class="launcher-tile"
+                                            onclick="document.getElementById('settingsModal').style.display='block'; return false;">
+                                            <div class="launcher-icon" style="background: #e2e8f0;">⚙️</div>
+                                            <strong style="font-size:16px;">Profile</strong>
+                                            <span style="font-size:12px; color:var(--text-muted);">Company
+                                                Details</span>
+                                        </a>
+                                        <a class="launcher-tile" href="/logout"
+                                            style="grid-column: span 2; align-items:center; flex-direction:row; background: #fee2e2; border-color: #fca5a5;">
+                                            <div class="launcher-icon"
+                                                style="background: white; width:40px; height:40px; font-size:18px;">🚪
+                                            </div>
+                                            <strong style="font-size:16px; color:#b91c1c;">Logout</strong>
+                                        </a>
+                                        <% } %>
+                        </div>
+                    </div>
 
-                    <div id="viewAging" class="section-view active">
-                        <h1 class="desktop-only" style="margin-top:0;">📊 Aging Buckets</h1>
+                    <button class="back-to-launcher" id="backBtn" onclick="handleMobileBack()">← Home</button>
+                    <% } %>
 
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-title">Total Parties</div>
-                                <div class="stat-value">
-                                    <%= stats.totalParties %>
+                        <div id="viewAging" class="section-view active">
+                            <h1 class="desktop-only" style="margin-top:0;">📊 Aging Buckets</h1>
+
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-title">Total Parties</div>
+                                    <div class="stat-value">
+                                        <%= stats.totalParties %>
+                                    </div>
+                                </div>
+                                <div class="stat-card alert">
+                                    <div class="stat-title">Total Pending Bills</div>
+                                    <div class="stat-value" style="color:#b91c1c;">
+                                        <%= stats.totalPendingFmt %>
+                                    </div>
+                                </div>
+                                <div class="stat-card warning" style="cursor:pointer;" onclick="filterActionRequired()">
+                                    <div class="stat-title" style="color:var(--secondary-dark);">Action Required</div>
+                                    <div class="stat-value" style="color:var(--secondary-dark);">
+                                        <%= stats.actionRequiredCount %>
+                                    </div>
+                                    <div
+                                        style="font-size:11px;color:#2980b9;margin-top:8px;font-weight:bold;background:#f0f7ff;padding:4px;border-radius:10px;">
+                                        Click to filter &rarr;</div>
                                 </div>
                             </div>
-                            <div class="stat-card alert">
-                                <div class="stat-title">Total Pending Bills</div>
-                                <div class="stat-value" style="color:#b91c1c;">
-                                    <%= stats.totalPendingFmt %>
+
+                            <div class="floating-card aging-card" id="pdfExportArea">
+                                <h2
+                                    style="margin-top:0;font-size:20px;font-weight:800;border-bottom:1px solid #f1f5f9;padding-bottom:15px;margin-bottom:20px;">
+                                    📅 Aging Breakdown
+                                    <span
+                                        style="font-size:12px;color:var(--text-muted);font-weight:500;margin-left:8px;">Click
+                                        any row to view parties</span>
+                                </h2>
+
+                                <div class="aging-row"
+                                    onclick="clickBucket('u30','&lt; 30 Days',<%= stats.buckets.u30.cnt %>,'<%= stats.buckets.u30.fmt %>')">
+                                    <div class="aging-labels"><span>&lt; 30 DAYS <span class="bucket-count">
+                                                <%= stats.buckets.u30.cnt %> parties
+                                            </span></span><span>
+                                            <%= stats.buckets.u30.fmt %>
+                                        </span></div>
+                                    <div class="progress-bg">
+                                        <div class="progress-fill" style="width:<%= stats.buckets.u30.pct %>%;"></div>
+                                    </div>
+                                </div>
+                                <div class="aging-row"
+                                    onclick="clickBucket('d30_60','30-60 Days',<%= stats.buckets.d30_60.cnt %>,'<%= stats.buckets.d30_60.fmt %>')">
+                                    <div class="aging-labels"><span>30-60 DAYS <span class="bucket-count">
+                                                <%= stats.buckets.d30_60.cnt %> parties
+                                            </span></span><span>
+                                            <%= stats.buckets.d30_60.fmt %>
+                                        </span></div>
+                                    <div class="progress-bg">
+                                        <div class="progress-fill" style="width:<%= stats.buckets.d30_60.pct %>%;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="aging-row"
+                                    onclick="clickBucket('d60_90','60-90 Days',<%= stats.buckets.d60_90.cnt %>,'<%= stats.buckets.d60_90.fmt %>')">
+                                    <div class="aging-labels"><span>60-90 DAYS <span class="bucket-count">
+                                                <%= stats.buckets.d60_90.cnt %> parties
+                                            </span></span><span>
+                                            <%= stats.buckets.d60_90.fmt %>
+                                        </span></div>
+                                    <div class="progress-bg">
+                                        <div class="progress-fill" style="width:<%= stats.buckets.d60_90.pct %>%;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="aging-row"
+                                    onclick="clickBucket('d90_120','90-120 Days',<%= stats.buckets.d90_120.cnt %>,'<%= stats.buckets.d90_120.fmt %>')">
+                                    <div class="aging-labels"><span>90-120 DAYS <span class="bucket-count">
+                                                <%= stats.buckets.d90_120.cnt %> parties
+                                            </span></span><span>
+                                            <%= stats.buckets.d90_120.fmt %>
+                                        </span></div>
+                                    <div class="progress-bg">
+                                        <div class="progress-fill fill-warning"
+                                            style="width:<%= stats.buckets.d90_120.pct %>%;"></div>
+                                    </div>
+                                </div>
+                                <div class="aging-row"
+                                    onclick="clickBucket('d120_150','120-180 Days',<%= stats.buckets.d120_150.cnt %>,'<%= stats.buckets.d120_150.fmt %>')">
+                                    <div class="aging-labels"><span style="color:#ef4444;">120-180 DAYS <span
+                                                class="bucket-count" style="background:#fee2e2;color:#b91c1c;">
+                                                <%= stats.buckets.d120_150.cnt %> parties
+                                            </span></span><span style="color:#ef4444;">
+                                            <%= stats.buckets.d120_150.fmt %>
+                                        </span></div>
+                                    <div class="progress-bg">
+                                        <div class="progress-fill fill-danger"
+                                            style="width:<%= stats.buckets.d120_150.pct %>%;"></div>
+                                    </div>
+                                </div>
+                                <div class="aging-row"
+                                    onclick="clickBucket('a180','> 180 Days',<%= stats.buckets.a180.cnt %>,'<%= stats.buckets.a180.fmt %>')">
+                                    <div class="aging-labels"><span style="color:#ef4444;">> 180 DAYS <span
+                                                class="bucket-count" style="background:#fee2e2;color:#b91c1c;">
+                                                <%= stats.buckets.a180.cnt %> parties
+                                            </span></span><span style="color:#ef4444;">
+                                            <%= stats.buckets.a180.fmt %>
+                                        </span></div>
+                                    <div class="progress-bg">
+                                        <div class="progress-fill fill-danger"
+                                            style="width:<%= stats.buckets.a180.pct %>%;"></div>
+                                    </div>
+                                </div>
+                                <div class="aging-row"
+                                    style="margin-bottom:0;padding-top:15px;border-top:1px dashed #e2e8f0;">
+                                    <div class="aging-labels" style="color:var(--text-muted);"><span>ON ACCOUNT
+                                            (ADVANCE) <span class="bucket-count">
+                                                <%= stats.buckets.onAcc.cnt %> parties
+                                            </span></span><span>
+                                            <%= stats.buckets.onAcc.fmt %>
+                                        </span></div>
                                 </div>
                             </div>
-                            <div class="stat-card warning" style="cursor:pointer;" onclick="filterActionRequired()">
-                                <div class="stat-title" style="color:var(--secondary-dark);">Action Required</div>
-                                <div class="stat-value" style="color:var(--secondary-dark);">
-                                    <%= stats.actionRequiredCount %>
+                        </div>
+
+                        <div id="viewParties" class="section-view">
+                            <h1 class="desktop-only" style="margin-top:0;">🏢 Parties</h1>
+
+                            <div class="table-controls">
+                                <button class="btn-secondary"
+                                    onclick="document.getElementById('filterPanel').style.display = document.getElementById('filterPanel').style.display === 'block' ? 'none' : 'block'">⚙️
+                                    Filters</button>
+                                <input type="text" id="searchInput" class="search-micro"
+                                    placeholder="🔍 Search by party or phone..." onkeyup="runFilters()">
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <% if (role==='admin' ) { %>
+                                        <button type="button" id="selectAllBtn" class="btn-secondary"
+                                            onclick="toggleSelectAll()">☑️ Select All</button>
+                                        <a href="/export" class="btn-secondary"
+                                            style="background:#e0f2fe; color:#0284c7; border-color:#bae6fd;">📥
+                                            Export</a>
+                                        <form action="/import" method="POST" enctype="multipart/form-data"
+                                            style="margin:0; display:inline-block;">
+                                            <input type="file" name="excelFile" id="quickImport"
+                                                accept=".csv, .xlsx, .xls" style="display:none;"
+                                                onchange="this.form.submit()">
+                                            <button type="button"
+                                                onclick="document.getElementById('quickImport').click()"
+                                                class="btn-secondary"
+                                                style="background:#dcfce7; color:#166534; border-color:#bbf7d0;">📤
+                                                Import</button>
+                                        </form>
+                                        <% } %>
+                                            <button onclick="document.getElementById('addModal').style.display='block'"
+                                                class="btn-primary">➕ Add Party</button>
                                 </div>
+                            </div>
+
+                            <div id="filterPanel" class="filter-panel">
                                 <div
-                                    style="font-size:11px;color:#2980b9;margin-top:8px;font-weight:bold;background:#f0f7ff;padding:4px;border-radius:10px;">
-                                    Click to filter &rarr;</div>
+                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                                    <div>
+                                        <label class="trans-label">Aging Bucket</label>
+                                        <select id="filterAging" class="input-style" style="margin-bottom: 0;">
+                                            <option value="all">All (Total Due)</option>
+                                            <option value="u30">&lt; 30 Days</option>
+                                            <option value="d30_60">30-60 Days</option>
+                                            <option value="d60_90">60-90 Days</option>
+                                            <option value="d90_120">90-120 Days</option>
+                                            <option value="d120_150">120-180 Days (Merged)</option>
+                                            <option value="a180">&gt; 180 Days</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="trans-label">Min Amount (₹)</label>
+                                        <input type="number" id="filterMin" class="input-style"
+                                            style="margin-bottom: 0;" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="trans-label">Max Amount (₹)</label>
+                                        <input type="number" id="filterMax" class="input-style"
+                                            style="margin-bottom: 0;" placeholder="Any">
+                                    </div>
+                                </div>
+                                <div style="margin-top: 15px; text-align: right;">
+                                    <button onclick="clearFilter()" class="btn-secondary">Clear</button>
+                                    <button onclick="runFilters()" class="btn-primary">Apply Filters</button>
+                                </div>
+                            </div>
+
+                            <div id="filterActiveHeader"
+                                style="display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:12px 16px; margin-bottom:15px; font-size:14px; font-weight:700; color:#1d4ed8; align-items:center; gap:10px;">
+                                <span id="filterActiveText">Showing all parties</span>
+                                <button onclick="clearFilter()"
+                                    style="margin-left:auto; background:#1d4ed8; color:white; border:none; border-radius:8px; padding:6px 12px; cursor:pointer;">✕
+                                    Clear</button>
+                            </div>
+
+                            <div class="floating-card" style="padding: 0; overflow-x: auto;">
+                                <table id="mainTable">
+                                    <thead>
+                                        <tr>
+                                            <% if (role==='admin' ) { %>
+                                                <th style="width: 40px; text-align: center;"><input type="checkbox"
+                                                        id="selectAll" class="checkbox-custom"></th>
+                                                <% } %>
+                                                    <th>Party Details</th>
+                                                    <th>Contact Info</th>
+                                                    <th>Financials</th>
+                                                    <% if (role !=='customer' ) { %>
+                                                        <th>Next Action</th>
+                                                        <th style="text-align: right; padding-right: 20px;">Manage</th>
+                                                        <% } %>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% customers.forEach(function(customer) { %>
+                                            <% var due=customer.totalAmount - customer.paidAmount; %>
+                                                <% var ag=customer.aging || {}; %>
+                                                    <% var reqAction=(due> 0 && (!customer.nextActionDate || new Date()
+                                                        >= new Date(customer.nextActionDate))) ? 'true' : 'false'; %>
+                                                        <% var nextDateString=customer.nextActionDate ? new
+                                                            Date(customer.nextActionDate).toLocaleDateString('en-IN')
+                                                            : '--' ; %>
+                                                            <% var rawCname=customer.companyName || "Party" ; %>
+                                                                <% var rawPname=customer.contactPerson || "" ; %>
+                                                                    <% var rawAname=adminUser.companyName
+                                                                        || "Our Company" ; %>
+                                                                        <% var lpDate=customer.lastPaymentDate ? new
+                                                                            Date(customer.lastPaymentDate).toLocaleDateString('en-IN')
+                                                                            : "" ; %>
+                                                                            <% var diffDays=0; %>
+                                                                                <% if(customer.nextActionDate && new
+                                                                                    Date()>= new
+                                                                                    Date(customer.nextActionDate)) {
+                                                                                    diffDays = Math.floor((new Date() -
+                                                                                    new Date(customer.nextActionDate)) /
+                                                                                    (1000 * 60 * 60 * 24)); } %>
+
+                                                                                    <tr class="customer-row"
+                                                                                        data-action="<%= reqAction %>"
+                                                                                        data-due="<%= due %>"
+                                                                                        data-u30="<%= ag.under30||0 %>"
+                                                                                        data-d30_60="<%= ag.days30to60||0 %>"
+                                                                                        data-d60_90="<%= ag.days60to90||0 %>"
+                                                                                        data-d90_120="<%= ag.days90to120||0 %>"
+                                                                                        data-d120_150="<%= ag.days120to150||0 %>"
+                                                                                        data-d150_180="<%= ag.days150to180||0 %>"
+                                                                                        data-a180="<%= ag.above180||0 %>">
+
+                                                                                        <% if (role==='admin' ) { %>
+                                                                                            <td class="desktop-only"
+                                                                                                style="text-align: center;">
+                                                                                                <input type="checkbox"
+                                                                                                    class="customer-checkbox checkbox-custom"
+                                                                                                    value="<%= customer._id %>">
+                                                                                            </td>
+                                                                                            <% } %>
+                                                                                                <td
+                                                                                                    class="desktop-only">
+                                                                                                    <strong
+                                                                                                        style="font-size: 15px;">
+                                                                                                        <%= customer.companyName
+                                                                                                            || 'Unknown Party'
+                                                                                                            %>
+                                                                                                    </strong><br>
+                                                                                                    <span
+                                                                                                        style="color: var(--text-muted); font-size:12px;">
+                                                                                                        <%= customer.contactPerson
+                                                                                                            %>
+                                                                                                    </span>
+                                                                                                </td>
+                                                                                                <td class="desktop-only"
+                                                                                                    style="font-size: 13px;">
+                                                                                                    <strong>P:</strong>
+                                                                                                    <a href="tel:+<%= customer.phone %>"
+                                                                                                        style="color:var(--text-dark); text-decoration:none;">+
+                                                                                                        <%= customer.phone
+                                                                                                            %></a><br>
+                                                                                                    <% if(customer.whatsappNumber){
+                                                                                                        %> <strong
+                                                                                                            style="color:#15803d;">W:</strong>
+                                                                                                        <a href="https://wa.me/<%= customer.whatsappNumber %>"
+                                                                                                            style="color:#15803d; text-decoration:none;">+
+                                                                                                            <%= customer.whatsappNumber
+                                                                                                                %></a>
+                                                                                                        <% } %>
+                                                                                                </td>
+                                                                                                <td
+                                                                                                    class="desktop-only">
+                                                                                                    <div
+                                                                                                        style="font-size: 12px;">
+                                                                                                        Total: ₹<%=
+                                                                                                            customer.totalAmount
+                                                                                                            %>
+                                                                                                    </div>
+                                                                                                    <% if(due> 0) { %>
+                                                                                                        <div class="dynamic-due"
+                                                                                                            style="color: #b91c1c; font-weight: 800; font-size: 15px; margin-top: 4px;">
+                                                                                                            Due: ₹<%=
+                                                                                                                due %>
+                                                                                                        </div>
+                                                                                                        <% } else { %>
+                                                                                                            <span
+                                                                                                                style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">Fully
+                                                                                                                Paid</span>
+                                                                                                            <% } %>
+                                                                                                </td>
+                                                                                                <td
+                                                                                                    class="desktop-only">
+                                                                                                    <% if (due> 0) { %>
+                                                                                                        <div
+                                                                                                            style="font-weight: 600;">
+                                                                                                            <%= nextDateString
+                                                                                                                %>
+                                                                                                        </div>
+                                                                                                        <% if
+                                                                                                            (reqAction==='true'
+                                                                                                            ) { %> <span
+                                                                                                                class="req-badge">⚠️
+                                                                                                                Action
+                                                                                                                Required</span>
+                                                                                                            <% } %>
+                                                                                                                <% } else
+                                                                                                                    { %>
+                                                                                                                    --
+                                                                                                                    <% }
+                                                                                                                        %>
+                                                                                                </td>
+                                                                                                <td class="desktop-only"
+                                                                                                    style="text-align: right; padding-right: 20px;">
+                                                                                                    <% if (due> 0 &&
+                                                                                                        reqAction ===
+                                                                                                        'true') { %>
+                                                                                                        <div class="action-buttons"
+                                                                                                            style="display:flex; gap:8px; justify-content: flex-end; margin-bottom: 10px;">
+                                                                                                            <a href="javascript:void(0)"
+                                                                                                                onclick="sendMsg(this, 'wa')"
+                                                                                                                data-id="<%= customer._id %>"
+                                                                                                                data-phone="<%= customer.phone %>"
+                                                                                                                data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                data-email="<%= customer.email %>"
+                                                                                                                data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                data-total="<%= customer.totalAmount %>"
+                                                                                                                data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                data-due="<%= due %>"
+                                                                                                                data-diff="<%= diffDays %>"
+                                                                                                                data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                style="width:30px; height:30px; border-radius:50%; background: #dcfce7; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;"><img
+                                                                                                                    src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                                                                                                                    width="16"
+                                                                                                                    height="16"></a>
+                                                                                                            <a href="javascript:void(0)"
+                                                                                                                onclick="sendMsg(this, 'sms')"
+                                                                                                                data-id="<%= customer._id %>"
+                                                                                                                data-phone="<%= customer.phone %>"
+                                                                                                                data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                data-email="<%= customer.email %>"
+                                                                                                                data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                data-total="<%= customer.totalAmount %>"
+                                                                                                                data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                data-due="<%= due %>"
+                                                                                                                data-diff="<%= diffDays %>"
+                                                                                                                data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px;">💬</a>
+                                                                                                            <a href="javascript:void(0)"
+                                                                                                                onclick="sendMsg(this, 'email')"
+                                                                                                                data-id="<%= customer._id %>"
+                                                                                                                data-phone="<%= customer.phone %>"
+                                                                                                                data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                data-email="<%= customer.email %>"
+                                                                                                                data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                data-total="<%= customer.totalAmount %>"
+                                                                                                                data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                data-due="<%= due %>"
+                                                                                                                data-diff="<%= diffDays %>"
+                                                                                                                data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                style="width:30px; height:30px; border-radius:50%; background: #f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px;">📧</a>
+                                                                                                        </div>
+                                                                                                        <% } %>
+
+                                                                                                            <button
+                                                                                                                class="btn-table"
+                                                                                                                onclick="document.getElementById('transactionModal').style.display='block'; document.getElementById('transactionForm').action='/customers/<%= customer._id %>/transaction?_method=PUT';">💳
+                                                                                                                Balance</button>
+                                                                                                            <% if (due>
+                                                                                                                0) { %>
+                                                                                                                <button
+                                                                                                                    class="btn-table"
+                                                                                                                    onclick="openActionModal('<%= customer._id %>', '<%= customer.companyName %>')">📅
+                                                                                                                    Action
+                                                                                                                    Date</button>
+                                                                                                                <% } %>
+
+                                                                                                                    <div
+                                                                                                                        style="display:flex; gap: 5px; margin-top:5px;">
+                                                                                                                        <% if
+                                                                                                                            (role==='admin'
+                                                                                                                            )
+                                                                                                                            {
+                                                                                                                            %>
+                                                                                                                            <button
+                                                                                                                                class="btn-table"
+                                                                                                                                style="flex:1;"
+                                                                                                                                onclick="openEditModal('<%= customer._id %>', '<%= customer.companyName %>', '<%= customer.contactPerson %>', '<%= customer.phone %>', '<%= customer.whatsappNumber %>', '<%= customer.email %>', '<%= customer.totalAmount %>', '<%= customer.paidAmount %>', '<%= customer.otherNumbers %>')">✏️
+                                                                                                                                Edit</button>
+                                                                                                                            <form
+                                                                                                                                action="/customers/<%= customer._id %>?_method=DELETE"
+                                                                                                                                method="POST"
+                                                                                                                                style="margin:0; flex:1;"
+                                                                                                                                onsubmit="return confirm('Delete party?');">
+                                                                                                                                <button
+                                                                                                                                    type="submit"
+                                                                                                                                    class="btn-table"
+                                                                                                                                    style="color:#ef4444;">🗑️</button>
+                                                                                                                            </form>
+                                                                                                                            <% }
+                                                                                                                                %>
+                                                                                                                    </div>
+                                                                                                </td>
+
+                                                                                                <td class="mobile-only">
+                                                                                                    <div class="m-top">
+                                                                                                        <div
+                                                                                                            class="m-name">
+                                                                                                            <% if
+                                                                                                                (role==='admin'
+                                                                                                                ) { %>
+                                                                                                                <input
+                                                                                                                    type="checkbox"
+                                                                                                                    class="customer-checkbox checkbox-custom"
+                                                                                                                    value="<%= customer._id %>"
+                                                                                                                    style="margin-top: 4px;">
+                                                                                                                <% } %>
+                                                                                                                    <div>
+                                                                                                                        <strong>
+                                                                                                                            <%= customer.companyName
+                                                                                                                                %>
+                                                                                                                        </strong><br>
+                                                                                                                        <a href="tel:+<%= customer.phone %>"
+                                                                                                                            style="color:var(--secondary); text-decoration:none; font-weight:bold; font-size:14px; margin-top:6px; display:block;">📞
+                                                                                                                            +
+                                                                                                                            <%= customer.phone
+                                                                                                                                %>
+                                                                                                                                </a>
+                                                                                                                    </div>
+                                                                                                        </div>
+                                                                                                        <div
+                                                                                                            class="m-fin">
+                                                                                                            <div
+                                                                                                                style="font-size:12px; color:var(--text-muted);">
+                                                                                                                Total ₹
+                                                                                                                <%= customer.totalAmount
+                                                                                                                    %>
+                                                                                                            </div>
+                                                                                                            <% if(due>
+                                                                                                                0) { %>
+                                                                                                                <div class="dynamic-due-m"
+                                                                                                                    style="color:#b91c1c; font-weight:900; font-size:16px;">
+                                                                                                                    Due
+                                                                                                                    ₹<%= due
+                                                                                                                        %>
+                                                                                                                </div>
+                                                                                                                <% } else
+                                                                                                                    { %>
+                                                                                                                    <div
+                                                                                                                        style="color:#15803d; font-weight:bold;">
+                                                                                                                        Paid
+                                                                                                                        🎉
+                                                                                                                    </div>
+                                                                                                                    <% }
+                                                                                                                        %>
+                                                                                                        </div>
+                                                                                                    </div>
+
+                                                                                                    <% if (due> 0) { %>
+                                                                                                        <div
+                                                                                                            style="font-size: 13px; color: var(--text-muted); padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
+                                                                                                            📅 Action
+                                                                                                            Date:
+                                                                                                            <strong
+                                                                                                                style="color:var(--text-dark);">
+                                                                                                                <%= nextDateString
+                                                                                                                    %>
+                                                                                                            </strong>
+                                                                                                            <% if
+                                                                                                                (reqAction==='true'
+                                                                                                                ) { %>
+                                                                                                                <span
+                                                                                                                    class="req-badge"
+                                                                                                                    style="float:right;">Action
+                                                                                                                    Required</span>
+                                                                                                                <% } %>
+                                                                                                        </div>
+                                                                                                        <% } %>
+
+                                                                                                            <% if (due>
+                                                                                                                0 &&
+                                                                                                                reqAction
+                                                                                                                ===
+                                                                                                                'true')
+                                                                                                                { %>
+                                                                                                                <div
+                                                                                                                    class="m-circles">
+                                                                                                                    <a href="javascript:void(0)"
+                                                                                                                        onclick="sendMsg(this, 'wa')"
+                                                                                                                        data-id="<%= customer._id %>"
+                                                                                                                        data-phone="<%= customer.phone %>"
+                                                                                                                        data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                        data-email="<%= customer.email %>"
+                                                                                                                        data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                        data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                        data-total="<%= customer.totalAmount %>"
+                                                                                                                        data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                        data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                        data-due="<%= due %>"
+                                                                                                                        data-diff="<%= diffDays %>"
+                                                                                                                        data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                        class="m-circle"
+                                                                                                                        style="background: #dcfce7; border-color: #bbf7d0;"><img
+                                                                                                                            src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+                                                                                                                            width="20"
+                                                                                                                            height="20"></a>
+                                                                                                                    <a href="javascript:void(0)"
+                                                                                                                        onclick="sendMsg(this, 'sms')"
+                                                                                                                        data-id="<%= customer._id %>"
+                                                                                                                        data-phone="<%= customer.phone %>"
+                                                                                                                        data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                        data-email="<%= customer.email %>"
+                                                                                                                        data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                        data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                        data-total="<%= customer.totalAmount %>"
+                                                                                                                        data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                        data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                        data-due="<%= due %>"
+                                                                                                                        data-diff="<%= diffDays %>"
+                                                                                                                        data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                        class="m-circle">💬</a>
+                                                                                                                    <a href="javascript:void(0)"
+                                                                                                                        onclick="sendMsg(this, 'email')"
+                                                                                                                        data-id="<%= customer._id %>"
+                                                                                                                        data-phone="<%= customer.phone %>"
+                                                                                                                        data-wa="<%= customer.whatsappNumber %>"
+                                                                                                                        data-email="<%= customer.email %>"
+                                                                                                                        data-cname="<%= encodeURIComponent(rawCname) %>"
+                                                                                                                        data-pname="<%= encodeURIComponent(rawPname) %>"
+                                                                                                                        data-total="<%= customer.totalAmount %>"
+                                                                                                                        data-paidamount="<%= customer.paidAmount %>"
+                                                                                                                        data-lastpaid="<%= encodeURIComponent(lpDate) %>"
+                                                                                                                        data-due="<%= due %>"
+                                                                                                                        data-diff="<%= diffDays %>"
+                                                                                                                        data-admin="<%= encodeURIComponent(rawAname) %>"
+                                                                                                                        class="m-circle">📧</a>
+                                                                                                                </div>
+                                                                                                                <% } %>
+
+                                                                                                                    <div
+                                                                                                                        class="m-tools">
+                                                                                                                        <button
+                                                                                                                            class="m-tool-btn"
+                                                                                                                            onclick="document.getElementById('transactionModal').style.display='block'; document.getElementById('transactionForm').action='/customers/<%= customer._id %>/transaction?_method=PUT';">💳
+                                                                                                                            Bal</button>
+                                                                                                                        <% if
+                                                                                                                            (due>
+                                                                                                                            0)
+                                                                                                                            {
+                                                                                                                            %>
+                                                                                                                            <button
+                                                                                                                                class="m-tool-btn"
+                                                                                                                                onclick="openActionModal('<%= customer._id %>', '<%= customer.companyName %>')">📅
+                                                                                                                                Action</button>
+                                                                                                                            <% }
+                                                                                                                                %>
+                                                                                                                                <% if
+                                                                                                                                    (role==='admin'
+                                                                                                                                    )
+                                                                                                                                    {
+                                                                                                                                    %>
+                                                                                                                                    <button
+                                                                                                                                        class="m-tool-btn"
+                                                                                                                                        onclick="openEditModal('<%= customer._id %>', '<%= customer.companyName %>', '<%= customer.contactPerson %>', '<%= customer.phone %>', '<%= customer.whatsappNumber %>', '<%= customer.email %>', '<%= customer.totalAmount %>', '<%= customer.paidAmount %>', '<%= customer.otherNumbers %>')">✏️</button>
+                                                                                                                                    <form
+                                                                                                                                        action="/customers/<%= customer._id %>?_method=DELETE"
+                                                                                                                                        method="POST"
+                                                                                                                                        style="margin:0; flex:1;"
+                                                                                                                                        onsubmit="return confirm('Delete party?');">
+                                                                                                                                        <button
+                                                                                                                                            type="submit"
+                                                                                                                                            class="m-tool-btn"
+                                                                                                                                            style="color:#ef4444; width:100%;">🗑️</button>
+                                                                                                                                    </form>
+                                                                                                                                    <% }
+                                                                                                                                        %>
+                                                                                                                    </div>
+                                                                                                </td>
+                                                                                    </tr>
+                                                                                    <% }) %>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <div class="floating-card aging-card">
-                            <h2
-                                style="margin-top:0;font-size:20px;font-weight:800;border-bottom:1px solid #f1f5f9;padding-bottom:15px;margin-bottom:20px;">
-                                📅 Aging Breakdown
-                                <span
-                                    style="font-size:12px;color:var(--text-muted);font-weight:500;margin-left:8px;">Click
-                                    any row to view parties</span>
-                            </h2>
+                        <% if (role==='admin' ) { %>
+                            <div id="viewData" class="section-view">
+                                <h1 class="desktop-only" style="margin-top:0;">🗄️ Data Management</h1>
 
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('u30','&lt; 30 Days',<%= stats.buckets.u30.cnt %>,'<%= stats.buckets.u30.fmt %>')">
-                                <div class="aging-labels"><span>&lt; 30 DAYS <span class="bucket-count">
-                                            <%= stats.buckets.u30.cnt %>
-                                        </span></span><span>
-                                        <%= stats.buckets.u30.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill" style="width:<%= stats.buckets.u30.pct %>%;"></div>
+                                <div class="floating-card">
+                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup (WhatsApp Style)</h3>
+                                    <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database
+                                        directly to a hidden app folder in your Google Drive.</p>
+                                    <div style="display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap;">
+                                        <a href="/auth/google" class="btn-primary" style="background: #4285F4;">
+                                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
+                                                width="16" style="vertical-align: middle; margin-right: 5px;">
+                                            Link Google Drive
+                                        </a>
+                                        <button onclick="triggerDriveBackup()" class="btn-primary"
+                                            style="background: #0f9d58;">☁️ Backup Now</button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('d30_60','30-60 Days',<%= stats.buckets.d30_60.cnt %>,'<%= stats.buckets.d30_60.fmt %>')">
-                                <div class="aging-labels"><span>30-60 DAYS <span class="bucket-count">
-                                            <%= stats.buckets.d30_60.cnt %>
-                                        </span></span><span>
-                                        <%= stats.buckets.d30_60.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill" style="width:<%= stats.buckets.d30_60.pct %>%;"></div>
-                                </div>
-                            </div>
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('d60_90','60-90 Days',<%= stats.buckets.d60_90.cnt %>,'<%= stats.buckets.d60_90.fmt %>')">
-                                <div class="aging-labels"><span>60-90 DAYS <span class="bucket-count">
-                                            <%= stats.buckets.d60_90.cnt %>
-                                        </span></span><span>
-                                        <%= stats.buckets.d60_90.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill" style="width:<%= stats.buckets.d60_90.pct %>%;"></div>
-                                </div>
-                            </div>
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('d90_120','90-120 Days',<%= stats.buckets.d90_120.cnt %>,'<%= stats.buckets.d90_120.fmt %>')">
-                                <div class="aging-labels"><span>90-120 DAYS <span class="bucket-count">
-                                            <%= stats.buckets.d90_120.cnt %>
-                                        </span></span><span>
-                                        <%= stats.buckets.d90_120.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill fill-warning"
-                                        style="width:<%= stats.buckets.d90_120.pct %>%;"></div>
-                                </div>
-                            </div>
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('d120_150','120-150 Days',<%= stats.buckets.d120_150.cnt %>,'<%= stats.buckets.d120_150.fmt %>')">
-                                <div class="aging-labels"><span style="color:#ef4444;">120-150 DAYS <span
-                                            class="bucket-count" style="background:#fee2e2;color:#b91c1c;">
-                                            <%= stats.buckets.d120_150.cnt %>
-                                        </span></span><span style="color:#ef4444;">
-                                        <%= stats.buckets.d120_150.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill fill-danger"
-                                        style="width:<%= stats.buckets.d120_150.pct %>%;"></div>
-                                </div>
-                            </div>
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('d150_180','150-180 Days',<%= stats.buckets.d150_180.cnt %>,'<%= stats.buckets.d150_180.fmt %>')">
-                                <div class="aging-labels"><span style="color:#ef4444;">150-180 DAYS <span
-                                            class="bucket-count" style="background:#fee2e2;color:#b91c1c;">
-                                            <%= stats.buckets.d150_180.cnt %>
-                                        </span></span><span style="color:#ef4444;">
-                                        <%= stats.buckets.d150_180.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill fill-danger"
-                                        style="width:<%= stats.buckets.d150_180.pct %>%;"></div>
-                                </div>
-                            </div>
-                            <div class="aging-row aging-clickable"
-                                onclick="clickBucket('a180','> 180 Days',<%= stats.buckets.a180.cnt %>,'<%= stats.buckets.a180.fmt %>')">
-                                <div class="aging-labels"><span style="color:#ef4444;">> 180 DAYS <span
-                                            class="bucket-count" style="background:#fee2e2;color:#b91c1c;">
-                                            <%= stats.buckets.a180.cnt %>
-                                        </span></span><span style="color:#ef4444;">
-                                        <%= stats.buckets.a180.fmt %>
-                                    </span></div>
-                                <div class="progress-bg">
-                                    <div class="progress-fill fill-danger"
-                                        style="width:<%= stats.buckets.a180.pct %>%;"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div id="viewParties" class="section-view">
-                        <h1 class="desktop-only" style="margin-top:0;">🏢 Parties</h1>
+                                <div class="floating-card">
+                                    <h3 style="margin-top: 0; font-size: 18px;">Local Export & Backup Options</h3>
+                                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                                        <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export
+                                            Excel</a>
+                                        <button onclick="downloadPDF()" class="btn-primary"
+                                            style="background: #ef4444;">📄 Export PDF</button>
+                                        <a href="/backup-data-excel" class="btn-primary" style="background: #8e44ad;">📦
+                                            Download JSON Backup</a>
+                                    </div>
 
-                        <div class="table-controls">
-                            <input type="text" id="searchInput" class="search-micro"
-                                placeholder="🔍 Search by party or phone..." onkeyup="runFilters()">
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                <% if (role==='admin' ) { %>
-                                    <button type="button" id="selectAllBtn" class="btn-secondary"
-                                        onclick="toggleSelectAll()">☑️ Select All</button>
-                                    <a href="/export" class="btn-secondary"
-                                        style="background:#e0f2fe; color:#0284c7; border-color:#bae6fd;">📥 Export</a>
-                                    <form action="/import" method="POST" enctype="multipart/form-data"
-                                        style="margin:0; display:inline-block;">
-                                        <input type="file" name="excelFile" id="quickImport" accept=".csv, .xlsx, .xls"
-                                            style="display:none;" onchange="this.form.submit()">
-                                        <button type="button" onclick="document.getElementById('quickImport').click()"
-                                            class="btn-secondary"
-                                            style="background:#dcfce7; color:#166534; border-color:#bbf7d0;">📤
-                                            Import</button>
+                                    <h3
+                                        style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">
+                                        Import & Restore Options</h3>
+                                    <form action="/restore-backup" method="POST" enctype="multipart/form-data"
+                                        onsubmit="return showLoadingBtn(this, 'restoreBtn', '⏳ Restoring Data...')"
+                                        style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fdf4ff; padding: 20px; border-radius: 12px; border: 1px dashed #d8b4e2; margin-bottom: 15px;">
+                                        <strong style="font-size: 14px; color: #8e44ad;">Restore JSON Backup:</strong>
+                                        <input type="file" name="backupFile" accept=".json" required
+                                            style="font-size: 14px; flex: 1;">
+                                        <button type="submit" id="restoreBtn" class="btn-primary"
+                                            style="background: #9b59b6;">🔄 Restore Database</button>
                                     </form>
-                                    <% } %>
-                                        <button onclick="document.getElementById('addModal').style.display='block'"
-                                            class="btn-primary">➕ Add Party</button>
-                            </div>
-                        </div>
 
-                        <div id="filterActiveHeader"
-                            style="display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:12px 16px; margin-bottom:15px; font-size:14px; font-weight:700; color:#1d4ed8; align-items:center; gap:10px;">
-                            <span id="filterActiveText">Showing all parties</span>
-                            <button onclick="clearFilter()"
-                                style="margin-left:auto; background:#1d4ed8; color:white; border:none; border-radius:8px; padding:6px 12px; cursor:pointer;">✕
-                                Clear</button>
-                        </div>
-
-                        <div class="floating-card" style="padding: 0; overflow-x: auto;">
-                            <table id="mainTable">
-                                <thead>
-                                    <tr>
-                                        <% if (role==='admin' ) { %>
-                                            <th style="width: 40px; text-align: center;"><input type="checkbox"
-                                                    id="selectAll" class="checkbox-custom"></th>
-                                            <% } %>
-                                                <th>Party Details</th>
-                                                <th>Contact</th>
-                                                <th>Financials</th>
-                                                <% if (role !=='customer' ) { %>
-                                                    <th>Next Action</th>
-                                                    <th style="text-align: right; padding-right: 20px;">Manage</th>
-                                                    <% } %>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% customers.forEach(function(customer) { %>
-                                        <% var due=customer.totalAmount - customer.paidAmount; %>
-                                            <% var ag=customer.aging || {}; %>
-                                                <% var reqAction=(due> 0 && (!customer.nextActionDate || new Date() >=
-                                                    new Date(customer.nextActionDate))) ? 'true' : 'false'; %>
-
-                                                    <tr class="customer-row" data-action="<%= reqAction %>"
-                                                        data-due="<%= due %>" data-u30="<%= ag.under30||0 %>"
-                                                        data-d30_60="<%= ag.days30to60||0 %>"
-                                                        data-d60_90="<%= ag.days60to90||0 %>"
-                                                        data-d90_120="<%= ag.days90to120||0 %>"
-                                                        data-d120_150="<%= ag.days120to150||0 %>"
-                                                        data-d150_180="<%= ag.days150to180||0 %>"
-                                                        data-a180="<%= ag.above180||0 %>">
-
-                                                        <% if (role==='admin' ) { %>
-                                                            <td class="desktop-only" style="text-align: center;"><input
-                                                                    type="checkbox"
-                                                                    class="customer-checkbox checkbox-custom"
-                                                                    value="<%= customer._id %>"></td>
-                                                            <% } %>
-                                                                <td class="desktop-only">
-                                                                    <strong style="font-size: 15px;">
-                                                                        <%= customer.companyName || 'Unknown Party' %>
-                                                                    </strong><br>
-                                                                    <span
-                                                                        style="color: var(--text-muted); font-size:12px;">
-                                                                        <%= customer.contactPerson %>
-                                                                    </span>
-                                                                </td>
-                                                                <td class="desktop-only" style="font-size: 13px;">
-                                                                    <strong>P:</strong> <a
-                                                                        href="tel:+<%= customer.phone %>"
-                                                                        style="color:var(--text-dark); text-decoration:none;">+
-                                                                        <%= customer.phone %></a><br>
-                                                                    <% if(customer.whatsappNumber){ %> <strong
-                                                                            style="color:#15803d;">W:</strong> <a
-                                                                            href="https://wa.me/<%= customer.whatsappNumber %>"
-                                                                            style="color:#15803d; text-decoration:none;">+
-                                                                            <%= customer.whatsappNumber %></a>
-                                                                        <% } %>
-                                                                </td>
-                                                                <td class="desktop-only">
-                                                                    <div style="font-size: 12px;">Total: ₹<%=
-                                                                            customer.totalAmount %>
-                                                                    </div>
-                                                                    <% if(due> 0) { %>
-                                                                        <div class="dynamic-due"
-                                                                            style="color: #b91c1c; font-weight: 800; font-size: 15px; margin-top: 4px;">
-                                                                            Due: ₹<%= due %>
-                                                                        </div>
-                                                                        <% } else { %>
-                                                                            <span
-                                                                                style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">Fully
-                                                                                Paid</span>
-                                                                            <% } %>
-                                                                </td>
-                                                                <td class="desktop-only">
-                                                                    <% if (due> 0) { %>
-                                                                        <div style="font-weight: 600;">
-                                                                            <%= customer.nextActionDate ? new
-                                                                                Date(customer.nextActionDate).toLocaleDateString('en-IN')
-                                                                                : '--' %>
-                                                                        </div>
-                                                                        <% if (reqAction==='true' ) { %> <span
-                                                                                style="background: #fee2e2; color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight:bold;">⚠️
-                                                                                Action</span>
-                                                                            <% } %>
-                                                                                <% } else { %> -- <% } %>
-                                                                </td>
-                                                                <td class="desktop-only"
-                                                                    style="text-align: right; padding-right: 20px;">
-                                                                    <button class="btn-table"
-                                                                        onclick="document.getElementById('transactionModal').style.display='block'; document.getElementById('transactionForm').action='/customers/<%= customer._id %>/transaction?_method=PUT';">💳
-                                                                        Balance</button>
-                                                                    <div
-                                                                        style="display:flex; gap: 5px; margin-top:5px;">
-                                                                        <% if (role==='admin' ) { %>
-                                                                            <form
-                                                                                action="/customers/<%= customer._id %>?_method=DELETE"
-                                                                                method="POST" style="margin:0; flex:1;"
-                                                                                onsubmit="return confirm('Delete party?');">
-                                                                                <button type="submit" class="btn-table"
-                                                                                    style="color:#ef4444;">🗑️
-                                                                                    Del</button>
-                                                                            </form>
-                                                                            <% } %>
-                                                                    </div>
-                                                                </td>
-
-                                                                <td class="mobile-only">
-                                                                    <div class="m-top">
-                                                                        <div class="m-name">
-                                                                            <% if (role==='admin' ) { %> <input
-                                                                                    type="checkbox"
-                                                                                    class="customer-checkbox checkbox-custom"
-                                                                                    value="<%= customer._id %>"
-                                                                                    style="margin-top: 4px;">
-                                                                                <% } %>
-                                                                                    <div>
-                                                                                        <strong>
-                                                                                            <%= customer.companyName %>
-                                                                                        </strong><br>
-                                                                                        <a href="tel:+<%= customer.phone %>"
-                                                                                            style="color:var(--secondary); text-decoration:none; font-weight:bold; font-size:14px; margin-top:6px; display:block;">📞
-                                                                                            +<%= customer.phone %></a>
-                                                                                    </div>
-                                                                        </div>
-                                                                        <div class="m-fin">
-                                                                            <div
-                                                                                style="font-size:12px; color:var(--text-muted);">
-                                                                                Total ₹<%= customer.totalAmount %>
-                                                                            </div>
-                                                                            <% if(due> 0) { %> <div
-                                                                                    class="dynamic-due-m"
-                                                                                    style="color:#b91c1c; font-weight:900; font-size:16px;">
-                                                                                    Due ₹<%= due %>
-                                                                                </div>
-                                                                                <% } else { %>
-                                                                                    <div
-                                                                                        style="color:#15803d; font-weight:bold;">
-                                                                                        Paid 🎉</div>
-                                                                                    <% } %>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="m-tools">
-                                                                        <button class="m-tool-btn"
-                                                                            onclick="document.getElementById('transactionModal').style.display='block'; document.getElementById('transactionForm').action='/customers/<%= customer._id %>/transaction?_method=PUT';">💳
-                                                                            Update</button>
-                                                                        <% if (role==='admin' ) { %>
-                                                                            <form
-                                                                                action="/customers/<%= customer._id %>?_method=DELETE"
-                                                                                method="POST" style="margin:0; flex:1;"
-                                                                                onsubmit="return confirm('Delete party?');">
-                                                                                <button type="submit" class="m-tool-btn"
-                                                                                    style="color:#ef4444; width:100%;">🗑️</button>
-                                                                            </form>
-                                                                            <% } %>
-                                                                    </div>
-                                                                </td>
-                                                    </tr>
-                                                    <% }) %>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <% if (role==='admin' ) { %>
-                        <div id="viewData" class="section-view">
-                            <h1 class="desktop-only" style="margin-top:0;">🗄️ Data Management</h1>
-
-                            <div class="floating-card">
-                                <h3 style="margin-top: 0; font-size: 18px;">Export & Backup Options</h3>
-                                <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-                                    <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export
-                                        Excel</a>
-                                    <button onclick="downloadPDF()" class="btn-primary" style="background: #ef4444;">📄
-                                        Export PDF</button>
-                                    <a href="/backup-data-excel" class="btn-primary" style="background: #8e44ad;">📦
-                                        Download Full JSON Backup</a>
+                                    <form action="/import" method="POST" enctype="multipart/form-data"
+                                        onsubmit="return showLoadingBtn(this, 'importBtn', '⏳ Importing...')"
+                                        style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                                        <strong style="font-size: 14px; color: var(--secondary-dark);">Upload Tally/Busy
+                                            Excel:</strong>
+                                        <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required
+                                            style="font-size: 14px; flex: 1;">
+                                        <button type="submit" id="importBtn" class="btn-primary"
+                                            style="background: var(--secondary);">📤 Import Excel</button>
+                                    </form>
                                 </div>
-
-                                <h3
-                                    style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">
-                                    Import & Restore Options</h3>
-                                <form action="/restore-backup" method="POST" enctype="multipart/form-data"
-                                    onsubmit="return showLoadingBtn(this, 'restoreBtn', '⏳ Restoring Data...')"
-                                    style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fdf4ff; padding: 20px; border-radius: 12px; border: 1px dashed #d8b4e2; margin-bottom: 15px;">
-                                    <strong style="font-size: 14px; color: #8e44ad;">Restore JSON Backup:</strong>
-                                    <input type="file" name="backupFile" accept=".json" required
-                                        style="font-size: 14px; flex: 1;">
-                                    <button type="submit" id="restoreBtn" class="btn-primary"
-                                        style="background: #9b59b6;">🔄 Restore Database</button>
-                                </form>
-
-                                <form action="/import" method="POST" enctype="multipart/form-data"
-                                    onsubmit="return showLoadingBtn(this, 'importBtn', '⏳ Importing...')"
-                                    style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
-                                    <strong style="font-size: 14px; color: var(--secondary-dark);">Upload Tally/Busy
-                                        Excel:</strong>
-                                    <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required
-                                        style="font-size: 14px; flex: 1;">
-                                    <button type="submit" id="importBtn" class="btn-primary"
-                                        style="background: var(--secondary);">📤 Import Excel</button>
-                                </form>
                             </div>
-                        </div>
-                        <% } %>
-
+                            <% } %>
         </main>
     </div>
 
@@ -1131,15 +1453,59 @@
         <div class="modal-content">
             <span class="close" onclick="document.getElementById('addModal').style.display='none'">&times;</span>
             <h3 style="margin-top: 0;">➕ Add New Party</h3>
+            <div id="addDupAlert" class="dup-alert">⚠️ <span id="addDupMsg">A party with this name or phone already
+                    exists.</span></div>
             <form action="/customers" method="POST">
-                <input type="text" name="companyName" placeholder="Party / Company Name" required class="input-style">
+                <label class="trans-label">Company Name</label>
+                <input type="text" name="companyName" id="addCompanyName" placeholder="Party / Company Name" required
+                    class="input-style">
+                <label class="trans-label">Contact Person</label>
                 <input type="text" name="contactPerson" placeholder="Contact Person" class="input-style">
-                <input type="number" name="totalAmount" placeholder="Total Due Amount (₹)" required class="input-style">
+                <label class="trans-label">Total Due Amount (₹)</label>
+                <input type="number" name="totalAmount" placeholder="Amount (₹)" required class="input-style">
                 <div style="display:flex; gap:10px;">
-                    <input type="text" name="phone" placeholder="Phone Number" required class="input-style">
-                    <input type="text" name="whatsappNumber" placeholder="WhatsApp (opt)" class="input-style">
+                    <div style="flex:1;">
+                        <label class="trans-label">Phone</label>
+                        <input type="text" name="phone" id="addPhone" placeholder="Phone Number" required
+                            class="input-style">
+                    </div>
+                    <div style="flex:1;">
+                        <label class="trans-label">WhatsApp</label>
+                        <input type="text" name="whatsappNumber" placeholder="WhatsApp" class="input-style">
+                    </div>
                 </div>
                 <button type="submit" class="btn-primary" style="width:100%;">Save Party</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
+            <h3 style="margin-top: 0;">✏️ Edit Party</h3>
+            <form id="editForm" method="POST">
+                <label class="trans-label">Company Name</label>
+                <input type="text" name="companyName" id="editComp" class="input-style">
+                <label class="trans-label">Contact Person</label>
+                <input type="text" name="contactPerson" id="editCont" class="input-style">
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;"><label class="trans-label">Phone</label><input type="text" name="phone"
+                            id="editPhone" class="input-style"></div>
+                    <div style="flex:1;"><label class="trans-label">WhatsApp</label><input type="text"
+                            name="whatsappNumber" id="editWa" class="input-style"></div>
+                </div>
+                <label class="trans-label">Other Numbers</label>
+                <input type="text" name="otherNumbers" id="editOther" class="input-style">
+                <label class="trans-label">Email</label>
+                <input type="email" name="email" id="editEmail" class="input-style">
+                <div
+                    style="display:flex; gap:10px; border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px;">
+                    <div style="flex:1;"><label class="trans-label" style="color: #b91c1c;">Total Bill (₹)</label><input
+                            type="number" name="totalAmount" id="editTotal" class="input-style"></div>
+                    <div style="flex:1;"><label class="trans-label" style="color: #15803d;">Paid Amount
+                            (₹)</label><input type="number" name="paidAmount" id="editPaid" class="input-style"></div>
+                </div>
+                <button type="submit" class="btn-primary" style="width:100%;">Save Changes</button>
             </form>
         </div>
     </div>
@@ -1167,17 +1533,61 @@
         </div>
     </div>
 
+    <div id="actionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('actionModal').style.display='none'">&times;</span>
+            <h3 style="margin-top: 0;">📅 Set Action Date</h3>
+            <p id="actionModalCompanyName" style="font-weight:bold; color:var(--secondary);"></p>
+            <form id="updateDateForm" method="POST">
+                <label class="trans-label">Select Next Reminder / Action Date:</label>
+                <input type="date" name="nextDate" required class="input-style">
+                <button type="submit" class="btn-primary" style="width:100%;">Save Date</button>
+            </form>
+        </div>
+    </div>
+
     <% if (role==='admin' ) { %>
         <div id="settingsModal" class="modal">
             <div class="modal-content">
                 <span class="close"
                     onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
-                <h3 style="margin-top: 0;">⚙️ Company Profile</h3>
+                <h3 style="margin-top: 0;">⚙️ Full Company Profile</h3>
                 <form action="/settings?_method=PUT" method="POST">
-                    <input type="text" name="companyName" placeholder="Company Name"
+                    <label class="trans-label">Company Name</label><input type="text" name="companyName"
                         value="<%= adminUser.companyName || '' %>" class="input-style">
-                    <input type="text" name="contactNo" placeholder="Contact No"
-                        value="<%= adminUser.contactNo || '' %>" class="input-style">
+                    <label class="trans-label">Address Line 1</label><input type="text" name="addressLine1"
+                        value="<%= adminUser.addressLine1 || '' %>" class="input-style">
+                    <label class="trans-label">Address Line 2</label><input type="text" name="addressLine2"
+                        value="<%= adminUser.addressLine2 || '' %>" class="input-style">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1"><label class="trans-label">DL No.</label><input type="text" name="dlNo"
+                                value="<%= adminUser.dlNo || '' %>" class="input-style"></div>
+                        <div style="flex:1"><label class="trans-label">MSME No.</label><input type="text" name="msmeNo"
+                                value="<%= adminUser.msmeNo || '' %>" class="input-style"></div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1"><label class="trans-label">Contact No.</label><input type="text"
+                                name="contactNo" value="<%= adminUser.contactNo || '' %>" class="input-style"></div>
+                        <div style="flex:1"><label class="trans-label">Email</label><input type="email"
+                                name="companyEmail" value="<%= adminUser.companyEmail || '' %>" class="input-style">
+                        </div>
+                    </div>
+                    <h4
+                        style="margin-bottom: 10px; font-size: 14px; color: var(--secondary-dark); border-top:1px solid #ccc; padding-top:10px;">
+                        🏦 Bank Details</h4>
+                    <label class="trans-label">Bank Name</label><input type="text" name="bankName"
+                        value="<%= adminUser.bankName || '' %>" class="input-style">
+                    <label class="trans-label">Account Name</label><input type="text" name="accountName"
+                        value="<%= adminUser.accountName || '' %>" class="input-style">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1"><label class="trans-label">Account No.</label><input type="text"
+                                name="accountNumber" value="<%= adminUser.accountNumber || '' %>" class="input-style">
+                        </div>
+                        <div style="flex:1"><label class="trans-label">IFSC Code</label><input type="text"
+                                name="ifscCode" value="<%= adminUser.ifscCode || '' %>" class="input-style"></div>
+                    </div>
+                    <label class="trans-label">UPI ID</label><input type="text" name="upiDetails"
+                        value="<%= adminUser.upiDetails || '' %>" class="input-style">
                     <button type="submit" class="btn-primary" style="width:100%;">💾 Save Profile</button>
                 </form>
             </div>
@@ -1197,40 +1607,25 @@
             <script>
                 var isMobile = window.innerWidth <= 850;
                 var activeFilter = { bucket: 'all', actionOnly: false };
-                var mobileHistory = []; // Tracks navigation history for the smart back button
+                var mobileHistory = [];
 
-                // === DESKTOP TAB SWITCHING ===
+                // --- NAVIGATION LOGIC ---
                 function switchTab(tabId) {
-                    // Update sidebar active state
                     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                    var activeNav = document.getElementById('nav-' + tabId);
-                    if (activeNav) activeNav.classList.add('active');
-
-                    // Hide all views, show selected
+                    var nav = document.getElementById('nav-' + tabId); if (nav) nav.classList.add('active');
                     document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-                    var activeView = document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
-                    if (activeView) activeView.classList.add('active');
+                    var view = document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1)); if (view) view.classList.add('active');
                 }
 
-                // === MOBILE NAVIGATION & LAUNCHER ===
                 function openMobileSection(sectionId, fromSection) {
                     if (!isMobile) return;
-
-                    // Push to history
-                    if (fromSection) mobileHistory.push(fromSection);
-                    else mobileHistory = ['home']; // reset history if clicking from launcher
-
-                    // Hide launcher, show section
+                    if (fromSection) mobileHistory.push(fromSection); else mobileHistory = ['home'];
                     document.getElementById('homeLauncher').style.display = 'none';
                     document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
+                    document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1)).style.display = 'block';
 
-                    var targetView = document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1));
-                    if (targetView) targetView.style.display = 'block';
-
-                    // Configure Smart Back Button
                     var backBtn = document.getElementById('backBtn');
                     backBtn.style.display = 'block';
-
                     if (sectionId === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
                     else if (sectionId === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
                     else if (sectionId === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
@@ -1239,42 +1634,48 @@
 
                 function handleMobileBack() {
                     var lastStop = mobileHistory.pop();
-                    if (lastStop === 'aging') {
-                        openMobileSection('aging'); // Go back to aging buckets
-                        mobileHistory = ['home']; // reset so next back goes home
-                    } else {
-                        // Go Home (Launcher)
+                    if (lastStop === 'aging') { openMobileSection('aging'); mobileHistory = ['home']; }
+                    else {
                         document.getElementById('homeLauncher').style.display = 'block';
                         document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
                         document.getElementById('backBtn').style.display = 'none';
                         mobileHistory = [];
-                        clearFilter(); // Clear filters when returning to home
+                        clearFilter();
                     }
                 }
 
-                // === AGING BUCKET FILTERING ===
+                // --- MODAL TRIGGERS ---
+                function openEditModal(id, comp, cont, ph, wa, em, tot, paid, oth) {
+                    document.getElementById('editComp').value = comp; document.getElementById('editCont').value = cont;
+                    document.getElementById('editPhone').value = ph; document.getElementById('editWa').value = wa;
+                    document.getElementById('editEmail').value = em; document.getElementById('editTotal').value = tot;
+                    document.getElementById('editPaid').value = paid; document.getElementById('editOther').value = oth || '';
+                    document.getElementById('editForm').action = '/customers/' + id + '/edit?_method=PUT';
+                    document.getElementById('editModal').style.display = 'block';
+                }
+
+                function openActionModal(id, cname) {
+                    document.getElementById('actionModalCompanyName').innerText = cname;
+                    document.getElementById('updateDateForm').action = '/customers/' + id + '/update-reminder?_method=PUT';
+                    document.getElementById('actionModal').style.display = 'block';
+                }
+
+                // --- FILTERING LOGIC ---
                 function clickBucket(bucketKey, label, count, amtStr) {
                     activeFilter.bucket = bucketKey;
                     activeFilter.actionOnly = false;
-
-                    // Show header
                     var hdr = document.getElementById('filterActiveHeader');
                     if (hdr) {
                         document.getElementById('filterActiveText').innerHTML = '📅 ' + label + ' &nbsp;|&nbsp; <strong>' + count + ' parties</strong> &nbsp;|&nbsp; ' + amtStr;
                         hdr.style.display = 'flex';
                     }
-
-                    // On mobile, explicitly navigate to Parties and pass 'aging' as the history origin
-                    if (isMobile) openMobileSection('parties', 'aging');
-                    else switchTab('parties');
-
+                    if (isMobile) openMobileSection('parties', 'aging'); else switchTab('parties');
                     runFilters();
                 }
 
                 function filterActionRequired() {
                     activeFilter.actionOnly = true;
                     activeFilter.bucket = 'all';
-
                     var hdr = document.getElementById('filterActiveHeader');
                     if (hdr) {
                         document.getElementById('filterActiveText').innerHTML = '⚠️ Action Required Parties';
@@ -1286,6 +1687,9 @@
 
                 function clearFilter() {
                     activeFilter = { bucket: 'all', actionOnly: false };
+                    document.getElementById('filterAging').value = 'all';
+                    document.getElementById('filterMin').value = '';
+                    document.getElementById('filterMax').value = '';
                     document.getElementById('searchInput').value = '';
                     var hdr = document.getElementById('filterActiveHeader');
                     if (hdr) hdr.style.display = 'none';
@@ -1294,45 +1698,39 @@
 
                 function runFilters() {
                     var searchTxt = document.getElementById('searchInput').value.toLowerCase();
-                    var rows = document.querySelectorAll('.customer-row');
+                    var bucket = document.getElementById('filterAging').value || activeFilter.bucket;
+                    var min = parseFloat(document.getElementById('filterMin').value) || 0;
+                    var max = parseFloat(document.getElementById('filterMax').value) || Infinity;
 
-                    rows.forEach(function (row) {
-                        var isVisible = true;
+                    document.querySelectorAll('.customer-row').forEach(row => {
+                        var isVis = true;
+                        if (searchTxt && row.textContent.toLowerCase().indexOf(searchTxt) === -1) isVis = false;
+                        if (activeFilter.actionOnly && row.getAttribute('data-action') !== 'true') isVis = false;
 
-                        // 1. Check Search
-                        if (searchTxt && row.textContent.toLowerCase().indexOf(searchTxt) === -1) isVisible = false;
+                        var totalDue = parseFloat(row.getAttribute('data-due')) || 0;
+                        var checkVal = totalDue;
 
-                        // 2. Check Action Required
-                        if (activeFilter.actionOnly && row.getAttribute('data-action') !== 'true') isVisible = false;
-
-                        // 3. Check Buckets
-                        if (activeFilter.bucket !== 'all') {
-                            var bucketAmt = parseFloat(row.getAttribute('data-' + activeFilter.bucket)) || 0;
-                            if (bucketAmt <= 0) isVisible = false;
-
-                            // Update due text dynamically to show bucket amount
-                            var dDesk = row.querySelector('.dynamic-due');
-                            var dMob = row.querySelector('.dynamic-due-m');
-                            if (dDesk) dDesk.innerText = 'Bucket Due: ₹' + bucketAmt;
-                            if (dMob) dMob.innerText = 'Bucket Due: ₹' + bucketAmt;
+                        if (bucket !== 'all') {
+                            var bucketAmt = parseFloat(row.getAttribute('data-' + bucket)) || 0;
+                            checkVal = bucketAmt;
+                            if (bucketAmt <= 0) isVis = false;
+                            row.querySelectorAll('.dynamic-due').forEach(el => el.innerText = 'Bucket Due: ₹' + bucketAmt);
+                            row.querySelectorAll('.dynamic-due-m').forEach(el => el.innerText = 'Bucket Due: ₹' + bucketAmt);
                         } else {
-                            // Reset to total due
-                            var totalDue = row.getAttribute('data-due');
-                            var dDesk = row.querySelector('.dynamic-due');
-                            var dMob = row.querySelector('.dynamic-due-m');
-                            if (dDesk) dDesk.innerText = 'Due: ₹' + totalDue;
-                            if (dMob) dMob.innerText = 'Due: ₹' + totalDue;
+                            row.querySelectorAll('.dynamic-due').forEach(el => el.innerText = 'Due: ₹' + totalDue);
+                            row.querySelectorAll('.dynamic-due-m').forEach(el => el.innerText = 'Due: ₹' + totalDue);
                         }
 
-                        if (isVisible) row.classList.remove('d-none'); else row.classList.add('d-none');
+                        if (checkVal < min || checkVal > max) isVis = false;
+                        if (isVis) row.classList.remove('d-none'); else row.classList.add('d-none');
                     });
                 }
 
-                // === BULK ACTIONS & UTILS ===
+                // --- BULK SELECTION ---
                 function toggleSelectAll() {
                     var cb = document.getElementById('selectAll');
-                    var isChecked = !cb.checked;
-                    cb.checked = isChecked;
+                    var isChecked = cb ? !cb.checked : true;
+                    if (cb) cb.checked = isChecked;
                     document.querySelectorAll('.customer-checkbox').forEach(box => {
                         if (!box.closest('tr').classList.contains('d-none')) box.checked = isChecked;
                     });
@@ -1362,14 +1760,133 @@
                     }
                 }
 
+                // --- DUPLICATE CHECKER ---
+                var _dupCheckTimer = null;
+                function checkDuplicate() {
+                    var nameVal = document.getElementById('addCompanyName') ? document.getElementById('addCompanyName').value.trim() : '';
+                    var phoneVal = document.getElementById('addPhone') ? document.getElementById('addPhone').value.trim() : '';
+                    if (!nameVal && !phoneVal) { document.getElementById('addDupAlert').classList.remove('show'); return; }
+                    clearTimeout(_dupCheckTimer);
+                    _dupCheckTimer = setTimeout(function () {
+                        fetch('/customers/check-duplicate?name=' + encodeURIComponent(nameVal) + '&phone=' + encodeURIComponent(phoneVal))
+                            .then(r => r.json())
+                            .then(data => {
+                                var alert = document.getElementById('addDupAlert');
+                                var msg = document.getElementById('addDupMsg');
+                                if (data.isDuplicate) {
+                                    msg.innerText = 'A party with this ' + (data.matchReason === 'name' ? 'name' : 'phone') + ' already exists: "' + data.matchedName + '".';
+                                    alert.classList.add('show');
+                                } else { alert.classList.remove('show'); }
+                            }).catch(e => { });
+                    }, 500);
+                }
+                var addNameInput = document.getElementById('addCompanyName');
+                var addPhoneInput = document.getElementById('addPhone');
+                if (addNameInput) addNameInput.addEventListener('input', checkDuplicate);
+                if (addPhoneInput) addPhoneInput.addEventListener('input', checkDuplicate);
+
+                // --- PDF EXPORT ---
+                function downloadPDF() {
+                    var el = document.createElement('div');
+                    var d = new Date().toLocaleDateString('en-IN');
+                    var html = '<h1 style="text-align:center;color:#1e293b;">Financial Report</h1>';
+                    html += '<h3 style="text-align:center;color:#64748b;">Generated: ' + d + '</h3>';
+                    html += document.getElementById('pdfExportArea').outerHTML;
+                    html += document.querySelector('table').outerHTML;
+                    el.innerHTML = html;
+
+                    var hideNodes = el.querySelectorAll('.btn-table, .m-tools, form, .m-circles, .action-buttons, th:first-child, td:first-child, input[type="checkbox"]');
+                    hideNodes.forEach(n => n.style.display = 'none');
+
+                    var opt = { margin: 0.5, filename: 'Financial_Report.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } };
+                    html2pdf().set(opt).from(el).save();
+                }
+
+                // --- WHATSAPP / SMS / EMAIL LOGIC ---
+                function sendMsg(element, type) {
+                    var id = element.getAttribute('data-id');
+                    var phone = element.getAttribute('data-phone');
+                    var wa = element.getAttribute('data-wa');
+                    var email = element.getAttribute('data-email');
+                    var cname = decodeURIComponent(element.getAttribute('data-cname') || '');
+                    var pname = decodeURIComponent(element.getAttribute('data-pname') || '');
+                    var admin = decodeURIComponent(element.getAttribute('data-admin') || '');
+                    var total = element.getAttribute('data-total');
+                    var paidamount = element.getAttribute('data-paidamount');
+                    var lastpaid = decodeURIComponent(element.getAttribute('data-lastpaid') || '');
+                    var due = element.getAttribute('data-due');
+                    var diff = parseInt(element.getAttribute('data-diff') || '0');
+
+                    var bName = "<%= adminUser.bankName || '' %>";
+                    var aName = "<%= adminUser.accountName || '' %>";
+                    var aNo = "<%= adminUser.accountNumber || '' %>";
+                    var ifsc = "<%= adminUser.ifscCode || '' %>";
+                    var upi = "<%= adminUser.upiDetails || '' %>";
+
+                    var m = [];
+                    var cStr = cname; if (pname.length > 0) cStr += " (" + pname + ")";
+                    m.push("Hello, this is " + admin + ".");
+                    m.push("\nThis is a payment reminder for " + cStr + ".");
+                    m.push("\n📊 *Account Summary:*");
+                    m.push("- Total Bill Amount: Rs " + total);
+                    var pStr = "Rs " + paidamount;
+                    if (parseInt(paidamount) > 0 && lastpaid) pStr += " (Last paid: " + lastpaid + ")";
+                    m.push("- Total Amount Paid: " + pStr);
+                    m.push("- Current Outstanding Due: *Rs " + due + "*\n");
+
+                    if (diff > 0) m.push("_It is " + diff + " days past the set action date._\n");
+                    m.push("Please arrange the payment for the pending amount at your earliest convenience.\n");
+
+                    if (bName || aNo || upi) {
+                        m.push("🏦 *Payment Details:*");
+                        if (bName) m.push("Bank: " + bName);
+                        if (aName) m.push("Name: " + aName);
+                        if (aNo) m.push("A/C No: " + aNo);
+                        if (ifsc) m.push("IFSC: " + ifsc);
+                        if (upi) m.push("UPI: " + upi);
+                        m.push("");
+                    }
+                    m.push("Thank you,\n" + admin);
+
+                    var encoded = encodeURIComponent(m.join('\n'));
+                    if (type === 'wa') window.open('https://wa.me/' + wa + '?text=' + encoded, '_blank');
+                    if (type === 'sms') window.open('sms:+' + phone + '?body=' + encoded, '_self');
+                    if (type === 'email') window.open('mailto:' + email + '?subject=Payment Reminder&body=' + encoded, '_self');
+
+                    var c1 = element.closest('.action-buttons'); var c2 = element.closest('.m-circles');
+                    if (c1) c1.style.display = 'none'; if (c2) c2.style.display = 'none';
+                    var row = element.closest('tr'); if (row) row.querySelectorAll('.req-badge').forEach(n => n.style.display = 'none');
+
+                    fetch('/customers/' + id + '/auto-snooze', { method: 'POST' }).catch(e => { });
+                }
+
+                // --- GOOGLE DRIVE INTEGRATION ---
+                function triggerDriveBackup() {
+                    alert("Backing up to Google Drive in the background...");
+                    fetch('/drive-backup')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) alert("✅ " + data.message);
+                            else alert("❌ Backup failed. Did you Link your Google Drive first?");
+                        }).catch(e => alert("Error communicating with server."));
+                }
+
                 function showLoadingBtn(form, btnId, loadingText) {
                     var btn = document.getElementById(btnId);
                     if (btn) { btn.innerHTML = loadingText; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
                     return true;
                 }
 
-                // Setup desktop active tab on load
-                if (!isMobile) { switchTab('aging'); }
+                // Initialization
+                (function () {
+                    if (!isMobile) switchTab('aging');
+                    var params = new URLSearchParams(window.location.search);
+                    if (params.get('dup') === '1') {
+                        var warn = document.getElementById('dupWarning');
+                        if (warn) { document.getElementById('dupWarningText').innerText = '⚠️ Duplicate Blocked: "' + decodeURIComponent(params.get('dupname') || '') + '" already exists.'; warn.style.display = 'flex'; }
+                        window.history.replaceState({}, document.title, '/');
+                    }
+                })();
             </script>
 </body>
 
