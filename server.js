@@ -382,15 +382,41 @@ app.post('/register', async (req, res) => {
 app.post('/create-staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
     try {
+        // 1. Clean up the username (remove accidental spaces)
+        const rawUsername = req.body.username.trim();
+
+        // 2. Check if the username already exists (case-insensitive)
+        const existingUser = await User.findOne({ username: new RegExp('^' + rawUsername + '$', 'i') });
+        if (existingUser) {
+            return res.send(`
+                <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+                    <h2 style="color: #ef4444;">Username Already Taken</h2>
+                    <p>The username <strong>"${rawUsername}"</strong> is already in use.</p>
+                    <button onclick="window.history.back()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer;">Go Back and Try Another</button>
+                </div>
+            `);
+        }
+
+        // 3. Create the staff member
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const dummyAnswer = await bcrypt.hash("admin-managed", 10);
+
         await User.create({
-            username: req.body.username, password: hashedPassword, role: 'staff',
-            adminId: req.session.adminId, securityQuestion: "Managed by Admin?", securityAnswer: dummyAnswer
+            username: rawUsername,
+            password: hashedPassword,
+            role: 'staff',
+            adminId: req.session.adminId,
+            securityQuestion: "Managed by Admin?",
+            securityAnswer: dummyAnswer
         });
-        await logActivity(req, "Created Staff", `Created: ${req.body.username}`);
+
+        await logActivity(req, "Created Staff", `Created: ${rawUsername}`);
         res.redirect('/staff');
-    } catch (e) { res.send("Failed to create staff."); }
+
+    } catch (e) {
+        console.error("Staff Creation Error: ", e);
+        res.send("Failed to create staff. Error: " + e.message);
+    }
 });
 
 app.post('/reset-staff-password', requireLogin, async (req, res) => {
@@ -473,8 +499,8 @@ app.get('/export', requireLogin, async (req, res) => {
     } catch (err) { res.status(500).send("Failed to export Excel."); }
 });
 
-// --- SMART IMPORT ---
 // --- SMART IMPORT (Optimized with BulkWrite) ---
+// --- SMART IMPORT (Optimized with BulkWrite & Corrected Tally Columns) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -484,16 +510,22 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         let importedCount = 0;
         let dataStartIndex = 0;
 
+        // Find where the actual data starts
         for (let i = 0; i < rawData.length; i++) {
             const firstColumn = rawData[i][0] ? String(rawData[i][0]).trim().toLowerCase() : '';
-            if (firstColumn === 'party name' || firstColumn === 'particulars') { dataStartIndex = i + 1; break; }
+            if (firstColumn === 'party name' || firstColumn === 'particulars') {
+                dataStartIndex = i + 1;
+                break;
+            }
         }
 
-        const bulkOps = []; // Holds all database operations
+        const bulkOps = [];
 
         for (let i = dataStartIndex; i < rawData.length; i++) {
             const row = rawData[i];
             const partyName = row[0] ? String(row[0]).trim() : '';
+
+            // Skip empty rows and grand totals
             if (!partyName || partyName.toLowerCase() === 'grand total') continue;
 
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
@@ -513,16 +545,25 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 if (phoneArray.length > 1) { finalOther = phoneArray.slice(1).map(formatNum).join(', '); }
             }
 
-            const totalPending = cleanMoney(row[3]);
+            const totalPending = cleanMoney(row[3]); // Column D (Pending Bills Debit)
+
+            // CORRECTED MAPPING: Tally exports have "Debit" and "Credit" sub-columns for every bucket.
+            // This means the data is spaced out by 2 columns (index 5, 7, 9, 11, etc.)
             const agingData = {
-                under30: cleanMoney(row[4]), days30to60: cleanMoney(row[5]), days60to90: cleanMoney(row[7]),
-                days90to120: cleanMoney(row[8]), days120to150: cleanMoney(row[9]), days150to180: cleanMoney(row[10]),
-                above180: cleanMoney(row[11]), onAccount: cleanMoney(row[12])
+                under30: cleanMoney(row[5]),       // < 30 days (Debit)
+                days30to60: cleanMoney(row[7]),    // 30 to 60 days (Debit)
+                days60to90: cleanMoney(row[9]),    // 60 to 90 days (Debit)
+                days90to120: cleanMoney(row[11]),  // 90 to 120 days (Debit)
+                days120to150: cleanMoney(row[13]), // 120 to 150 days (Debit)
+                days150to180: cleanMoney(row[15]), // 150 to 180 days (Debit)
+                above180: cleanMoney(row[17]),     // > 180 days (Debit)
+                onAccount: cleanMoney(row[19])     // On Account (Debit)
             };
 
-            let d = new Date(); d.setDate(d.getDate() + 10);
+            let nextAction = new Date();
+            nextAction.setDate(nextAction.getDate() + 10);
 
-            // Create a bulk operation for each row
+            // Using BulkWrite for instant uploading
             bulkOps.push({
                 updateOne: {
                     filter: { companyName: partyName, adminId: req.session.adminId },
@@ -536,7 +577,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                             aging: agingData,
                             agingLastShifted: new Date()
                         },
-                        $setOnInsert: { nextActionDate: d }
+                        $setOnInsert: { nextActionDate: nextAction }
                     },
                     upsert: true
                 }
@@ -544,7 +585,7 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             importedCount++;
         }
 
-        // Send all updates to the database at once
+        // Send all 300+ records to the database instantly
         if (bulkOps.length > 0) {
             await Customer.bulkWrite(bulkOps);
         }

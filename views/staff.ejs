@@ -298,14 +298,18 @@
         <a href="/" class="back-link">&larr; Back to Dashboard</a>
         <h1>👤 Manage Staff</h1>
 
-        <div class="floating-card" style="background: #f8fafc; border-color: #e2e8f0;">
-            <h3 style="margin-top: 0; color: var(--text-dark); font-size: 18px; margin-bottom: 15px;">Create New Staff
-                Account</h3>
-            <form action="/create-staff" method="POST">
-                <input type="text" name="username" placeholder="Staff Username" required class="input-style">
+        <div class="floating-card" style="background: #f8fafc; border-color: #e2e8f0; position: relative; z-index: 100;">
+            <h3 style="margin-top: 0; color: var(--text-dark); font-size: 18px; margin-bottom: 15px;">Create New Staff Account
+            </h3>
+        
+            <form action="/create-staff" method="POST" style="position: relative; z-index: 101;">
+                <input type="text" name="username" placeholder="Staff Username" required class="input-style"
+                    style="position: relative; z-index: 102; pointer-events: auto;">
+        
                 <input type="password" name="password" placeholder="Staff Password" required class="input-style"
-                    style="margin-bottom: 20px;">
-                <button type="submit" class="btn-primary">Create Account</button>
+                    style="margin-bottom: 20px; position: relative; z-index: 102; pointer-events: auto;">
+        
+                <button type="submit" class="btn-primary" style="position: relative; z-index: 102;">Create Account</button>
             </form>
         </div>
 
