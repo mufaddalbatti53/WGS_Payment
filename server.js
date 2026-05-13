@@ -140,8 +140,17 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
         oauth2Client.setCredentials(adminUser.googleDriveToken);
         const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
+        // Gather ALL the data
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
-        const backupData = JSON.stringify({ customers: customers, timestamp: new Date() });
+        const staff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
+        const activities = await ActivityLog.find({ adminId: req.session.adminId }).lean();
+
+        const backupData = JSON.stringify({
+            customers: customers,
+            staff: staff,
+            activities: activities,
+            timestamp: new Date()
+        });
 
         const fileMetadata = {
             name: `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`,
@@ -202,14 +211,29 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "Backup file is invalid or empty." });
         }
 
-        // 3. Restore the data (Overwrite current parties with backup)
+        // 3. Restore the data 
         const adminId = req.session.adminId;
+
+        // Restore Customers
         if (Array.isArray(backup.customers)) {
             await Customer.deleteMany({ adminId });
-            const toInsert = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
-            if (toInsert.length > 0) await Customer.insertMany(toInsert, { ordered: false });
+            const toInsertC = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
+            if (toInsertC.length > 0) await Customer.insertMany(toInsertC, { ordered: false });
         }
 
+        // Restore Staff
+        if (Array.isArray(backup.staff)) {
+            await User.deleteMany({ role: 'staff', adminId });
+            const toInsertS = backup.staff.map(s => ({ ...s, adminId, _id: undefined }));
+            if (toInsertS.length > 0) await User.insertMany(toInsertS, { ordered: false });
+        }
+
+        // Restore Activities
+        if (Array.isArray(backup.activities)) {
+            await ActivityLog.deleteMany({ adminId });
+            const toInsertA = backup.activities.map(a => ({ ...a, adminId, _id: undefined }));
+            if (toInsertA.length > 0) await ActivityLog.insertMany(toInsertA, { ordered: false });
+        }
         await logActivity(req, 'Cloud Restored', `Restored data from Google Drive backup.`);
         res.json({ success: true, message: "Database successfully restored from Google Drive!" });
 
@@ -310,7 +334,15 @@ async function runAutoBackups() {
                     const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
                     const customers = await Customer.find({ adminId: admin._id }).lean();
-                    const backupData = JSON.stringify({ customers: customers, timestamp: new Date() });
+                    const staff = await User.find({ role: 'staff', adminId: admin._id }).lean();
+                    const activities = await ActivityLog.find({ adminId: admin._id }).lean();
+
+                    const backupData = JSON.stringify({
+                        customers: customers,
+                        staff: staff,
+                        activities: activities,
+                        timestamp: new Date()
+                    });
 
                     await drive.files.create({
                         resource: {
