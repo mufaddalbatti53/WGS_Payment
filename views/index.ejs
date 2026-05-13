@@ -1060,14 +1060,16 @@
                                                                                                     <a href="tel:+<%= customer.phone %>"
                                                                                                         style="color:var(--text-dark); text-decoration:none;">+
                                                                                                         <%= customer.phone
-                                                                                                            %></a><br>
+                                                                                                            %>
+                                                                                                    </a><br>
                                                                                                     <% if(customer.whatsappNumber){
                                                                                                         %> <strong
                                                                                                             style="color:#15803d;">W:</strong>
                                                                                                         <a href="https://wa.me/<%= customer.whatsappNumber %>"
                                                                                                             style="color:#15803d; text-decoration:none;">+
                                                                                                             <%= customer.whatsappNumber
-                                                                                                                %></a>
+                                                                                                                %>
+                                                                                                        </a>
                                                                                                         <% } %>
                                                                                                 </td>
                                                                                                 <td
@@ -1232,7 +1234,7 @@
                                                                                                                             +
                                                                                                                             <%= customer.phone
                                                                                                                                 %>
-                                                                                                                                </a>
+                                                                                                                        </a>
                                                                                                                     </div>
                                                                                                         </div>
                                                                                                         <div
@@ -1393,14 +1395,15 @@
                         <% if (role==='admin' ) { %>
                             <div id="viewData" class="section-view">
                                 <h1 class="desktop-only" style="margin-top:0;">🗄️ Data Management</h1>
-                        
+
                                 <div class="floating-card">
                                     <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup</h3>
                                     <% if (adminUser.googleDriveToken) { %>
                                         <div
                                             style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
                                             <div>
-                                                <div style="color: #166534; font-weight: bold; font-size: 14px;">✅ Linked to Google Account:</div>
+                                                <div style="color: #166534; font-weight: bold; font-size: 14px;">✅
+                                                    Linked to Google Account:</div>
                                                 <div style="color: #15803d; font-size: 13px;">
                                                     <%= adminUser.googleEmail %>
                                                 </div>
@@ -1409,63 +1412,83 @@
                                                 style="color: #ef4444; font-size: 12px; font-weight: bold; text-decoration: none; border: 1px solid #fca5a5; padding: 5px 10px; border-radius: 6px;">Disconnect</a>
                                         </div>
                                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                            <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58; flex: 1;">☁️ Backup
+                                            <button onclick="triggerDriveBackup()" class="btn-primary"
+                                                style="background: #0f9d58; flex: 1;">☁️ Backup
                                                 Now</button>
                                             <button onclick="triggerDriveRestore()" class="btn-primary"
-                                                style="background: #eab308; color: #713f12; flex: 1;">🔄 Cloud Restore</button>
+                                                style="background: #eab308; color: #713f12; flex: 1;">🔄 Cloud
+                                                Restore</button>
                                         </div>
                                         <% } else { %>
-                                            <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database directly to your Google
+                                            <p style="font-size: 13px; color: var(--text-muted);">Securely backup your
+                                                database directly to your Google
                                                 Drive.</p>
-                                            <a href="/auth/google" class="btn-primary" style="background: #4285F4; width: 100%; text-align: center;">
+                                            <a href="/auth/google" class="btn-primary"
+                                                style="background: #4285F4; width: 100%; text-align: center;">
                                                 <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
-                                                    width="16" style="vertical-align: middle; margin-right: 5px;"> Link Google Drive
+                                                    width="16" style="vertical-align: middle; margin-right: 5px;"> Link
+                                                Google Drive
                                             </a>
                                             <% } %>
                                 </div>
-                        
-                                    <h3 style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">🤖 Automated
-                                        Background Backup</h3>
-                                    <form action="/settings/auto-backup?_method=PUT" method="POST"
-                                        style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                                        <div style="flex: 1; min-width: 200px;">
-                                            <label class="trans-label" style="color: #15803d; margin-bottom: 2px;">Auto-Backup Every X
-                                                Days</label>
-                                            <p style="font-size: 11px; color: #166534; margin: 0;">Set to <b>0</b> to disable. (Requires Drive
-                                                to be linked).</p>
-                                        </div>
-                                        <input type="number" name="autoBackupInterval" value="<%= adminUser.autoBackupInterval || 0 %>" min="0"
-                                            max="365" class="input-style" style="margin-bottom: 0; width: 100px;">
-                                        <button type="submit" class="btn-primary" style="background: #15803d; margin: 0;">💾 Save
-                                            Automation</button>
-                                    </form>
-                        
-                                <div class="floating-card">
+
+                                <h3
+                                    style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">
+                                    🤖 Automated
+                                    Background Backup</h3>
+                                <form action="/settings/auto-backup?_method=PUT" method="POST"
+                                    style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                    <div style="flex: 1; min-width: 200px;">
+                                        <label class="trans-label"
+                                            style="color: #15803d; margin-bottom: 2px;">Auto-Backup Every X
+                                            Days</label>
+                                        <p style="font-size: 11px; color: #166534; margin: 0;">Set to <b>0</b> to
+                                            disable. (Requires Drive
+                                            to be linked).</p>
+                                    </div>
+                                    <input type="number" name="autoBackupInterval"
+                                        value="<%= adminUser.autoBackupInterval || 0 %>" min="0" max="365"
+                                        class="input-style" style="margin-bottom: 0; width: 100px;">
+                                    <button type="submit" class="btn-primary" style="background: #15803d; margin: 0;">💾
+                                        Save
+                                        Automation</button>
+                                </form>
+
+
+                                <div class="floating-card" style="margin-top: 25px;">
                                     <h3 style="margin-top: 0; font-size: 18px;">Local Export Options</h3>
                                     <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-                                        <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export Excel</a>
-                                        <button onclick="downloadPDF()" class="btn-primary" style="background: #ef4444;">📄 Export PDF</button>
-                                        <a href="/backup-data-excel" class="btn-primary" style="background: #8e44ad;">📦 Download JSON
+                                        <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export
+                                            Excel</a>
+                                        <button onclick="downloadPDF()" class="btn-primary"
+                                            style="background: #ef4444;">📄 Export PDF</button>
+                                        <a href="/backup-data" class="btn-primary" style="background: #8e44ad;">📦
+                                            Download JSON
                                             Backup</a>
                                     </div>
-                        
-                                    <h3 style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">Import
+
+                                    <h3
+                                        style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">
+                                        Import
                                         Tally/Busy Excel</h3>
                                     <form action="/import" method="POST" enctype="multipart/form-data"
                                         onsubmit="return showLoadingBtn(this, 'importBtn', '⏳ Importing...')"
                                         style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
-                                        <strong style="font-size: 14px; color: var(--secondary-dark);">Upload File:</strong>
+                                        <strong style="font-size: 14px; color: var(--secondary-dark);">Upload
+                                            File:</strong>
                                         <input type="file" name="excelFile" accept=".csv, .xlsx, .xls" required
                                             style="font-size: 14px; flex: 1;">
-                                        <button type="submit" id="importBtn" class="btn-primary" style="background: var(--secondary);">📤 Import
+                                        <button type="submit" id="importBtn" class="btn-primary"
+                                            style="background: var(--secondary);">📤 Import
                                             Excel</button>
                                     </form>
-                        
+
                                     <form action="/restore-backup" method="POST" enctype="multipart/form-data"
                                         onsubmit="return showLoadingBtn(this, 'restoreBtn', '⏳ Restoring Data...')"
                                         style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #fdf4ff; padding: 15px; border-radius: 12px; border: 1px dashed #d8b4e2; margin-top: 15px;">
                                         <strong style="font-size: 13px; color: #8e44ad;">Manual JSON Restore:</strong>
-                                        <input type="file" name="backupFile" accept=".json" required style="font-size: 13px; flex: 1;">
+                                        <input type="file" name="backupFile" accept=".json" required
+                                            style="font-size: 13px; flex: 1;">
                                         <button type="submit" id="restoreBtn" class="btn-primary"
                                             style="background: #9b59b6; padding: 8px 15px;">🔄 Local Restore</button>
                                     </form>
@@ -1630,15 +1653,19 @@
         </div>
         <% } %>
 
+            <div id="toast"
+                style="display:none; position:fixed; bottom:30px; right:30px; background:#10b981; color:white; padding:15px 25px; border-radius:12px; z-index:9999; font-weight:bold; align-items:center; gap:10px; box-shadow:0 10px 25px rgba(16,185,129,0.4);">
+                <span id="toastMsg">Success!</span>
+            </div>
+
             <script>
                 var isMobile = window.innerWidth <= 850;
                 var activeFilter = { bucket: 'all', actionOnly: false };
                 var mobileHistory = [];
 
-                // --- NAVIGATION LOGIC ---
-               // --- NAVIGATION LOGIC WITH MEMORY ---
+                // --- NAVIGATION LOGIC WITH MEMORY ---
                 function switchTab(tabId) {
-                    localStorage.setItem('activeWgsTab', tabId); // Save state!
+                    localStorage.setItem('activeWgsTab', tabId);
                     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
                     var nav = document.getElementById('nav-' + tabId); if (nav) nav.classList.add('active');
                     document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
@@ -1647,7 +1674,7 @@
 
                 function openMobileSection(sectionId, fromSection) {
                     if (!isMobile) return;
-                    localStorage.setItem('activeWgsTab', sectionId); // Save state!
+                    localStorage.setItem('activeWgsTab', sectionId);
                     if (fromSection) mobileHistory.push(fromSection); else mobileHistory = ['home'];
                     document.getElementById('homeLauncher').style.display = 'none';
                     document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
@@ -1665,7 +1692,7 @@
                     var lastStop = mobileHistory.pop();
                     if (lastStop === 'aging') { openMobileSection('aging'); mobileHistory = ['home']; }
                     else {
-                        localStorage.removeItem('activeWgsTab'); // Clear state to show home launcher
+                        localStorage.removeItem('activeWgsTab');
                         document.getElementById('homeLauncher').style.display = 'block';
                         document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
                         document.getElementById('backBtn').style.display = 'none';
@@ -1673,6 +1700,7 @@
                         clearFilter();
                     }
                 }
+
                 // --- MODAL TRIGGERS ---
                 function openEditModal(id, comp, cont, ph, wa, em, tot, paid, oth) {
                     document.getElementById('editComp').value = comp; document.getElementById('editCont').value = cont;
@@ -1754,6 +1782,7 @@
                         if (isVis) row.classList.remove('d-none'); else row.classList.add('d-none');
                     });
                 }
+
                 // --- BULK SELECTION ---
                 function toggleSelectAll() {
                     var cb = document.getElementById('selectAll');
@@ -1881,28 +1910,103 @@
                             else alert("❌ Backup failed. Did you Link your Google Drive first?");
                         }).catch(e => alert("Error communicating with server."));
                 }
-    function triggerDriveRestore() {
-        if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
-            showToast("⏳ Downloading backup from Google Drive...");
-            fetch('/drive-restore')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("✅ " + data.message);
-                        window.location.reload(); // Refresh the page to show the restored data!
-                    } else {
-                        alert("❌ " + data.message);
+
+                function triggerDriveRestore() {
+                    if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
+                        showToast("⏳ Downloading backup from Google Drive...");
+                        fetch('/drive-restore')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert("✅ " + data.message);
+                                    window.location.reload();
+                                } else {
+                                    alert("❌ " + data.message);
+                                }
+                            }).catch(e => alert("Error communicating with server."));
                     }
-                }).catch(e => alert("Error communicating with server."));
-        }
-    }
+                }
+
                 function showLoadingBtn(form, btnId, loadingText) {
                     var btn = document.getElementById(btnId);
                     if (btn) { btn.innerHTML = loadingText; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
                     return true;
                 }
 
-                // Initialization
+                // --- TOAST NOTIFICATIONS ---
+                function showToast(msg) {
+                    var t = document.getElementById('toast');
+                    document.getElementById('toastMsg').innerText = msg;
+                    t.style.display = 'flex';
+                    setTimeout(() => { t.style.display = 'none'; }, 4000);
+                }
+
+                // --- PROFESSIONAL TALLY-STYLE PDF EXPORT ---
+                function downloadPDF() {
+                    showToast("⏳ Generating professional PDF...");
+                    const element = document.createElement('div');
+                    element.style.padding = "20px";
+                    element.style.fontFamily = "Arial, sans-serif";
+
+                    const profile = {
+                        name: "<%= adminUser.companyName || '' %>",
+                        addr: "<%= adminUser.addressLine1 || '' %> <%= adminUser.addressLine2 || '' %>"
+                    };
+
+                    let html = `
+            <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                <h1 style="margin:0;">${profile.name}</h1>
+                <p style="margin:5px 0;">${profile.addr}</p>
+                <h2 style="margin:10px 0; background:#f1f1f1;">Aging Analysis (Sundry Debtors)</h2>
+            </div>
+            <table border="1" style="width:100%; border-collapse: collapse; font-size: 10px; text-align: left;">
+                <tr style="background:#eee;">
+                    <th rowspan="2" style="padding: 5px;">Party Name</th>
+                    <th rowspan="2" style="padding: 5px;">Total Due</th>
+                    <th colspan="6" style="text-align:center; padding: 5px;">Aging Intervals (Days)</th>
+                </tr>
+                <tr style="background:#eee;">
+                    <th style="padding: 5px;">0-30</th>
+                    <th style="padding: 5px;">30-60</th>
+                    <th style="padding: 5px;">60-90</th>
+                    <th style="padding: 5px;">90-120</th>
+                    <th style="padding: 5px;">120-180</th>
+                    <th style="padding: 5px;">>180</th>
+                </tr>
+            `;
+
+                    document.querySelectorAll('.customer-row:not(.d-none)').forEach(row => {
+                        html += `
+                <tr>
+                    <td style="padding: 5px;">${row.querySelector('strong').innerText}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-due')}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-u30')}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-d30_60')}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-d60_90')}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-d90_120')}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-d120_150')}</td>
+                    <td style="padding: 5px;">${row.getAttribute('data-a180')}</td>
+                </tr>
+                `;
+                    });
+
+                    html += `</table>`;
+                    element.innerHTML = html;
+
+                    const opt = {
+                        margin: 0.5,
+                        filename: `${profile.name}_Aging_Report.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2 },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+                    };
+
+                    html2pdf().set(opt).from(element).save().then(() => {
+                        showToast("✅ PDF Downloaded!");
+                    });
+                }
+
+                // --- INITIALIZATION ---
                 (function () {
                     var params = new URLSearchParams(window.location.search);
 
@@ -1917,6 +2021,11 @@
                         window.history.replaceState({}, document.title, '/');
                     }
 
+                    if (params.get('msg')) {
+                        showToast("✅ Action Completed Successfully!");
+                        window.history.replaceState({}, document.title, '/');
+                    }
+
                     var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
                     if (!isMobile) {
                         switchTab(savedTab);
@@ -1924,81 +2033,6 @@
                         openMobileSection(savedTab);
                     }
                 })();
-
-                    // 2. PROFESSIONAL TALLY-STYLE PDF EXPORT
-                    function downloadPDF() {
-                        showToast("⏳ Generating professional PDF...");
-                    const element = document.createElement('div');
-                    element.style.padding = "20px";
-                    element.style.fontFamily = "Arial, sans-serif";
-
-                    const profile = {
-                        name: "<%= adminUser.companyName || '' %>",
-                    addr: "<%= adminUser.addressLine1 || '' %> <%= adminUser.addressLine2 || '' %>"
-        };
-
-                    let html = `
-                    <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-                        <h1 style="margin:0;">${profile.name}</h1>
-                        <p style="margin:5px 0;">${profile.addr}</p>
-                        <h2 style="margin:10px 0; background:#f1f1f1;">Aging Analysis (Sundry Debtors)</h2>
-                    </div>
-                    <table border="1" style="width:100%; border-collapse: collapse; font-size: 10px;">
-                        <tr style="background:#eee;">
-                            <th rowspan="2">Party Name</th>
-                            <th rowspan="2">Total Due</th>
-                            <th colspan="6" style="text-align:center;">Aging Intervals (Days)</th>
-                        </tr>
-                        <tr style="background:#eee;">
-                            <th>0-30</th><th>30-60</th><th>60-90</th><th>90-120</th><th>120-180</th><th>>180</th>
-                        </tr>
-                        `;
-
-        document.querySelectorAll('.customer-row:not(.d-none)').forEach(row => {
-                            html += `
-                <tr>
-                    <td>${row.querySelector('strong').innerText}</td>
-                    <td>${row.getAttribute('data-due')}</td>
-                    <td>${row.getAttribute('data-u30')}</td>
-                    <td>${row.getAttribute('data-d30_60')}</td>
-                    <td>${row.getAttribute('data-d60_90')}</td>
-                    <td>${row.getAttribute('data-d90_120')}</td>
-                    <td>${row.getAttribute('data-d120_150')}</td>
-                    <td>${row.getAttribute('data-a180')}</td>
-                </tr>
-            `;
-        });
-
-                        html += `</table>`;
-                    element.innerHTML = html;
-
-                    const opt = {
-                        margin: 0.5,
-                    filename: `${profile.name}_Aging_Report.pdf`,
-                    image: {type: 'jpeg', quality: 0.98 },
-                    html2canvas: {scale: 2 },
-                    jsPDF: {unit: 'in', format: 'letter', orientation: 'landscape' }
-        };
-
-        html2pdf().set(opt).from(element).save().then(() => {
-                        showToast("✅ PDF Downloaded!");
-        });
-    }
-
-                    // 3. TOAST & INITIALIZATION
-                    function showToast(msg) {
-        var t = document.getElementById('toast');
-                    document.getElementById('toastMsg').innerText = msg;
-                    t.style.display = 'flex';
-        setTimeout(() => {t.style.display = 'none'; }, 4000);
-    }
-
-                    // Capture URL messages
-                    const params = new URLSearchParams(window.location.search);
-                    if (params.get('msg')) {
-                        showToast("✅ Action Completed Successfully!");
-                    window.history.replaceState({ }, '', '/');
-    }
             </script>
 </body>
 
