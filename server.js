@@ -42,12 +42,12 @@ app.use(session({
     saveUninitialized: false,
     // Add the store configuration below:
     store: MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin', // Use your actual MongoDB connection string variable
-        collectionName: 'sessions', // This will create a new collection in your DB called 'sessions'
-        autoRemove: 'native' // Automatically deletes expired sessions
+        mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin',
+        collectionName: 'sessions',
+        autoRemove: 'native'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24 // Sets session to expire in 1 day (optional)
+        maxAge: 1000 * 60 * 60 * 24
     }
 }));
 
@@ -90,45 +90,46 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // 1. Route to start Google Drive Connection
-// 1. Route to start Google Drive Connection
 app.get('/auth/google', requireLogin, (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline',
-        // We MUST ask Google for the hidden appDataFolder permission here:
         scope: [
             'https://www.googleapis.com/auth/drive.file',
             'https://www.googleapis.com/auth/drive.appdata',
             'https://www.googleapis.com/auth/userinfo.email'
         ],
-        prompt: 'consent' // Forces Google to give us a fresh refresh token
+        prompt: 'consent'
     });
     res.redirect(url);
 });
 
-app.get('/auth / google / callback', requireLogin, async (req, res) => {
-try {
-    const { code } = req.query;
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
+// Fixed spacing typo in route: '/auth / google / callback' -> '/auth/google/callback'
+app.get('/auth/google/callback', requireLogin, async (req, res) => {
+    try {
+        const { code } = req.query;
+        const { tokens } = await oauth2Client.getToken(code);
+        oauth2Client.setCredentials(tokens);
 
-    // Fetch the user's email address
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-    const userInfo = await oauth2.userinfo.get();
+        // Fetch the user's email address
+        const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+        const userInfo = await oauth2.userinfo.get();
 
-    await User.findByIdAndUpdate(req.session.adminId, {
-        googleDriveToken: tokens,
-        googleEmail: userInfo.data.email // Save the email!
-    });
-    res.redirect('/?msg=gdrive_linked');
-} catch (e) { res.redirect('/?msg=error'); }
+        await User.findByIdAndUpdate(req.session.adminId, {
+            googleDriveToken: tokens,
+            googleEmail: userInfo.data.email // Save the email!
+        });
+        res.redirect('/?msg=gdrive_linked');
+    } catch (e) { res.redirect('/?msg=error'); }
 });
+
 app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
     await User.findByIdAndUpdate(req.session.adminId, {
         $unset: { googleDriveToken: "", googleEmail: "" }
     });
-    res.redirect('/?msg=party_deleted'); // Shows a "Removed" toast
+    res.redirect('/?msg=party_deleted');
 });
+
 app.get('/drive-backup', requireLogin, async (req, res) => {
     try {
         const adminUser = await User.findById(req.session.adminId).lean();
@@ -139,14 +140,12 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
         oauth2Client.setCredentials(adminUser.googleDriveToken);
         const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
-        // Gather all the data
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
         const backupData = JSON.stringify({ customers: customers, timestamp: new Date() });
 
-        // Upload directly to Google Drive
         const fileMetadata = {
             name: `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`,
-            parents: ['appDataFolder'] // This hides the file from the user's main drive, just like WhatsApp!
+            parents: ['appDataFolder']
         };
         const media = {
             mimeType: 'application/json',
@@ -166,6 +165,7 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
         res.status(500).json({ success: false, message: "Drive Backup Failed" });
     }
 });
+
 // 4. The "WhatsApp Style" Silent Restore Route
 app.get('/drive-restore', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
@@ -178,7 +178,6 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
         oauth2Client.setCredentials(adminUser.googleDriveToken);
         const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
-        // 1. Find the latest backup file in the hidden folder
         const response = await drive.files.list({
             spaces: 'appDataFolder',
             fields: 'files(id, name, createdTime)',
@@ -190,7 +189,6 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "No backup found in Google Drive." });
         }
 
-        // 2. Download the file content
         const latestFileId = response.data.files[0].id;
         const file = await drive.files.get({ fileId: latestFileId, alt: 'media' });
         const backup = file.data;
@@ -199,7 +197,6 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "Backup file is invalid or empty." });
         }
 
-        // 3. Restore the data (Overwrite current parties with backup)
         const adminId = req.session.adminId;
         if (Array.isArray(backup.customers)) {
             await Customer.deleteMany({ adminId });
@@ -215,10 +212,8 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
         res.status(500).json({ success: false, message: "Failed to pull from Google Drive. Please try again." });
     }
 });
+
 // AGING BUCKET AUTO-SHIFT
-// Every 30 days amounts move: under30 -> 30_60 -> 60_90...
-// Tracked per customer via agingLastShifted field
-// ========================================================
 async function shiftAgingBuckets() {
     try {
         console.log("Running daily aging bucket shift...");
@@ -256,22 +251,22 @@ async function shiftAgingBuckets() {
             };
 
             for (let p = 0; p < periods; p++) {
-                ag.above180    += ag.days150to180;
+                ag.above180 += ag.days150to180;
                 ag.days150to180 = ag.days120to150;
                 ag.days120to150 = ag.days90to120;
-                ag.days90to120  = ag.days60to90;
-                ag.days60to90   = ag.days30to60;
-                ag.days30to60   = ag.under30;
-                ag.under30      = 0;
+                ag.days90to120 = ag.days60to90;
+                ag.days60to90 = ag.days30to60;
+                ag.days30to60 = ag.under30;
+                ag.under30 = 0;
             }
 
-            cust.aging.under30      = ag.under30;
-            cust.aging.days30to60   = ag.days30to60;
-            cust.aging.days60to90   = ag.days60to90;
-            cust.aging.days90to120  = ag.days90to120;
+            cust.aging.under30 = ag.under30;
+            cust.aging.days30to60 = ag.days30to60;
+            cust.aging.days60to90 = ag.days60to90;
+            cust.aging.days90to120 = ag.days90to120;
             cust.aging.days120to150 = ag.days120to150;
             cust.aging.days150to180 = ag.days150to180;
-            cust.aging.above180     = ag.above180;
+            cust.aging.above180 = ag.above180;
             cust.markModified('aging');
 
             const newLastShifted = new Date(lastShifted);
@@ -287,27 +282,22 @@ async function shiftAgingBuckets() {
         console.error("Aging shift error:", err.message);
     }
 }
-// ========================================================
+
 // GOOGLE DRIVE AUTO-BACKUP ENGINE
-// Runs daily to check if an admin is due for a backup
-// ========================================================
 async function runAutoBackups() {
     try {
         console.log("Checking for scheduled Auto-Backups...");
-        // Find all admins who have auto-backup turned on (interval > 0)
         const admins = await User.find({ role: 'admin', autoBackupInterval: { $gt: 0 } });
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         for (const admin of admins) {
-            if (!admin.googleDriveToken) continue; // Skip if they never linked their drive
+            if (!admin.googleDriveToken) continue;
 
-            // Check how many days since their last backup
             const lastBackup = admin.lastAutoBackupDate ? new Date(admin.lastAutoBackupDate) : new Date(0);
             lastBackup.setHours(0, 0, 0, 0);
             const daysSinceBackup = Math.floor((today - lastBackup) / (1000 * 60 * 60 * 24));
 
-            // If enough days have passed, trigger the silent backup!
             if (daysSinceBackup >= admin.autoBackupInterval) {
                 try {
                     oauth2Client.setCredentials(admin.googleDriveToken);
@@ -325,7 +315,6 @@ async function runAutoBackups() {
                         fields: 'id'
                     });
 
-                    // Update their last backup date so it resets the timer
                     admin.lastAutoBackupDate = new Date();
                     await admin.save();
                     console.log(`✅ Auto-backup successful for: ${admin.companyName || admin.username}`);
@@ -338,6 +327,7 @@ async function runAutoBackups() {
         console.error("Auto-backup job error:", err.message);
     }
 }
+
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
     if (req.session.userId) return res.redirect('/');
@@ -444,44 +434,43 @@ app.get('/', async (req, res) => {
 
         const adminUser = await User.findById(req.session.adminId).lean() || {};
 
-        // --- Pre-compute all dashboard stats so EJS has zero logic ---
         let totalPending = 0, actionRequiredCount = 0;
-        let b_u30=0, b_30_60=0, b_60_90=0, b_90_120=0;
-        let b_120_150=0, b_150_180=0, b_a180=0, b_onAcc=0;
-        let cnt_u30=0, cnt_30_60=0, cnt_60_90=0, cnt_90_120=0;
-        let cnt_120_150=0, cnt_150_180=0, cnt_a180=0, cnt_onAcc=0;
+        let b_u30 = 0, b_30_60 = 0, b_60_90 = 0, b_90_120 = 0;
+        let b_120_150 = 0, b_150_180 = 0, b_a180 = 0, b_onAcc = 0;
+        let cnt_u30 = 0, cnt_30_60 = 0, cnt_60_90 = 0, cnt_90_120 = 0;
+        let cnt_120_150 = 0, cnt_150_180 = 0, cnt_a180 = 0, cnt_onAcc = 0;
 
-        const today = new Date(); today.setHours(0,0,0,0);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
 
         for (const c of finalCustomers) {
             const due = (c.totalAmount || 0) - (c.paidAmount || 0);
             totalPending += due;
 
             if (c.nextActionDate) {
-                const nd = new Date(c.nextActionDate); nd.setHours(0,0,0,0);
+                const nd = new Date(c.nextActionDate); nd.setHours(0, 0, 0, 0);
                 if (due > 0 && today >= nd) actionRequiredCount++;
             } else if (due > 0) {
                 actionRequiredCount++;
             }
 
             const ag = c.aging || {};
-            b_u30     += ag.under30     || 0;
-            b_30_60   += ag.days30to60  || 0;
-            b_60_90   += ag.days60to90  || 0;
-            b_90_120  += ag.days90to120 || 0;
-            b_120_150 += ag.days120to150|| 0;
-            b_150_180 += ag.days150to180|| 0;
-            b_a180    += ag.above180    || 0;
-            b_onAcc   += ag.onAccount   || 0;
+            b_u30 += ag.under30 || 0;
+            b_30_60 += ag.days30to60 || 0;
+            b_60_90 += ag.days60to90 || 0;
+            b_90_120 += ag.days90to120 || 0;
+            b_120_150 += ag.days120to150 || 0;
+            b_150_180 += ag.days150to180 || 0;
+            b_a180 += ag.above180 || 0;
+            b_onAcc += ag.onAccount || 0;
 
-            if ((ag.under30     || 0) > 0) cnt_u30++;
-            if ((ag.days30to60  || 0) > 0) cnt_30_60++;
-            if ((ag.days60to90  || 0) > 0) cnt_60_90++;
+            if ((ag.under30 || 0) > 0) cnt_u30++;
+            if ((ag.days30to60 || 0) > 0) cnt_30_60++;
+            if ((ag.days60to90 || 0) > 0) cnt_60_90++;
             if ((ag.days90to120 || 0) > 0) cnt_90_120++;
-            if ((ag.days120to150|| 0) > 0) cnt_120_150++;
-            if ((ag.days150to180|| 0) > 0) cnt_150_180++;
-            if ((ag.above180    || 0) > 0) cnt_a180++;
-            if ((ag.onAccount   || 0) > 0) cnt_onAcc++;
+            if ((ag.days120to150 || 0) > 0) cnt_120_150++;
+            if ((ag.days150to180 || 0) > 0) cnt_150_180++;
+            if ((ag.above180 || 0) > 0) cnt_a180++;
+            if ((ag.onAccount || 0) > 0) cnt_onAcc++;
         }
 
         const maxBucket = Math.max(b_u30, b_30_60, b_60_90, b_90_120, b_120_150, b_150_180, b_a180) || 1;
@@ -492,14 +481,14 @@ app.get('/', async (req, res) => {
             totalPending, actionRequiredCount,
             totalParties: finalCustomers.length,
             buckets: {
-                u30:     { amt: b_u30,     fmt: fmtINR(b_u30),     cnt: cnt_u30,     pct: Math.round((b_u30/maxBucket)*100)     },
-                d30_60:  { amt: b_30_60,   fmt: fmtINR(b_30_60),   cnt: cnt_30_60,   pct: Math.round((b_30_60/maxBucket)*100)   },
-                d60_90:  { amt: b_60_90,   fmt: fmtINR(b_60_90),   cnt: cnt_60_90,   pct: Math.round((b_60_90/maxBucket)*100)   },
-                d90_120: { amt: b_90_120,  fmt: fmtINR(b_90_120),  cnt: cnt_90_120,  pct: Math.round((b_90_120/maxBucket)*100)  },
-                d120_150:{ amt: b_120_150, fmt: fmtINR(b_120_150), cnt: cnt_120_150, pct: Math.round((b_120_150/maxBucket)*100) },
-                d150_180:{ amt: b_150_180, fmt: fmtINR(b_150_180), cnt: cnt_150_180, pct: Math.round((b_150_180/maxBucket)*100) },
-                a180:    { amt: b_a180,    fmt: fmtINR(b_a180),    cnt: cnt_a180,    pct: Math.round((b_a180/maxBucket)*100)    },
-                onAcc:   { amt: b_onAcc,   fmt: fmtINR(b_onAcc),   cnt: cnt_onAcc,   pct: 0                                     }
+                u30: { amt: b_u30, fmt: fmtINR(b_u30), cnt: cnt_u30, pct: Math.round((b_u30 / maxBucket) * 100) },
+                d30_60: { amt: b_30_60, fmt: fmtINR(b_30_60), cnt: cnt_30_60, pct: Math.round((b_30_60 / maxBucket) * 100) },
+                d60_90: { amt: b_60_90, fmt: fmtINR(b_60_90), cnt: cnt_60_90, pct: Math.round((b_60_90 / maxBucket) * 100) },
+                d90_120: { amt: b_90_120, fmt: fmtINR(b_90_120), cnt: cnt_90_120, pct: Math.round((b_90_120 / maxBucket) * 100) },
+                d120_150: { amt: b_120_150, fmt: fmtINR(b_120_150), cnt: cnt_120_150, pct: Math.round((b_120_150 / maxBucket) * 100) },
+                d150_180: { amt: b_150_180, fmt: fmtINR(b_150_180), cnt: cnt_150_180, pct: Math.round((b_150_180 / maxBucket) * 100) },
+                a180: { amt: b_a180, fmt: fmtINR(b_a180), cnt: cnt_a180, pct: Math.round((b_a180 / maxBucket) * 100) },
+                onAcc: { amt: b_onAcc, fmt: fmtINR(b_onAcc), cnt: cnt_onAcc, pct: 0 }
             },
             totalPendingFmt: fmtINR(totalPending)
         };
@@ -565,7 +554,7 @@ app.put('/settings', requireLogin, async (req, res) => {
     await logActivity(req, "Company Profile", "Updated company profile and settings.");
     res.redirect('/?msg=party_edited');
 });
-// --- SAVE AUTO-BACKUP SETTINGS ---
+
 app.put('/settings/auto-backup', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
@@ -578,6 +567,7 @@ app.put('/settings/auto-backup', requireLogin, async (req, res) => {
         res.status(500).send("Failed to save settings.");
     }
 });
+
 app.get('/register', (req, res) => { res.render('register'); });
 app.post('/register', async (req, res) => {
     try {
@@ -594,10 +584,7 @@ app.post('/register', async (req, res) => {
 app.post('/create-staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.send("Unauthorized");
     try {
-        // 1. Clean up the username (remove accidental spaces)
         const rawUsername = req.body.username.trim();
-
-        // 2. Check if the username already exists (case-insensitive)
         const existingUser = await User.findOne({ username: new RegExp('^' + rawUsername + '$', 'i') });
         if (existingUser) {
             return res.send(`
@@ -609,7 +596,6 @@ app.post('/create-staff', requireLogin, async (req, res) => {
             `);
         }
 
-        // 3. Create the staff member
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const dummyAnswer = await bcrypt.hash("admin-managed", 10);
 
@@ -711,8 +697,6 @@ app.get('/export', requireLogin, async (req, res) => {
     } catch (err) { res.status(500).send("Failed to export Excel."); }
 });
 
-// --- SMART IMPORT (Optimized with BulkWrite) ---
-// --- SMART IMPORT (Optimized with BulkWrite & Corrected Tally Columns) ---
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
@@ -722,7 +706,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         let importedCount = 0;
         let dataStartIndex = 0;
 
-        // Find where the actual data starts
         for (let i = 0; i < rawData.length; i++) {
             const firstColumn = rawData[i][0] ? String(rawData[i][0]).trim().toLowerCase() : '';
             if (firstColumn === 'party name' || firstColumn === 'particulars') {
@@ -737,7 +720,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             const row = rawData[i];
             const partyName = row[0] ? String(row[0]).trim() : '';
 
-            // Skip empty rows and grand totals
             if (!partyName || partyName.toLowerCase() === 'grand total') continue;
 
             const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
@@ -757,24 +739,20 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 if (phoneArray.length > 1) { finalOther = phoneArray.slice(1).map(formatNum).join(', '); }
             }
 
-            const totalPending = cleanMoney(row[3]); // Column D (Pending Bills Debit)
-
-            // CORRECTED MAPPING: Tally exports space columns by 2 (Debit/Credit).
-            // Since your Excel merges 120-180 into one column, everything shifts!
+            const totalPending = cleanMoney(row[3]);
             const agingData = {
-                under30: cleanMoney(row[5]),       // < 30 days
-                days30to60: cleanMoney(row[7]),    // 30 to 60 days
-                days60to90: cleanMoney(row[9]),    // 60 to 90 days
-                days90to120: cleanMoney(row[11]),  // 90 to 120 days
-                days120to150: cleanMoney(row[13]), // Your Excel's "120 to 180" goes here
-                days150to180: 0,                   // Leave zero! Your Excel skipped this column.
-                above180: cleanMoney(row[15]),     // Your Excel's "> 180 days" is actually located here!
-                onAccount: cleanMoney(row[17])     // On Account
+                under30: cleanMoney(row[5]),
+                days30to60: cleanMoney(row[7]),
+                days60to90: cleanMoney(row[9]),
+                days90to120: cleanMoney(row[11]),
+                days120to150: cleanMoney(row[13]),
+                days150to180: 0,
+                above180: cleanMoney(row[15]),
+                onAccount: cleanMoney(row[17])
             };
             let nextAction = new Date();
             nextAction.setDate(nextAction.getDate() + 10);
 
-            // Using BulkWrite for instant uploading
             bulkOps.push({
                 updateOne: {
                     filter: { companyName: partyName, adminId: req.session.adminId },
@@ -796,7 +774,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             importedCount++;
         }
 
-        // Send all 300+ records to the database instantly
         if (bulkOps.length > 0) {
             await Customer.bulkWrite(bulkOps);
         }
@@ -809,7 +786,6 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
     }
 });
 
-// --- DUPLICATE CHECK API ---
 app.get('/customers/check-duplicate', requireLogin, async (req, res) => {
     try {
         const name = (req.query.name || '').trim();
@@ -847,7 +823,6 @@ app.post('/customers', async (req, res) => {
         const autoDate = new Date();
         autoDate.setDate(autoDate.getDate() + 10);
 
-        // Server-side duplicate guard
         const phoneDigits = phoneCombined.replace(/[^0-9]/g, '');
         const orConditions = [];
         if (req.body.companyName) {
@@ -981,23 +956,18 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
 
 app.post('/customers/bulk', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-
-    // Accept both JSON (fetch) and urlencoded (form) bodies
     const body = req.body;
     const action = body.action;
 
     let ids = [];
-    // JSON body sends { customerIds: [...] }
     if (Array.isArray(body.customerIds)) ids = body.customerIds;
     else if (body.customerIds) ids = [body.customerIds];
 
-    // "delete-all" action ignores IDs and deletes everything for this admin
     try {
         if (action === 'delete-all') {
             const result = await Customer.deleteMany({ adminId: req.session.adminId });
             await logActivity(req, "Bulk Delete", `Deleted ALL ${result.deletedCount} parties.`);
         } else if (action === 'delete' && ids.length > 0) {
-            // Process in chunks of 500 to avoid any MongoDB document limit issues
             let totalDeleted = 0;
             const chunkSize = 500;
             for (let i = 0; i < ids.length; i += chunkSize) {
@@ -1009,31 +979,26 @@ app.post('/customers/bulk', requireLogin, async (req, res) => {
         }
     } catch (err) {
         console.error('Bulk delete error:', err);
-        // If JSON request, return JSON error
         if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
             return res.status(500).json({ success: false, error: err.message });
         }
     }
 
-    // If JSON request (fetch), return JSON success
     if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
         return res.json({ success: true });
     }
     res.redirect('/');
 });
 
-// ============================================================
-// BACKUP — full JSON download of all admin data
-// ============================================================
+// JSON BACKUP FIXED: Forces file download instead of showing code on screen
 app.get('/backup-data', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
     try {
-        const adminUser  = await User.findById(req.session.adminId).lean();
-        const customers  = await Customer.find({ adminId: req.session.adminId }).lean();
-        const staff      = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
+        const adminUser = await User.findById(req.session.adminId).lean();
+        const customers = await Customer.find({ adminId: req.session.adminId }).lean();
+        const staff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
         const activities = await ActivityLog.find({ adminId: req.session.adminId }).lean();
 
-        // Redact password hashes from backup for safety
         if (adminUser) delete adminUser.password;
         staff.forEach(s => delete s.password);
 
@@ -1054,135 +1019,15 @@ app.get('/backup-data', requireLogin, async (req, res) => {
         };
 
         await logActivity(req, 'Backup Created', `Full data backup downloaded by ${req.session.username || 'Admin'}.`);
-        res.json(backup);
+        res.setHeader('Content-disposition', `attachment; filename="WGS_Backup_${new Date().toISOString().slice(0, 10)}.json"`);
+        res.setHeader('Content-type', 'application/json');
+        res.send(JSON.stringify(backup, null, 2));
     } catch (err) {
         console.error('Backup error:', err);
         res.status(500).json({ error: 'Backup failed' });
     }
 });
 
-// ============================================================
-// BACKUP — Excel format download
-// ============================================================
-app.get('/backup-data-excel', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
-    try {
-        const customers  = await Customer.find({ adminId: req.session.adminId }).lean();
-        const staff      = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
-        const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).lean();
-        const adminUser  = await User.findById(req.session.adminId).lean();
-
-        const workbook = new ExcelJS.Workbook();
-        workbook.creator = 'WGS Payment Manager';
-
-        // Sheet 1 — Parties
-        const partiesSheet = workbook.addWorksheet('Parties');
-        partiesSheet.columns = [
-            { header: 'Company Name', key: 'companyName', width: 30 },
-            { header: 'Contact Person', key: 'contactPerson', width: 20 },
-            { header: 'Phone', key: 'phone', width: 18 },
-            { header: 'WhatsApp', key: 'whatsappNumber', width: 18 },
-            { header: 'Email', key: 'email', width: 25 },
-            { header: 'Total Amount', key: 'totalAmount', width: 15 },
-            { header: 'Paid Amount', key: 'paidAmount', width: 15 },
-            { header: 'Due Amount', key: 'dueAmount', width: 15 },
-            { header: '<30 Days', key: 'under30', width: 13 },
-            { header: '30-60 Days', key: 'days30to60', width: 13 },
-            { header: '60-90 Days', key: 'days60to90', width: 13 },
-            { header: '90-120 Days', key: 'days90to120', width: 13 },
-            { header: '120-150 Days', key: 'days120to150', width: 14 },
-            { header: '150-180 Days', key: 'days150to180', width: 14 },
-            { header: '>180 Days', key: 'above180', width: 13 },
-            { header: 'On Account', key: 'onAccount', width: 13 },
-            { header: 'Last Payment Date', key: 'lastPaymentDate', width: 20 },
-            { header: 'Next Action Date', key: 'nextActionDate', width: 20 },
-        ];
-        partiesSheet.getRow(1).font = { bold: true };
-        customers.forEach(c => {
-            partiesSheet.addRow({
-                companyName: c.companyName || '',
-                contactPerson: c.contactPerson || '',
-                phone: c.phone || '',
-                whatsappNumber: c.whatsappNumber || '',
-                email: c.email || '',
-                totalAmount: c.totalAmount || 0,
-                paidAmount: c.paidAmount || 0,
-                dueAmount: (c.totalAmount || 0) - (c.paidAmount || 0),
-                under30: c.aging?.under30 || 0,
-                days30to60: c.aging?.days30to60 || 0,
-                days60to90: c.aging?.days60to90 || 0,
-                days90to120: c.aging?.days90to120 || 0,
-                days120to150: c.aging?.days120to150 || 0,
-                days150to180: c.aging?.days150to180 || 0,
-                above180: c.aging?.above180 || 0,
-                onAccount: c.aging?.onAccount || 0,
-                lastPaymentDate: c.lastPaymentDate ? new Date(c.lastPaymentDate).toLocaleDateString('en-IN') : '',
-                nextActionDate: c.nextActionDate ? new Date(c.nextActionDate).toLocaleDateString('en-IN') : '',
-            });
-        });
-
-        // Sheet 2 — Staff
-        const staffSheet = workbook.addWorksheet('Staff');
-        staffSheet.columns = [
-            { header: 'Username', key: 'username', width: 20 },
-            { header: 'Role', key: 'role', width: 12 },
-        ];
-        staffSheet.getRow(1).font = { bold: true };
-        staff.forEach(s => staffSheet.addRow({ username: s.username, role: s.role }));
-
-        // Sheet 3 — Activity Logs
-        const actSheet = workbook.addWorksheet('Activity Logs');
-        actSheet.columns = [
-            { header: 'Date & Time', key: 'date', width: 22 },
-            { header: 'User', key: 'username', width: 18 },
-            { header: 'Action', key: 'action', width: 22 },
-            { header: 'Details', key: 'details', width: 50 },
-        ];
-        actSheet.getRow(1).font = { bold: true };
-        activities.forEach(a => {
-            actSheet.addRow({
-                date: a.createdAt ? new Date(a.createdAt).toLocaleString('en-IN') : '',
-                username: a.username || '',
-                action: a.action || '',
-                details: a.details || '',
-            });
-        });
-
-        // Sheet 4 — Company Profile
-        const profileSheet = workbook.addWorksheet('Company Profile');
-        if (adminUser) {
-            [
-                ['Company Name', adminUser.companyName],
-                ['Address Line 1', adminUser.addressLine1],
-                ['Address Line 2', adminUser.addressLine2],
-                ['Address Line 3', adminUser.addressLine3],
-                ['DL No.', adminUser.dlNo],
-                ['MSME No.', adminUser.msmeNo],
-                ['Contact No.', adminUser.contactNo],
-                ['Email', adminUser.companyEmail],
-                ['Bank Name', adminUser.bankName],
-                ['Account Name', adminUser.accountName],
-                ['Account Number', adminUser.accountNumber],
-                ['IFSC Code', adminUser.ifscCode],
-                ['UPI Details', adminUser.upiDetails],
-            ].forEach(row => profileSheet.addRow(row));
-        }
-
-        await logActivity(req, 'Backup Created (Excel)', `Excel backup downloaded by ${req.session.username || 'Admin'}.`);
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="WGS_Backup_${new Date().toISOString().slice(0,10)}.xlsx"`);
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (err) {
-        console.error('Excel backup error:', err);
-        res.status(500).send('Excel backup failed.');
-    }
-});
-
-// ============================================================
-// RESTORE — upload JSON backup and restore all data
-// ============================================================
 app.post('/restore-backup', upload.single('backupFile'), requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
     try {
@@ -1195,22 +1040,18 @@ app.post('/restore-backup', upload.single('backupFile'), requireLogin, async (re
             return res.redirect('/?restoreError=invalid');
         }
 
-        // Validate it's our backup format
         if (!backup._meta || !backup.customers) {
             return res.redirect('/?restoreError=invalid');
         }
 
         const adminId = req.session.adminId;
 
-        // Restore customers — upsert by companyName
         if (Array.isArray(backup.customers)) {
-            // Delete existing, then re-insert
             await Customer.deleteMany({ adminId });
             const toInsert = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
             if (toInsert.length > 0) await Customer.insertMany(toInsert, { ordered: false });
         }
 
-        // Restore company profile fields (not password)
         if (backup.companyProfile) {
             const p = backup.companyProfile;
             await User.findByIdAndUpdate(adminId, {
@@ -1223,7 +1064,7 @@ app.post('/restore-backup', upload.single('backupFile'), requireLogin, async (re
             });
         }
 
-        await logActivity(req, 'Backup Restored', `Data restored from backup file (${backup.customers.length} parties, exported ${backup._meta.exportedAt || 'unknown date'}).`);
+        await logActivity(req, 'Backup Restored', `Data restored from backup file.`);
         res.redirect('/?restoreSuccess=1');
     } catch (err) {
         console.error('Restore error:', err);
@@ -1231,9 +1072,6 @@ app.post('/restore-backup', upload.single('backupFile'), requireLogin, async (re
     }
 });
 
-// ============================================================
-// CHANGE PASSWORD
-// ============================================================
 app.post('/change-password', requireLogin, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
@@ -1256,9 +1094,6 @@ app.post('/change-password', requireLogin, async (req, res) => {
     }
 });
 
-// ============================================================
-// CLEAR ALL PARTY DATA (Danger Zone)
-// ============================================================
 app.post('/clear-all-data', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
     try {

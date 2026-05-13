@@ -923,6 +923,9 @@
                                         <a href="/export" class="btn-secondary"
                                             style="background:#e0f2fe; color:#0284c7; border-color:#bae6fd;">📥
                                             Export</a>
+                                        <button onclick="downloadPDF()" class="btn-secondary"
+                                            style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">📄 PDF
+                                            Report</button>
                                         <form action="/import" method="POST" enctype="multipart/form-data"
                                             style="margin:0; display:inline-block;">
                                             <input type="file" name="excelFile" id="quickImport"
@@ -1431,28 +1434,27 @@
                                             </a>
                                             <% } %>
                                 </div>
-
-                                <h3
-                                    style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">
-                                    🤖 Automated
-                                    Background Backup</h3>
-                                <form action="/settings/auto-backup?_method=PUT" method="POST"
-                                    style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                                    <div style="flex: 1; min-width: 200px;">
-                                        <label class="trans-label"
-                                            style="color: #15803d; margin-bottom: 2px;">Auto-Backup Every X
-                                            Days</label>
-                                        <p style="font-size: 11px; color: #166534; margin: 0;">Set to <b>0</b> to
-                                            disable. (Requires Drive
-                                            to be linked).</p>
-                                    </div>
-                                    <input type="number" name="autoBackupInterval"
-                                        value="<%= adminUser.autoBackupInterval || 0 %>" min="0" max="365"
-                                        class="input-style" style="margin-bottom: 0; width: 100px;">
-                                    <button type="submit" class="btn-primary" style="background: #15803d; margin: 0;">💾
-                                        Save
-                                        Automation</button>
-                                </form>
+                                <div class="floating-card" style="margin-top: 25px;">
+                                    <h3
+                                        style="margin-top: 0; font-size: 18px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+                                        🤖 Automated Background Backup</h3>
+                                    <form action="/settings/auto-backup?_method=PUT" method="POST"
+                                        style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                        <div style="flex: 1; min-width: 200px;">
+                                            <label class="trans-label"
+                                                style="color: #15803d; margin-bottom: 2px;">Auto-Backup Every X
+                                                Days</label>
+                                            <p style="font-size: 11px; color: #166534; margin: 0;">Set to <b>0</b> to
+                                                disable. (Requires Drive
+                                                to be linked).</p>
+                                        </div>
+                                        <input type="number" name="autoBackupInterval"
+                                            value="<%= adminUser.autoBackupInterval || 0 %>" min="0" max="365"
+                                            class="input-style" style="margin-bottom: 0; width: 100px;">
+                                        <button type="submit" class="btn-primary"
+                                            style="background: #15803d; margin: 0;">💾 Save Automation</button>
+                                    </form>
+                                </div>
 
 
                                 <div class="floating-card" style="margin-top: 25px;">
@@ -1460,11 +1462,8 @@
                                     <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
                                         <a href="/export" class="btn-primary" style="background: #3498db;">📥 Export
                                             Excel</a>
-                                        <button onclick="downloadPDF()" class="btn-primary"
-                                            style="background: #ef4444;">📄 Export PDF</button>
                                         <a href="/backup-data" class="btn-primary" style="background: #8e44ad;">📦
-                                            Download JSON
-                                            Backup</a>
+                                            Download JSON Backup</a>
                                     </div>
 
                                     <h3
@@ -1497,7 +1496,6 @@
                             <% } %>
         </main>
     </div>
-
     <div id="addModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="document.getElementById('addModal').style.display='none'">&times;</span>
@@ -1527,7 +1525,7 @@
             </form>
         </div>
     </div>
-
+    
     <div id="editModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
@@ -1540,15 +1538,14 @@
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;"><label class="trans-label">Phone</label><input type="text" name="phone"
                             id="editPhone" class="input-style"></div>
-                    <div style="flex:1;"><label class="trans-label">WhatsApp</label><input type="text"
-                            name="whatsappNumber" id="editWa" class="input-style"></div>
+                    <div style="flex:1;"><label class="trans-label">WhatsApp</label><input type="text" name="whatsappNumber"
+                            id="editWa" class="input-style"></div>
                 </div>
                 <label class="trans-label">Other Numbers</label>
                 <input type="text" name="otherNumbers" id="editOther" class="input-style">
                 <label class="trans-label">Email</label>
                 <input type="email" name="email" id="editEmail" class="input-style">
-                <div
-                    style="display:flex; gap:10px; border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px;">
+                <div style="display:flex; gap:10px; border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px;">
                     <div style="flex:1;"><label class="trans-label" style="color: #b91c1c;">Total Bill (₹)</label><input
                             type="number" name="totalAmount" id="editTotal" class="input-style"></div>
                     <div style="flex:1;"><label class="trans-label" style="color: #15803d;">Paid Amount
@@ -1558,11 +1555,10 @@
             </form>
         </div>
     </div>
-
+    
     <div id="transactionModal" class="modal">
         <div class="modal-content">
-            <span class="close"
-                onclick="document.getElementById('transactionModal').style.display='none'">&times;</span>
+            <span class="close" onclick="document.getElementById('transactionModal').style.display='none'">&times;</span>
             <h3 style="margin-top: 0;">💳 Update Balance</h3>
             <form id="transactionForm" method="POST">
                 <div
@@ -1581,7 +1577,7 @@
             </form>
         </div>
     </div>
-
+    
     <div id="actionModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="document.getElementById('actionModal').style.display='none'">&times;</span>
@@ -1594,12 +1590,11 @@
             </form>
         </div>
     </div>
-
+    
     <% if (role==='admin' ) { %>
         <div id="settingsModal" class="modal">
             <div class="modal-content">
-                <span class="close"
-                    onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
+                <span class="close" onclick="document.getElementById('settingsModal').style.display='none'">&times;</span>
                 <h3 style="margin-top: 0;">⚙️ Full Company Profile</h3>
                 <form action="/settings?_method=PUT" method="POST">
                     <label class="trans-label">Company Name</label><input type="text" name="companyName"
@@ -1617,8 +1612,8 @@
                     <div style="display: flex; gap: 10px;">
                         <div style="flex:1"><label class="trans-label">Contact No.</label><input type="text"
                                 name="contactNo" value="<%= adminUser.contactNo || '' %>" class="input-style"></div>
-                        <div style="flex:1"><label class="trans-label">Email</label><input type="email"
-                                name="companyEmail" value="<%= adminUser.companyEmail || '' %>" class="input-style">
+                        <div style="flex:1"><label class="trans-label">Email</label><input type="email" name="companyEmail"
+                                value="<%= adminUser.companyEmail || '' %>" class="input-style">
                         </div>
                     </div>
                     <h4
@@ -1632,8 +1627,8 @@
                         <div style="flex:1"><label class="trans-label">Account No.</label><input type="text"
                                 name="accountNumber" value="<%= adminUser.accountNumber || '' %>" class="input-style">
                         </div>
-                        <div style="flex:1"><label class="trans-label">IFSC Code</label><input type="text"
-                                name="ifscCode" value="<%= adminUser.ifscCode || '' %>" class="input-style"></div>
+                        <div style="flex:1"><label class="trans-label">IFSC Code</label><input type="text" name="ifscCode"
+                                value="<%= adminUser.ifscCode || '' %>" class="input-style"></div>
                     </div>
                     <label class="trans-label">UPI ID</label><input type="text" name="upiDetails"
                         value="<%= adminUser.upiDetails || '' %>" class="input-style">
@@ -1641,7 +1636,7 @@
                 </form>
             </div>
         </div>
-
+    
         <div id="bulkActionBar" class="bulk-action-bar">
             <span id="selectedCount" style="font-weight: 700;">0 Selected</span>
             <form id="bulkForm" action="/customers/bulk" method="POST" style="margin: 0;">
@@ -1652,12 +1647,12 @@
             </form>
         </div>
         <% } %>
-
+    
             <div id="toast"
                 style="display:none; position:fixed; bottom:30px; right:30px; background:#10b981; color:white; padding:15px 25px; border-radius:12px; z-index:9999; font-weight:bold; align-items:center; gap:10px; box-shadow:0 10px 25px rgba(16,185,129,0.4);">
                 <span id="toastMsg">Success!</span>
             </div>
-
+    
             <script>
                 var isMobile = window.innerWidth <= 850;
                 var activeFilter = { bucket: 'all', actionOnly: false };
@@ -1933,7 +1928,6 @@
                     return true;
                 }
 
-                // --- TOAST NOTIFICATIONS ---
                 function showToast(msg) {
                     var t = document.getElementById('toast');
                     document.getElementById('toastMsg').innerText = msg;
@@ -1949,48 +1943,65 @@
                     element.style.fontFamily = "Arial, sans-serif";
 
                     const profile = {
-                        name: "<%= adminUser.companyName || '' %>",
+                        name: "<%= adminUser.companyName || 'Company Name' %>",
                         addr: "<%= adminUser.addressLine1 || '' %> <%= adminUser.addressLine2 || '' %>"
                     };
 
+                    const date = new Date();
+                    const startYear = date.getMonth() < 3 ? date.getFullYear() - 1 : date.getFullYear();
+                    const dateRange = `1-Apr-${startYear} to 31-Mar-${startYear + 1}`;
+
                     let html = `
-            <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-                <h1 style="margin:0;">${profile.name}</h1>
-                <p style="margin:5px 0;">${profile.addr}</p>
-                <h2 style="margin:10px 0; background:#f1f1f1;">Aging Analysis (Sundry Debtors)</h2>
-            </div>
-            <table border="1" style="width:100%; border-collapse: collapse; font-size: 10px; text-align: left;">
-                <tr style="background:#eee;">
-                    <th rowspan="2" style="padding: 5px;">Party Name</th>
-                    <th rowspan="2" style="padding: 5px;">Total Due</th>
-                    <th colspan="6" style="text-align:center; padding: 5px;">Aging Intervals (Days)</th>
-                </tr>
-                <tr style="background:#eee;">
-                    <th style="padding: 5px;">0-30</th>
-                    <th style="padding: 5px;">30-60</th>
-                    <th style="padding: 5px;">60-90</th>
-                    <th style="padding: 5px;">90-120</th>
-                    <th style="padding: 5px;">120-180</th>
-                    <th style="padding: 5px;">>180</th>
-                </tr>
-            `;
+                <div style="text-align:center; margin-bottom: 20px;">
+                    <h1 style="margin:0; font-size: 24px; color: #000;">${profile.name}</h1>
+                    <p style="margin:5px 0; font-size: 14px; color: #333;">${profile.addr}</p>
+                    <h2 style="margin:15px 0 5px 0; font-size: 18px; color: #000;">Sundry Debtors - Group Outstandings</h2>
+                    <p style="margin:0; font-size: 13px; font-weight: bold; color: #000;">${dateRange}</p>
+                </div>
+                <table border="1" style="width:100%; border-collapse: collapse; font-size: 10px; text-align: right; border-color: #000;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th rowspan="2" style="padding: 6px; text-align: left; border-color: #000;">Party Name</th>
+                            <th rowspan="2" style="padding: 6px; text-align: left; border-color: #000;">Telephone No.</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">Pending Bills</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">(< 30 days)</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">30 to 60 days</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">60 to 90 days</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">90 to 120 days</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">120 to 180 days</th>
+                            <th style="padding: 6px; text-align: right; border-color: #000;">(> 180 days)</th>
+                        </tr>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding: 4px; border-color: #000;">Debit</th><th style="padding: 4px; border-color: #000;">Debit</th><th style="padding: 4px; border-color: #000;">Debit</th><th style="padding: 4px; border-color: #000;">Debit</th><th style="padding: 4px; border-color: #000;">Debit</th><th style="padding: 4px; border-color: #000;">Debit</th><th style="padding: 4px; border-color: #000;">Debit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
 
                     document.querySelectorAll('.customer-row:not(.d-none)').forEach(row => {
+                        // Determine which column has the phone number based on desktop vs mobile view rendering
+                        let phoneCell = row.children[2]; // Desktop phone cell is usually index 2
+                        let phoneText = "";
+                        if (phoneCell) {
+                            phoneText = phoneCell.innerText.replace('P:', '').replace('W:', ',').replace(/\n/g, '').trim();
+                        }
+
                         html += `
-                <tr>
-                    <td style="padding: 5px;">${row.querySelector('strong').innerText}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-due')}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-u30')}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-d30_60')}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-d60_90')}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-d90_120')}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-d120_150')}</td>
-                    <td style="padding: 5px;">${row.getAttribute('data-a180')}</td>
-                </tr>
-                `;
+                    <tr>
+                        <td style="padding: 6px; text-align: left; border-color: #000;">${row.querySelector('strong').innerText}</td>
+                        <td style="padding: 6px; text-align: left; border-color: #000;">${phoneText}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-due')}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-u30')}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d30_60')}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d60_90')}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d90_120')}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d120_150')}</td>
+                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-a180')}</td>
+                    </tr>
+                    `;
                     });
 
-                    html += `</table>`;
+                    html += `</tbody></table>`;
                     element.innerHTML = html;
 
                     const opt = {
@@ -2006,8 +2017,8 @@
                     });
                 }
 
-                // --- INITIALIZATION ---
-                (function () {
+                // --- PAGE LOAD INITIALIZATION ---
+                window.onload = function () {
                     var params = new URLSearchParams(window.location.search);
 
                     if (params.get('driveConnected') === 'true') {
@@ -2032,8 +2043,8 @@
                     } else if (savedTab && savedTab !== 'home') {
                         openMobileSection(savedTab);
                     }
-                })();
+                };
             </script>
-</body>
-
-</html>
+            </body>
+    
+            </html>
