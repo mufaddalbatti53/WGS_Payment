@@ -1395,24 +1395,34 @@
                                 <h1 class="desktop-only" style="margin-top:0;">🗄️ Data Management</h1>
                         
                                 <div class="floating-card">
-                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup (WhatsApp Style)</h3>
-                                    <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database directly to a hidden app
-                                        folder in your Google Drive.</p>
-                                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-                                        <% if (adminUser.googleDriveToken) { %>
-                                            <button class="btn-secondary"
-                                                style="background: #e6f4ea; color: #1e8e3e; border-color: #ceead6; cursor: default;">✅ Google
-                                                Drive Linked</button>
-                                            <% } else { %>
-                                                <a href="/auth/google" class="btn-primary" style="background: #4285F4;"><img
-                                                        src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
-                                                        width="16" style="vertical-align: middle; margin-right: 5px;"> Link Google Drive</a>
-                                                <% } %>
-                                                    <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58;">☁️
-                                                        Backup Now</button>
-                                                    <button onclick="triggerDriveRestore()" class="btn-primary"
-                                                        style="background: #eab308; color: #713f12;">🔄 Restore from Cloud</button>
-                                    </div>
+                                    <h3 style="margin-top: 0; font-size: 18px;">☁️ Cloud Backup</h3>
+                                    <% if (adminUser.googleDriveToken) { %>
+                                        <div
+                                            style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+                                            <div>
+                                                <div style="color: #166534; font-weight: bold; font-size: 14px;">✅ Linked to Google Account:</div>
+                                                <div style="color: #15803d; font-size: 13px;">
+                                                    <%= adminUser.googleEmail %>
+                                                </div>
+                                            </div>
+                                            <a href="/auth/google/disconnect"
+                                                style="color: #ef4444; font-size: 12px; font-weight: bold; text-decoration: none; border: 1px solid #fca5a5; padding: 5px 10px; border-radius: 6px;">Disconnect</a>
+                                        </div>
+                                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                            <button onclick="triggerDriveBackup()" class="btn-primary" style="background: #0f9d58; flex: 1;">☁️ Backup
+                                                Now</button>
+                                            <button onclick="triggerDriveRestore()" class="btn-primary"
+                                                style="background: #eab308; color: #713f12; flex: 1;">🔄 Cloud Restore</button>
+                                        </div>
+                                        <% } else { %>
+                                            <p style="font-size: 13px; color: var(--text-muted);">Securely backup your database directly to your Google
+                                                Drive.</p>
+                                            <a href="/auth/google" class="btn-primary" style="background: #4285F4; width: 100%; text-align: center;">
+                                                <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
+                                                    width="16" style="vertical-align: middle; margin-right: 5px;"> Link Google Drive
+                                            </a>
+                                            <% } %>
+                                </div>
                         
                                     <h3 style="margin-top: 0; font-size: 18px; border-top:1px solid #f1f5f9; padding-top:20px;">🤖 Automated
                                         Background Backup</h3>
@@ -1944,6 +1954,93 @@
                         window.history.replaceState({}, document.title, '/');
                     }
                 })();
+    // 1. IMMEDIATE TAB RESTORATION
+                    const savedTab = localStorage.getItem('activeWgsTab') || 'aging';
+                    if (!isMobile) {switchTab(savedTab); }
+                    else if (savedTab !== 'home') {openMobileSection(savedTab); }
+
+                    function switchTab(tabId) {
+                        localStorage.setItem('activeWgsTab', tabId);
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                    document.getElementById('nav-' + tabId)?.classList.add('active');
+        document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+                    document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1))?.classList.add('active');
+    }
+
+                    // 2. PROFESSIONAL TALLY-STYLE PDF EXPORT
+                    function downloadPDF() {
+                        showToast("⏳ Generating professional PDF...");
+                    const element = document.createElement('div');
+                    element.style.padding = "20px";
+                    element.style.fontFamily = "Arial, sans-serif";
+
+                    const profile = {
+                        name: "<%= adminUser.companyName || '' %>",
+                    addr: "<%= adminUser.addressLine1 || '' %> <%= adminUser.addressLine2 || '' %>"
+        };
+
+                    let html = `
+                    <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                        <h1 style="margin:0;">${profile.name}</h1>
+                        <p style="margin:5px 0;">${profile.addr}</p>
+                        <h2 style="margin:10px 0; background:#f1f1f1;">Aging Analysis (Sundry Debtors)</h2>
+                    </div>
+                    <table border="1" style="width:100%; border-collapse: collapse; font-size: 10px;">
+                        <tr style="background:#eee;">
+                            <th rowspan="2">Party Name</th>
+                            <th rowspan="2">Total Due</th>
+                            <th colspan="6" style="text-align:center;">Aging Intervals (Days)</th>
+                        </tr>
+                        <tr style="background:#eee;">
+                            <th>0-30</th><th>30-60</th><th>60-90</th><th>90-120</th><th>120-180</th><th>>180</th>
+                        </tr>
+                        `;
+
+        document.querySelectorAll('.customer-row:not(.d-none)').forEach(row => {
+                            html += `
+                <tr>
+                    <td>${row.querySelector('strong').innerText}</td>
+                    <td>${row.getAttribute('data-due')}</td>
+                    <td>${row.getAttribute('data-u30')}</td>
+                    <td>${row.getAttribute('data-d30_60')}</td>
+                    <td>${row.getAttribute('data-d60_90')}</td>
+                    <td>${row.getAttribute('data-d90_120')}</td>
+                    <td>${row.getAttribute('data-d120_150')}</td>
+                    <td>${row.getAttribute('data-a180')}</td>
+                </tr>
+            `;
+        });
+
+                        html += `</table>`;
+                    element.innerHTML = html;
+
+                    const opt = {
+                        margin: 0.5,
+                    filename: `${profile.name}_Aging_Report.pdf`,
+                    image: {type: 'jpeg', quality: 0.98 },
+                    html2canvas: {scale: 2 },
+                    jsPDF: {unit: 'in', format: 'letter', orientation: 'landscape' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+                        showToast("✅ PDF Downloaded!");
+        });
+    }
+
+                    // 3. TOAST & INITIALIZATION
+                    function showToast(msg) {
+        var t = document.getElementById('toast');
+                    document.getElementById('toastMsg').innerText = msg;
+                    t.style.display = 'flex';
+        setTimeout(() => {t.style.display = 'none'; }, 4000);
+    }
+
+                    // Capture URL messages
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.get('msg')) {
+                        showToast("✅ Action Completed Successfully!");
+                    window.history.replaceState({ }, '', '/');
+    }
             </script>
 </body>
 

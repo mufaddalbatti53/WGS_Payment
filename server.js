@@ -98,24 +98,37 @@ app.get('/auth/google', requireLogin, (req, res) => {
         // We MUST ask Google for the hidden appDataFolder permission here:
         scope: [
             'https://www.googleapis.com/auth/drive.file',
-            'https://www.googleapis.com/auth/drive.appdata'
+            'https://www.googleapis.com/auth/drive.appdata',
+            'https://www.googleapis.com/auth/userinfo.email'
         ],
         prompt: 'consent' // Forces Google to give us a fresh refresh token
     });
     res.redirect(url);
 });
 
-// 2. Google Callback (Saves the token)
-app.get('/auth/google/callback', requireLogin, async (req, res) => {
+app.get('/auth / google / callback', requireLogin, async (req, res) => {
+try {
     const { code } = req.query;
     const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
 
-    // Save this token to your User database so they don't have to login every time
-    await User.findByIdAndUpdate(req.session.adminId, { googleDriveToken: tokens });
-    res.redirect('/?driveConnected=true');
+    // Fetch the user's email address
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const userInfo = await oauth2.userinfo.get();
+
+    await User.findByIdAndUpdate(req.session.adminId, {
+        googleDriveToken: tokens,
+        googleEmail: userInfo.data.email // Save the email!
+    });
+    res.redirect('/?msg=gdrive_linked');
+} catch (e) { res.redirect('/?msg=error'); }
 });
-
-// 3. The "WhatsApp Style" Silent Backup Route
+app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
+    await User.findByIdAndUpdate(req.session.adminId, {
+        $unset: { googleDriveToken: "", googleEmail: "" }
+    });
+    res.redirect('/?msg=party_deleted'); // Shows a "Removed" toast
+});
 app.get('/drive-backup', requireLogin, async (req, res) => {
     try {
         const adminUser = await User.findById(req.session.adminId).lean();

@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
     companyEmail: { type: String },
     // ☁️ Add this line right here!
     googleDriveToken: { type: Object },
+    googleEmail: { type: String },
     autoBackupInterval: { type: Number, default: 0 }, // 0 means disabled
     lastAutoBackupDate: { type: Date },
 
