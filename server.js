@@ -672,6 +672,7 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
 });
 
 // --- EXPORT ---
+// --- EXPORT (Perfectly Mapped & Styled to Tally Format) ---
 app.get('/export', requireLogin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
@@ -679,6 +680,7 @@ app.get('/export', requireLogin, async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Sundry Debtors');
 
+        // 1. Company Header Info
         worksheet.addRow([admin.companyName || '']);
         worksheet.addRow([admin.addressLine1 || '']);
         worksheet.addRow([admin.addressLine2 || '']);
@@ -693,46 +695,86 @@ app.get('/export', requireLogin, async (req, res) => {
         const exportDate = new Date();
         const currentMonth = exportDate.getMonth();
         const startYear = currentMonth < 3 ? exportDate.getFullYear() - 1 : exportDate.getFullYear();
-        const endYear = startYear + 1;
-        const dateRange = `1-Apr-${startYear} to 31-Mar-${endYear}`;
+        const dateRange = `1-Apr-${startYear} to 31-Mar-${startYear + 1}`;
         worksheet.addRow([dateRange]);
+        worksheet.addRow([]); // Blank row to separate header from table
 
-        const compName = admin.companyName || 'Company';
-        worksheet.addRow(['', '', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', '', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors', 'Sundry Debtors']);
-        worksheet.addRow(['', '', '', compName, compName, compName, '', compName, compName, compName, compName, compName, compName]);
-        worksheet.addRow(['Party Name', 'Company Name', 'Telephone No.', dateRange, dateRange, dateRange, '', dateRange, dateRange, dateRange, dateRange, dateRange, dateRange]);
-        worksheet.addRow(['', '', '', 'Pending Bills', '(< 30 days )', '30 to 60 days', '', '60 to 90 days', '90 to 120 days', '120 to 150 days', '150 to 180 days', '(> 180 days )', 'On Account']);
-        worksheet.addRow(['', '', '', 'Debit', 'Debit', 'Debit', 'Credit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit', 'Debit']);
-        worksheet.addRow([]);
+        // 2. Table Headers (Spaced exactly for Tally Import)
+        const headerRow1 = ['', '', '', 'Pending Bills', '', '(< 30 days )', '', '30 to 60 days', '', '60 to 90 days', '', '90 to 120 days', '', '120 to 180 days', '', '(> 180 days )', '', 'On Account', ''];
+        const headerRow2 = ['Party Name', 'Contact Person', 'Telephone No.', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit'];
 
-        worksheet.getColumn(1).width = 35; worksheet.getColumn(2).width = 25; worksheet.getColumn(3).width = 15;
-        for (let i = 4; i <= 13; i++) worksheet.getColumn(i).width = 15;
+        const hr1 = worksheet.addRow(headerRow1);
+        const hr2 = worksheet.addRow(headerRow2);
 
-        customers.forEach((c) => {
-            const aging = c.aging || {};
-            const totalDue = (c.totalAmount || 0) - (c.paidAmount || 0);
-            worksheet.addRow([
-                c.companyName || '', c.contactPerson || '', c.phone ? String(c.phone) : '',
-                totalDue > 0 ? totalDue : 0,
-                aging.under30 || '', aging.days30to60 || '', '',
-                aging.days60to90 || '', aging.days90to120 || '', aging.days120to150 || '',
-                aging.days150to180 || '', aging.above180 || '', aging.onAccount || ''
-            ]);
-        });
+        // Merge parent headers so it spans across Debit & Credit (Looks professional)
+        worksheet.mergeCells('D13:E13'); // Pending Bills
+        worksheet.mergeCells('F13:G13'); // < 30 days
+        worksheet.mergeCells('H13:I13'); // 30 to 60
+        worksheet.mergeCells('J13:K13'); // 60 to 90
+        worksheet.mergeCells('L13:M13'); // 90 to 120
+        worksheet.mergeCells('N13:O13'); // 120 to 180
+        worksheet.mergeCells('P13:Q13'); // > 180
+        worksheet.mergeCells('R13:S13'); // On Account
 
-        worksheet.eachRow((row, rowNumber) => {
-            row.eachCell((cell, colNumber) => {
-                cell.font = { color: { argb: 'FF000000' } };
-                if (rowNumber <= 11 || (rowNumber >= 12 && rowNumber <= 16)) { cell.font = { bold: true, color: { argb: 'FF000000' } }; }
-                if (rowNumber > 17 && colNumber > 3) { cell.alignment = { horizontal: 'right' }; } else { cell.alignment = { horizontal: 'left' }; }
+        // Style the Headers
+        [hr1, hr2].forEach(row => {
+            row.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FF000000' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
             });
         });
 
+        hr2.getCell(1).alignment = { horizontal: 'left' };
+        hr2.getCell(2).alignment = { horizontal: 'left' };
+        hr2.getCell(3).alignment = { horizontal: 'left' };
+
+        // Set Column Widths
+        worksheet.getColumn(1).width = 35; // Party Name
+        worksheet.getColumn(2).width = 25; // Contact Person
+        worksheet.getColumn(3).width = 15; // Telephone No.
+        for (let i = 4; i <= 19; i++) worksheet.getColumn(i).width = 13;
+
+        // 3. Add Customer Data
+        customers.forEach((c) => {
+            const aging = c.aging || {};
+            const totalDue = (c.totalAmount || 0) - (c.paidAmount || 0);
+
+            worksheet.addRow([
+                c.companyName || '',
+                c.contactPerson || '',
+                c.phone ? String(c.phone) : '',
+                totalDue > 0 ? totalDue : '', '',       // Pending Debit, Credit
+                aging.under30 || '', '',                // < 30 Debit, Credit
+                aging.days30to60 || '', '',             // 30-60 Debit, Credit
+                aging.days60to90 || '', '',             // 60-90 Debit, Credit
+                aging.days90to120 || '', '',            // 90-120 Debit, Credit
+                aging.days120to150 || '', '',           // 120-180 Debit, Credit
+                aging.above180 || '', '',               // > 180 Debit, Credit
+                aging.onAccount || '', ''               // On Account Debit, Credit
+            ]);
+        });
+
+        // 4. Style Data Rows
+        worksheet.eachRow((row, rowNumber) => {
+            // Apply bolding to company details at the top
+            if (rowNumber <= 11) {
+                row.eachCell(cell => { cell.font = { bold: true }; });
+            }
+            // Align numbers to the right for the data rows
+            if (rowNumber > 14) {
+                for (let i = 4; i <= 19; i++) {
+                    row.getCell(i).alignment = { horizontal: 'right' };
+                }
+            }
+        });
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="Sundry_Debtors_Export.xlsx"');
+        res.setHeader('Content-Disposition', `attachment; filename="${admin.companyName || 'WGS'}_Sundry_Debtors.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
-    } catch (err) { res.status(500).send("Failed to export Excel."); }
+    } catch (err) {
+        res.status(500).send("Failed to export Excel.");
+    }
 });
 
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
