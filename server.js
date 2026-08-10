@@ -13,12 +13,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 const Customer = require('./models/Customer');
 const User = require('./models/User');
-const Activity = require('./models/Activity');
 
 const app = express();
 
 // --- DATABASE CONNECTION ---
-const dbURI = 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
 
 mongoose.connect(dbURI)
     .then(() => {
@@ -37,7 +36,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 1000
 app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
 app.use(session({
-    secret: 'secretkey', // Keep whatever secret you already have here
+    secret: process.env.SESSION_SECRET || 'secretkey', // Keep whatever secret you already have here
     resave: false,
     saveUninitialized: false,
     // Add the store configuration below:
@@ -84,9 +83,9 @@ const { google } = require('googleapis');
 
 // Replace with your keys from Step 1
 const oauth2Client = new google.auth.OAuth2(
-    '636131280622-8ptviiun9hnh3538urpjfhio536as2fi.apps.googleusercontent.com',
-    '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',
-    'https://wgs-payment.onrender.com/auth/google/callback' // Update for production
+    process.env.GOOGLE_CLIENT_ID || '636131280622-8ptviiun9hnh3538urpjfhio536as2fi.apps.googleusercontent.com',
+    process.env.GOOGLE_CLIENT_SECRET || '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',
+    process.env.GOOGLE_CALLBACK_URL || 'https://wgs-payment.onrender.com/auth/google/callback' // Update for production
 );
 
 // 1. Route to start Google Drive Connection
@@ -175,7 +174,6 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
     }
 });
 
-// 4. The "WhatsApp Style" Silent Restore Route
 // 4. The "WhatsApp Style" Silent Restore Route
 app.get('/drive-restore', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
@@ -430,7 +428,7 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-app.post('/customers/:id/auto-snooze', async (req, res) => {
+app.post('/customers/:id/auto-snooze', requireLogin, async (req, res) => {
     try {
         const customer = await Customer.findById(req.params.id);
         if (customer) {
@@ -566,9 +564,13 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
         let query = { adminId: req.session.adminId };
         const now = new Date();
         if (filterType === 'older_than_30') {
-            query.createdAt = { $lt: new Date(now.setDate(now.getDate() - 30)) };
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 30);
+            query.createdAt = { $lt: cutoff };
         } else if (filterType === 'last_30') {
-            query.createdAt = { $gte: new Date(now.setDate(now.getDate() - 30)) };
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 30);
+            query.createdAt = { $gte: cutoff };
         } else if (filterType === 'custom' && startDate && endDate) {
             query.createdAt = {
                 $gte: new Date(startDate),
@@ -625,13 +627,7 @@ app.post('/create-staff', requireLogin, async (req, res) => {
         const rawUsername = req.body.username.trim();
         const existingUser = await User.findOne({ username: new RegExp('^' + rawUsername + '$', 'i') });
         if (existingUser) {
-            return res.send(`
-                <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-                    <h2 style="color: #ef4444;">Username Already Taken</h2>
-                    <p>The username <strong>"${rawUsername}"</strong> is already in use.</p>
-                    <button onclick="window.history.back()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer;">Go Back and Try Another</button>
-                </div>
-            `);
+            return res.redirect('/staff?error=duplicate&name=' + encodeURIComponent(rawUsername));
         }
 
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
@@ -671,7 +667,6 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
     res.redirect('/staff');
 });
 
-// --- EXPORT ---
 // --- EXPORT (Perfectly Mapped & Styled to Tally Format) ---
 app.get('/export', requireLogin, async (req, res) => {
     try {
@@ -700,8 +695,8 @@ app.get('/export', requireLogin, async (req, res) => {
         worksheet.addRow([]); // Blank row to separate header from table
 
         // 2. Table Headers (Spaced exactly for Tally Import)
-        const headerRow1 = ['', '', '', 'Pending Bills', '', '(< 30 days )', '', '30 to 60 days', '', '60 to 90 days', '', '90 to 120 days', '', '120 to 180 days', '', '(> 180 days )', '', 'On Account', ''];
-        const headerRow2 = ['Party Name', 'Contact Person', 'Telephone No.', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit'];
+        const headerRow1 = ['', '', '', 'Pending Bills', '', '(< 30 days )', '', '30 to 60 days', '', '60 to 90 days', '', '90 to 120 days', '', '120 to 150 days', '', '150 to 180 days', '', '(> 180 days )', '', 'On Account', ''];
+        const headerRow2 = ['Party Name', 'Contact Person', 'Telephone No.', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit', 'Debit', 'Credit'];
 
         const hr1 = worksheet.addRow(headerRow1);
         const hr2 = worksheet.addRow(headerRow2);
@@ -712,9 +707,10 @@ app.get('/export', requireLogin, async (req, res) => {
         worksheet.mergeCells('H13:I13'); // 30 to 60
         worksheet.mergeCells('J13:K13'); // 60 to 90
         worksheet.mergeCells('L13:M13'); // 90 to 120
-        worksheet.mergeCells('N13:O13'); // 120 to 180
-        worksheet.mergeCells('P13:Q13'); // > 180
-        worksheet.mergeCells('R13:S13'); // On Account
+        worksheet.mergeCells('N13:O13'); // 120 to 150
+        worksheet.mergeCells('P13:Q13'); // 150 to 180
+        worksheet.mergeCells('R13:S13'); // > 180
+        worksheet.mergeCells('T13:U13'); // On Account
 
         // Style the Headers
         [hr1, hr2].forEach(row => {
@@ -732,7 +728,7 @@ app.get('/export', requireLogin, async (req, res) => {
         worksheet.getColumn(1).width = 35; // Party Name
         worksheet.getColumn(2).width = 25; // Contact Person
         worksheet.getColumn(3).width = 15; // Telephone No.
-        for (let i = 4; i <= 19; i++) worksheet.getColumn(i).width = 13;
+        for (let i = 4; i <= 21; i++) worksheet.getColumn(i).width = 13;
 
         // 3. Add Customer Data
         customers.forEach((c) => {
@@ -748,7 +744,8 @@ app.get('/export', requireLogin, async (req, res) => {
                 aging.days30to60 || '', '',             // 30-60 Debit, Credit
                 aging.days60to90 || '', '',             // 60-90 Debit, Credit
                 aging.days90to120 || '', '',            // 90-120 Debit, Credit
-                aging.days120to150 || '', '',           // 120-180 Debit, Credit
+                aging.days120to150 || '', '',           // 120-150 Debit, Credit
+                aging.days150to180 || '', '',           // 150-180 Debit, Credit
                 aging.above180 || '', '',               // > 180 Debit, Credit
                 aging.onAccount || '', ''               // On Account Debit, Credit
             ]);
@@ -762,7 +759,7 @@ app.get('/export', requireLogin, async (req, res) => {
             }
             // Align numbers to the right for the data rows
             if (rowNumber > 14) {
-                for (let i = 4; i <= 19; i++) {
+                for (let i = 4; i <= 21; i++) {
                     row.getCell(i).alignment = { horizontal: 'right' };
                 }
             }
@@ -826,9 +823,9 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
                 days60to90: cleanMoney(row[9]),
                 days90to120: cleanMoney(row[11]),
                 days120to150: cleanMoney(row[13]),
-                days150to180: 0,
-                above180: cleanMoney(row[15]),
-                onAccount: cleanMoney(row[17])
+                days150to180: cleanMoney(row[15]),
+                above180: cleanMoney(row[17]),
+                onAccount: cleanMoney(row[19])
             };
             let nextAction = new Date();
             nextAction.setDate(nextAction.getDate() + 10);
@@ -895,7 +892,7 @@ app.get('/customers/check-duplicate', requireLogin, async (req, res) => {
     }
 });
 
-app.post('/customers', async (req, res) => {
+app.post('/customers', requireLogin, async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
     try {
         const totalAmt = parseFloat(req.body.totalAmount) || 0;

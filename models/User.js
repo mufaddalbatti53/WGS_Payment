@@ -25,8 +25,6 @@ const userSchema = new mongoose.Schema({
 
     // 🏦 Bank & UPI Details (Optional)
     bankName: { type: String },
-    // 🏦 Bank & UPI Details (Optional)
-    bankName: { type: String },
     accountName: { type: String },
     accountNumber: { type: String },
     ifscCode: { type: String },

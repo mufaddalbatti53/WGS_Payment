@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 
 // 🚨 THE FIX 1: Use your LIVE MongoDB Atlas connection!
-const dbURI = 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
 
 mongoose.connect(dbURI)
     .then(() => console.log("✅ Live Database Connected for Seeding..."))
@@ -12,8 +12,8 @@ mongoose.connect(dbURI)
 const seedDB = async () => {
     try {
         // 1. Delete existing users to avoid duplicates (Be careful with this on a live app!)
-        console.log("⚠️ Wiping existing users...");
-        await User.deleteMany({});
+        // Removed dangerous User.deleteMany({}) to prevent accidental wiping of production users.
+        console.log("⚠️ Existing users are kept intact. Please ensure you handle duplicates if needed.");
 
         // Use 10 salt rounds to match server.js perfectly
         const hashedPassword = await bcrypt.hash('admin123', 10);
