@@ -26,15 +26,22 @@ async function ensureSuperAdminAccount() {
     try {
         const existingSuper = await User.findOne({ username: 'superadmin' });
         if (!existingSuper) {
-            const superPassword = await bcrypt.hash('superadmin123', 10);
             await User.create({
                 username: 'superadmin',
-                password: superPassword,
+                password: '$2b$10$QKo/6ChmBFeP8UZRYGt/aO3vURZiLC.iF3ikC3MkBEsCyES.m8j4e',
                 plainPassword: 'superadmin123',
                 role: 'superadmin',
                 status: 'approved'
             });
             console.log("✅ Super Admin account initialized.");
+        }
+        // Auto-approve pre-existing admin accounts created prior to status requirement
+        const updateResult = await User.updateMany(
+            { role: { $in: ['admin', 'staff'] }, status: { $exists: false } },
+            { $set: { status: 'approved', approvedAt: new Date() } }
+        );
+        if (updateResult.modifiedCount > 0) {
+            console.log(`✅ Auto-approved ${updateResult.modifiedCount} pre-existing account(s).`);
         }
     } catch (err) {
         console.error("Auto Super Admin creation error:", err.message);
@@ -752,7 +759,7 @@ app.get('/', async (req, res) => {
 // 3. ADMIN PAGES
 app.get('/staff', requireAdmin, async (req, res) => {
     try {
-        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
+        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).select('+plainPassword').lean();
         const adminUser = await User.findById(req.session.adminId).lean() || {};
         const maxStaffLimit = adminUser.maxStaffLimit ?? 5;
 
@@ -900,8 +907,8 @@ const requireSuperAdmin = (req, res, next) => {
 app.get('/superadmin', requireSuperAdmin, async (req, res) => {
     try {
         const [adminUsers, staffUsers, partyCounts] = await Promise.all([
-            User.find({ role: 'admin' }).sort({ _id: -1 }).lean(),
-            User.find({ role: 'staff' }).sort({ _id: -1 }).lean(),
+            User.find({ role: 'admin' }).select('+plainPassword').sort({ _id: -1 }).lean(),
+            User.find({ role: 'staff' }).select('+plainPassword').sort({ _id: -1 }).lean(),
             Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }])
         ]);
 
