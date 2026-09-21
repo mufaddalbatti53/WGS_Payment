@@ -586,6 +586,23 @@ app.get('/', async (req, res) => {
 
         const adminUser = await User.findById(req.session.adminId).lean() || {};
 
+        // Subscription Expiry Warning Check (10 days left or less)
+        let subscriptionAlert = null;
+        if (adminUser.planExpiryDate) {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const expiry = new Date(adminUser.planExpiryDate); expiry.setHours(0, 0, 0, 0);
+            const diffTime = expiry.getTime() - today.getTime();
+            const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (daysLeft <= 10) {
+                subscriptionAlert = {
+                    expired: daysLeft < 0,
+                    daysLeft: Math.max(0, daysLeft),
+                    expiryFormatted: expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                };
+            }
+        }
+
         let totalPending = 0, actionRequiredCount = 0;
         let b_u30 = 0, b_30_60 = 0, b_60_90 = 0, b_90_120 = 0;
         let b_120_150 = 0, b_150_180 = 0, b_a180 = 0, b_onAcc = 0;
@@ -649,7 +666,10 @@ app.get('/', async (req, res) => {
             customers: finalCustomers,
             role: req.session.role,
             adminUser: adminUser,
-            stats: stats
+            stats: stats,
+            subscriptionAlert: subscriptionAlert,
+            quotaMsg: req.query.msg || null,
+            quotaError: req.query.quota_error || null
         });
     } catch (err) {
         console.error('Dashboard error:', err);
@@ -662,7 +682,34 @@ app.get('/staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
         const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
-        res.render('staff', { staffMembers: myStaff, role: req.session.role });
+        const adminUser = await User.findById(req.session.adminId).lean() || {};
+        const maxStaffLimit = adminUser.maxStaffLimit ?? 5;
+
+        let subscriptionAlert = null;
+        if (adminUser.planExpiryDate) {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const expiry = new Date(adminUser.planExpiryDate); expiry.setHours(0, 0, 0, 0);
+            const diffTime = expiry.getTime() - today.getTime();
+            const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (daysLeft <= 10) {
+                subscriptionAlert = {
+                    expired: daysLeft < 0,
+                    daysLeft: Math.max(0, daysLeft),
+                    expiryFormatted: expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                };
+            }
+        }
+
+        res.render('staff', {
+            staffMembers: myStaff,
+            role: req.session.role,
+            maxStaffLimit: maxStaffLimit,
+            currentStaffCount: myStaff.length,
+            msg: req.query.msg || null,
+            error: req.query.error || null,
+            subscriptionAlert: subscriptionAlert
+        });
     } catch (error) { res.status(500).send("Error loading staff."); }
 });
 
@@ -1129,6 +1176,17 @@ app.get('/export', requireLogin, async (req, res) => {
 app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/');
+
+        // Quota check: Customer / Party limit
+        const adminUser = await User.findById(req.session.adminId);
+        const maxCust = adminUser ? (adminUser.maxCustomersLimit ?? 500) : 500;
+        if (maxCust > 0) {
+            const currentPartyCount = await Customer.countDocuments({ adminId: req.session.adminId });
+            if (currentPartyCount >= maxCust) {
+                return res.redirect('/?quota_error=1&msg=' + encodeURIComponent(`Party/Customer limit reached (${currentPartyCount}/${maxCust}). Contact Super Admin to upgrade your quota before importing.`));
+            }
+        }
+
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });

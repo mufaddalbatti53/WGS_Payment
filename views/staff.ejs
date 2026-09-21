@@ -305,11 +305,31 @@
     </div>
     <div class="main-wrapper">
         <a href="/" class="back-link">&larr; Back to Dashboard</a>
-        <h1>👤 Manage Staff</h1>
+        <% if (typeof subscriptionAlert !== 'undefined' && subscriptionAlert) { %>
+            <div style="background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px;">
+                <div style="font-size:24px;">⏰</div>
+                <div>
+                    <strong style="color:#c2410c; font-size:14px; display:block;">Subscription Expiry Warning</strong>
+                    <span style="color:#9a3412; font-size:12px; font-weight:600;">
+                        Your plan expires in <u><%= subscriptionAlert.daysLeft %> day(s)</u> (on <%= subscriptionAlert.expiryFormatted %>). Contact Super Admin to renew.
+                    </span>
+                </div>
+            </div>
+        <% } %>
+
+        <% if (typeof msg !== 'undefined' && msg) { %>
+            <div style="background:#fee2e2; border:2px solid #ef4444; border-radius:16px; padding:14px 18px; margin-bottom:20px; color:#991b1b; font-weight:700; font-size:13px;">
+                🚫 <%= msg %>
+            </div>
+        <% } %>
 
         <div class="floating-card" style="background: #f8fafc; border-color: #e2e8f0; position: relative; z-index: 100;">
-            <h3 style="margin-top: 0; color: var(--text-dark); font-size: 18px; margin-bottom: 15px;">Create New Staff Account
-            </h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin: 0; color: var(--text-dark); font-size: 18px;">Create New Staff Account</h3>
+                <span style="background:<%= (typeof currentStaffCount !== 'undefined' && typeof maxStaffLimit !== 'undefined' && maxStaffLimit > 0 && currentStaffCount >= maxStaffLimit) ? '#fee2e2' : '#e0e7ff' %>; color:<%= (typeof currentStaffCount !== 'undefined' && typeof maxStaffLimit !== 'undefined' && maxStaffLimit > 0 && currentStaffCount >= maxStaffLimit) ? '#991b1b' : '#3730a3' %>; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:700;">
+                    Staff Limit: <%= typeof currentStaffCount !== 'undefined' ? currentStaffCount : '0' %> / <%= (typeof maxStaffLimit !== 'undefined' && maxStaffLimit === 0) ? '∞' : (typeof maxStaffLimit !== 'undefined' ? maxStaffLimit : 5) %>
+                </span>
+            </div>
         
             <form action="/create-staff" method="POST" style="position: relative; z-index: 101;">
                 <input type="text" name="username" placeholder="Staff Username" required class="input-style"

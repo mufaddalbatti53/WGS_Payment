@@ -714,6 +714,30 @@
 
         <main class="main-content">
 
+            <% if (typeof subscriptionAlert !== 'undefined' && subscriptionAlert) { %>
+                <div style="background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
+                    <div style="font-size:26px;">⏰</div>
+                    <div>
+                        <strong style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
+                        <span style="color:#9a3412; font-size:13px; font-weight:600;">
+                            Your plan expires in <u style="font-weight:800; font-size:14px;"><%= subscriptionAlert.daysLeft %> day(s)</u> (on <%= subscriptionAlert.expiryFormatted %>). Please contact Super Admin to renew your subscription.
+                        </span>
+                    </div>
+                </div>
+            <% } %>
+
+            <% if (typeof quotaMsg !== 'undefined' && quotaMsg) { %>
+                <div style="background:#fee2e2; border:2px solid #ef4444; border-radius:16px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(239,68,68,0.15);">
+                    <div style="font-size:26px;">🚫</div>
+                    <div>
+                        <strong style="color:#991b1b; font-size:15px; display:block;">Quota Limit Alert</strong>
+                        <span style="color:#7f1d1d; font-size:13px; font-weight:600;">
+                            <%= quotaMsg %>
+                        </span>
+                    </div>
+                </div>
+            <% } %>
+
             <% var urlStr='' ; %>
                 <div id="dupWarning" class="dup-warning" style="display:none;">
                     ⚠️ <span id="dupWarningText">A party with this name or phone number already exists.</span>
