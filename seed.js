@@ -44,7 +44,22 @@ const seedDB = async () => {
         });
 
         await staff.save();
-        console.log(`✅ Staff created! (Username: staff, Password: staff123)`);
+        // 4. Create Super Admin if not exists
+        const existingSuper = await User.findOne({ role: 'superadmin' });
+        if (!existingSuper) {
+            const superPassword = await bcrypt.hash('superadmin123', 10);
+            const superAdmin = new User({
+                username: 'superadmin',
+                password: superPassword,
+                plainPassword: 'superadmin123',
+                role: 'superadmin',
+                status: 'approved'
+            });
+            await superAdmin.save();
+            console.log(`✅ Super Admin created! (Username: superadmin, Password: superadmin123)`);
+        } else {
+            console.log("ℹ️ Super Admin already exists.");
+        }
 
         console.log("🎉 Database Seeded Successfully! You can now login.");
 

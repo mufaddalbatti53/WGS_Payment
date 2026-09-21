@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Admin Registration</title>
+    <title>Request Admin Access — WGS Payment Tracker</title>
     <meta name="theme-color" content="#2c3e50">
     <style>
         :root {
@@ -23,41 +23,56 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             padding: 20px;
-            box-sizing: border-box;
         }
 
-        /* The Premium Floating Card */
         .box {
             background: white;
-            padding: 40px;
+            padding: 35px 30px;
             border-radius: 24px;
             width: 100%;
-            max-width: 400px;
+            max-width: 440px;
             text-align: center;
             box-shadow: var(--shadow-soft);
-            border: 1px solid rgba(249, 115, 22, 0.1);
+            border: 1px solid rgba(39, 174, 96, 0.15);
         }
 
         h2 {
             margin-top: 0;
             color: var(--text-dark);
             font-weight: 800;
-            font-size: 26px;
-            margin-bottom: 25px;
+            font-size: 24px;
+            margin-bottom: 8px;
         }
 
-        /* Modern Input Fields */
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 22px;
+            line-height: 1.5;
+        }
+
+        .info-alert {
+            background: #e6f4ea;
+            border: 1px solid #a3e0b7;
+            color: #1e7e44;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            text-align: left;
+            margin-bottom: 18px;
+            line-height: 1.4;
+        }
+
         input,
         select {
             width: 100%;
-            padding: 14px 15px;
-            margin: 8px 0 15px 0;
+            padding: 12px 14px;
+            margin: 6px 0 14px 0;
             border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            box-sizing: border-box;
+            border-radius: 10px;
             font-size: 14px;
             background: #f8fafc;
             transition: all 0.3s ease;
@@ -69,21 +84,20 @@
         select:focus {
             border-color: var(--primary);
             background: white;
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
         }
 
         label {
             display: block;
             text-align: left;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 5px;
+            margin-top: 4px;
         }
 
-        /* Premium Floating Button */
         button {
             width: 100%;
             padding: 14px;
@@ -101,12 +115,12 @@
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
         }
 
         .back-link {
             display: inline-block;
-            margin-top: 20px;
+            margin-top: 18px;
             font-size: 13px;
             color: var(--text-muted);
             text-decoration: none;
@@ -122,10 +136,25 @@
 
 <body>
     <div class="box">
-        <h2>Admin Sign Up</h2>
+        <h2>Request Admin Access</h2>
+        <div class="subtitle">Submit your details to request an Admin account. Super Admin will review your request for approval.</div>
+
+        <div class="info-alert">
+            ℹ️ <strong>Note:</strong> Super Admin approval is required to activate your account. Please enter your valid Email & Phone so we can contact you regarding your account setup.
+        </div>
+
         <form action="/register" method="POST">
-            <input type="text" name="username" placeholder="New Admin Username" required>
-            <input type="password" name="password" placeholder="Secure Password" required>
+            <label>Admin Username</label>
+            <input type="text" name="username" placeholder="Choose Admin Username" required>
+
+            <label>Secure Password</label>
+            <input type="password" name="password" placeholder="Choose Password" required>
+
+            <label>Email Address</label>
+            <input type="email" name="email" placeholder="your.email@example.com" required>
+
+            <label>Phone / WhatsApp Number</label>
+            <input type="tel" name="phone" placeholder="+91 9876543210" required>
 
             <label>Security Question (For Recovery):</label>
             <select name="securityQuestion">
@@ -133,9 +162,9 @@
                 <option value="school">What is your first school name?</option>
                 <option value="city">In which city were you born?</option>
             </select>
-            <input type="text" name="securityAnswer" placeholder="Your Answer" required>
+            <input type="text" name="securityAnswer" placeholder="Your Security Answer" required>
 
-            <button type="submit">Create Account</button>
+            <button type="submit">Submit Access Request</button>
         </form>
         <a href="/login" class="back-link">&larr; Back to Login</a>
     </div>

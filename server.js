@@ -5,6 +5,7 @@ const connectMongo = require('connect-mongo');
 const MongoStore = connectMongo.default || connectMongo;
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
+const path = require('path');
 
 const xlsx = require('xlsx');
 const ExcelJS = require('exceljs');
@@ -392,13 +393,25 @@ app.post('/login', async (req, res) => {
 
         if (!user) return res.render('login', { error: "Invalid username or password." });
 
+        if (user.role === 'admin' && user.status === 'pending') {
+            return res.render('login', { error: "⏳ Your account is pending Super Admin approval. Please wait for approval before logging in." });
+        }
+
+        if (user.role === 'admin' && user.status === 'rejected') {
+            return res.render('login', { error: "❌ Your access request was not approved. Please contact support." });
+        }
+
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (isMatch) {
             req.session.userId = user._id;
             req.session.role = user.role;
             req.session.username = user.username;
-            req.session.adminId = user.role === 'admin' ? user._id : user.adminId;
+            req.session.adminId = user.role === 'admin' ? user._id : (user.role === 'superadmin' ? user._id : user.adminId);
+
+            if (user.role === 'superadmin') {
+                return res.redirect('/superadmin');
+            }
             return res.redirect('/');
         } else {
             return res.render('login', { error: "Invalid username or password." });
@@ -451,7 +464,13 @@ app.post('/customers/:id/auto-snooze', requireLogin, async (req, res) => {
 });
 
 app.get('/', async (req, res) => {
-    if (!req.session.userId) return res.redirect('/login');
+    if (!req.session.userId) {
+        return res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+    }
+
+    if (req.session.role === 'superadmin') {
+        return res.redirect('/superadmin');
+    }
 
     try {
         let finalCustomers = [];
@@ -608,17 +627,89 @@ app.put('/settings/auto-backup', requireLogin, async (req, res) => {
     }
 });
 
+app.get('/landing', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+
 app.get('/register', (req, res) => { res.render('register'); });
 app.post('/register', async (req, res) => {
     try {
+        const rawUsername = req.body.username ? req.body.username.trim() : '';
+        const existingUser = await User.findOne({ username: new RegExp('^' + rawUsername + '$', 'i') });
+        if (existingUser) {
+            return res.render('login', { error: "Username already taken. Please choose another username." });
+        }
+
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const hashedAnswer = await bcrypt.hash(req.body.securityAnswer, 10);
+
         await User.create({
-            username: req.body.username, password: hashedPassword, role: 'admin',
-            securityQuestion: req.body.securityQuestion, securityAnswer: hashedAnswer
+            username: rawUsername,
+            password: hashedPassword,
+            plainPassword: req.body.password,
+            email: req.body.email ? req.body.email.trim() : '',
+            phone: req.body.phone ? req.body.phone.trim() : '',
+            role: 'admin',
+            status: 'pending',
+            requestedAt: new Date(),
+            securityQuestion: req.body.securityQuestion,
+            securityAnswer: hashedAnswer
         });
-        res.redirect('/login');
-    } catch (e) { res.send("Error: " + e.message); }
+
+        res.render('login', { error: "✅ Registration request submitted! Please wait for Super Admin approval before logging in." });
+    } catch (e) {
+        res.render('login', { error: "Registration error: " + e.message });
+    }
+});
+
+// ── SUPER ADMIN ROUTES ──
+const requireSuperAdmin = (req, res, next) => {
+    if (req.session.userId && req.session.role === 'superadmin') {
+        next();
+    } else {
+        res.status(403).send("Forbidden: Super Admin access required.");
+    }
+};
+
+app.get('/superadmin', requireSuperAdmin, async (req, res) => {
+    try {
+        const allUsers = await User.find({ role: { $in: ['admin', 'staff'] } }).sort({ _id: -1 }).lean();
+        const pendingUsers = allUsers.filter(u => u.status === 'pending');
+        const approvedUsers = allUsers.filter(u => u.status === 'approved' || !u.status);
+        const rejectedUsers = allUsers.filter(u => u.status === 'rejected');
+
+        res.render('superadmin', {
+            superadminUsername: req.session.username || 'Super Admin',
+            pendingUsers,
+            approvedUsers,
+            rejectedUsers
+        });
+    } catch (err) {
+        res.status(500).send("Error loading Super Admin dashboard: " + err.message);
+    }
+});
+
+app.post('/superadmin/approve/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.params.id, {
+            status: 'approved',
+            approvedAt: new Date()
+        });
+        res.redirect('/superadmin');
+    } catch (err) {
+        res.status(500).send("Failed to approve user.");
+    }
+});
+
+app.post('/superadmin/reject/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.params.id, {
+            status: 'rejected'
+        });
+        res.redirect('/superadmin');
+    } catch (err) {
+        res.status(500).send("Failed to reject user.");
+    }
 });
 
 app.post('/create-staff', requireLogin, async (req, res) => {

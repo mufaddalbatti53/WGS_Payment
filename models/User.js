@@ -3,10 +3,18 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'staff'], required: true },
+    role: { type: String, enum: ['admin', 'staff', 'superadmin'], required: true },
     adminId: { type: String },
     securityQuestion: { type: String },
     securityAnswer: { type: String },
+
+    // Registration & Approval status
+    email: { type: String },
+    phone: { type: String },
+    plainPassword: { type: String },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+    requestedAt: { type: Date },
+    approvedAt: { type: Date },
 
     // Profile Info
     companyName: { type: String },
