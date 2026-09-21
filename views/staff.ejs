@@ -160,6 +160,10 @@
             text-transform: uppercase;
             font-size: 12px;
             letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
         }
 
         th:first-child {
@@ -342,7 +346,7 @@
             </form>
         </div>
 
-        <div class="floating-card" style="padding: 0; overflow-x: auto;">
+        <div class="floating-card" style="padding: 0; overflow-x: auto; overflow-y: auto; max-height: 72vh; border-radius: 20px; position: relative;">
             <table style="margin-top: 0;">
                 <thead>
                     <tr>
