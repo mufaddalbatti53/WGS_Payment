@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: your-app-name
+    name: wgs-order-processing
     env: node
     buildCommand: npm install
     startCommand: node server.js

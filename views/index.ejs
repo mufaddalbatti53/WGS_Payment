@@ -1859,7 +1859,7 @@
                     var upi = "<%= adminUser.upiDetails || '' %>";
 
                     var m = [];
-                    var cStr = cname; if (pname.length > 0) cStr += " (" + pname + ")";
+                    var cStr = cname; if (pname && pname.length > 0) cStr += " (" + pname + ")";
                     m.push("Hello, this is " + admin + ".");
                     m.push("\nThis is a payment reminder for " + cStr + ".");
                     m.push("\n📊 *Account Summary:*");

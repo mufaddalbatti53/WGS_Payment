@@ -39,4 +39,6 @@ const userSchema = new mongoose.Schema({
     upiDetails: { type: String }
 });
 
+userSchema.index({ role: 1, status: 1 });
+
 module.exports = mongoose.model('User', userSchema);

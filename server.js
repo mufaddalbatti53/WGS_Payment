@@ -80,19 +80,30 @@ async function logActivity(req, action, details) {
         console.error("Activity Log Error:", err.message);
     }
 }
+
+function escapeRegExp(string) {
+    return (string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const { google } = require('googleapis');
 
-// Replace with your keys from Step 1
-const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID || '636131280622-8ptviiun9hnh3538urpjfhio536as2fi.apps.googleusercontent.com',
-    process.env.GOOGLE_CLIENT_SECRET || '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',
-    process.env.GOOGLE_CALLBACK_URL || 'https://wgs-payment.onrender.com/auth/google/callback' // Update for production
-);
+function getOAuth2Client(tokens) {
+    const client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID || '636131280622-8ptviiun9hnh3538urpjfhio536as2fi.apps.googleusercontent.com',
+        process.env.GOOGLE_CLIENT_SECRET || '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',
+        process.env.GOOGLE_CALLBACK_URL || 'https://wgs-payment.onrender.com/auth/google/callback'
+    );
+    if (tokens) {
+        client.setCredentials(tokens);
+    }
+    return client;
+}
 
 // 1. Route to start Google Drive Connection
 app.get('/auth/google', requireLogin, (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
-    const url = oauth2Client.generateAuthUrl({
+    const client = getOAuth2Client();
+    const url = client.generateAuthUrl({
         access_type: 'offline',
         scope: [
             'https://www.googleapis.com/auth/drive.file',
@@ -104,20 +115,20 @@ app.get('/auth/google', requireLogin, (req, res) => {
     res.redirect(url);
 });
 
-// Fixed spacing typo in route: '/auth / google / callback' -> '/auth/google/callback'
 app.get('/auth/google/callback', requireLogin, async (req, res) => {
     try {
         const { code } = req.query;
-        const { tokens } = await oauth2Client.getToken(code);
-        oauth2Client.setCredentials(tokens);
+        const client = getOAuth2Client();
+        const { tokens } = await client.getToken(code);
+        client.setCredentials(tokens);
 
         // Fetch the user's email address
-        const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+        const oauth2 = google.oauth2({ version: 'v2', auth: client });
         const userInfo = await oauth2.userinfo.get();
 
         await User.findByIdAndUpdate(req.session.adminId, {
             googleDriveToken: tokens,
-            googleEmail: userInfo.data.email // Save the email!
+            googleEmail: userInfo.data.email
         });
         res.redirect('/?msg=gdrive_linked');
     } catch (e) { res.redirect('/?msg=error'); }
@@ -131,14 +142,17 @@ app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
 });
 
 app.get('/drive-backup', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin' && req.session.role !== 'superadmin') {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
     try {
         const adminUser = await User.findById(req.session.adminId).lean();
-        if (!adminUser.googleDriveToken) {
+        if (!adminUser || !adminUser.googleDriveToken) {
             return res.status(400).send("Google Drive not linked.");
         }
 
-        oauth2Client.setCredentials(adminUser.googleDriveToken);
-        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+        const client = getOAuth2Client(adminUser.googleDriveToken);
+        const drive = google.drive({ version: 'v3', auth: client });
 
         // Gather ALL the data
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
@@ -180,15 +194,13 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
         const adminUser = await User.findById(req.session.adminId).lean();
-        if (!adminUser.googleDriveToken) {
+        if (!adminUser || !adminUser.googleDriveToken) {
             return res.status(400).json({ success: false, message: "Google Drive not linked." });
         }
 
-        oauth2Client.setCredentials(adminUser.googleDriveToken);
-        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+        const client = getOAuth2Client(adminUser.googleDriveToken);
+        const drive = google.drive({ version: 'v3', auth: client });
 
-        // 🚀 UPGRADE: Search BOTH the hidden appData folder AND the main drive!
-        // We also specifically filter for files containing "WGS_" so we don't accidentally grab a random JSON file.
         const response = await drive.files.list({
             spaces: 'appDataFolder, drive',
             q: "name contains 'WGS_'",
@@ -201,7 +213,6 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "No backup found in Google Drive." });
         }
 
-        // 2. Download the file content
         const latestFileId = response.data.files[0].id;
         const file = await drive.files.get({ fileId: latestFileId, alt: 'media' });
         const backup = file.data;
@@ -210,7 +221,6 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
             return res.json({ success: false, message: "Backup file is invalid or empty." });
         }
 
-        // 3. Restore the data 
         const adminId = req.session.adminId;
 
         // Restore Customers
@@ -329,8 +339,8 @@ async function runAutoBackups() {
 
             if (daysSinceBackup >= admin.autoBackupInterval) {
                 try {
-                    oauth2Client.setCredentials(admin.googleDriveToken);
-                    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+                    const client = getOAuth2Client(admin.googleDriveToken);
+                    const drive = google.drive({ version: 'v3', auth: client });
 
                     const customers = await Customer.find({ adminId: admin._id }).lean();
                     const staff = await User.find({ role: 'staff', adminId: admin._id }).lean();
@@ -424,16 +434,22 @@ app.post('/login', async (req, res) => {
 app.get('/forgot-password', (req, res) => { res.render('forgot', { error: null }); });
 
 app.post('/forgot-password', async (req, res) => {
-    const { username, securityQuestion, securityAnswer, newPassword } = req.body;
-    const user = await User.findOne({ username });
-    if (!user) return res.render('forgot', { error: "Username not found" });
-    if (user.securityQuestion !== securityQuestion) return res.render('forgot', { error: "Wrong Security Question" });
-    const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
-    if (!isMatch) return res.render('forgot', { error: "Wrong Security Answer" });
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-    res.redirect('/login');
+    try {
+        const { username, securityQuestion, securityAnswer, newPassword } = req.body;
+        const user = await User.findOne({ username });
+        if (!user) return res.render('forgot', { error: "Username not found" });
+        if (user.securityQuestion !== securityQuestion) return res.render('forgot', { error: "Wrong Security Question" });
+        const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
+        if (!isMatch) return res.render('forgot', { error: "Wrong Security Answer" });
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.plainPassword = newPassword;
+        await user.save();
+        res.redirect('/login');
+    } catch (err) {
+        console.error("Forgot password error:", err);
+        res.render('forgot', { error: "An error occurred while resetting password." });
+    }
 });
 
 app.get('/logout', (req, res) => {
@@ -635,7 +651,7 @@ app.get('/register', (req, res) => { res.render('register'); });
 app.post('/register', async (req, res) => {
     try {
         const rawUsername = req.body.username ? req.body.username.trim() : '';
-        const existingUser = await User.findOne({ username: new RegExp('^' + rawUsername + '$', 'i') });
+        const existingUser = await User.findOne({ username: new RegExp('^' + escapeRegExp(rawUsername) + '$', 'i') });
         if (existingUser) {
             return res.render('login', { error: "Username already taken. Please choose another username." });
         }
@@ -664,7 +680,10 @@ app.post('/register', async (req, res) => {
 
 // ── SUPER ADMIN ROUTES ──
 const requireSuperAdmin = (req, res, next) => {
-    if (req.session.userId && req.session.role === 'superadmin') {
+    if (!req.session.userId) {
+        return res.redirect('/login');
+    }
+    if (req.session.role === 'superadmin') {
         next();
     } else {
         res.status(403).send("Forbidden: Super Admin access required.");
@@ -713,10 +732,13 @@ app.post('/superadmin/reject/:id', requireSuperAdmin, async (req, res) => {
 });
 
 app.post('/create-staff', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
-        const rawUsername = req.body.username.trim();
-        const existingUser = await User.findOne({ username: new RegExp('^' + rawUsername + '$', 'i') });
+        const rawUsername = req.body.username ? req.body.username.trim() : '';
+        if (!rawUsername || !req.body.password) {
+            return res.redirect('/staff?error=missing_fields');
+        }
+        const existingUser = await User.findOne({ username: new RegExp('^' + escapeRegExp(rawUsername) + '$', 'i') });
         if (existingUser) {
             return res.redirect('/staff?error=duplicate&name=' + encodeURIComponent(rawUsername));
         }
@@ -727,7 +749,9 @@ app.post('/create-staff', requireLogin, async (req, res) => {
         await User.create({
             username: rawUsername,
             password: hashedPassword,
+            plainPassword: req.body.password,
             role: 'staff',
+            status: 'approved',
             adminId: req.session.adminId,
             securityQuestion: "Managed by Admin?",
             securityAnswer: dummyAnswer
@@ -738,24 +762,38 @@ app.post('/create-staff', requireLogin, async (req, res) => {
 
     } catch (e) {
         console.error("Staff Creation Error: ", e);
-        res.send("Failed to create staff. Error: " + e.message);
+        res.status(500).send("Failed to create staff. Error: " + e.message);
     }
 });
 
 app.post('/reset-staff-password', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
-    const { staffId, newPassword } = req.body;
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const staff = await User.findOneAndUpdate({ _id: staffId, adminId: req.session.adminId }, { password: hashedPassword });
-    if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
-    res.redirect('/staff');
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+    try {
+        const { staffId, newPassword } = req.body;
+        if (!staffId || !newPassword) return res.redirect('/staff?error=missing_fields');
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const staff = await User.findOneAndUpdate(
+            { _id: staffId, adminId: req.session.adminId },
+            { password: hashedPassword, plainPassword: newPassword }
+        );
+        if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
+        res.redirect('/staff');
+    } catch (err) {
+        console.error("Staff Reset Error:", err);
+        res.status(500).send("Failed to reset staff password.");
+    }
 });
 
 app.delete('/staff/:id', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
-    const staff = await User.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
-    if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
-    res.redirect('/staff');
+    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+    try {
+        const staff = await User.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
+        if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
+        res.redirect('/staff');
+    } catch (err) {
+        console.error("Staff Delete Error:", err);
+        res.status(500).send("Failed to delete staff.");
+    }
 });
 
 // --- EXPORT (Perfectly Mapped & Styled to Tally Format) ---
@@ -885,61 +923,66 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         const bulkOps = [];
 
         for (let i = dataStartIndex; i < rawData.length; i++) {
-            const row = rawData[i];
-            const partyName = row[0] ? String(row[0]).trim() : '';
+            try {
+                const row = rawData[i];
+                if (!row || !Array.isArray(row)) continue;
+                const partyName = row[0] ? String(row[0]).trim() : '';
 
-            if (!partyName || partyName.toLowerCase() === 'grand total') continue;
+                if (!partyName || partyName.toLowerCase() === 'grand total') continue;
 
-            const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
-            const contactPerson = row[1] ? String(row[1]).trim() : '';
-            const rawPhoneStr = row[2] ? String(row[2]).trim() : '';
-            const phoneArray = rawPhoneStr.split(',').map(n => n.trim()).filter(n => n);
-            let finalPhone = ''; let finalWhatsapp = ''; let finalOther = '';
+                const cleanMoney = (val) => Number(String(val || '0').replace(/[^0-9.-]+/g, "")) || 0;
+                const contactPerson = row[1] ? String(row[1]).trim() : '';
+                const rawPhoneStr = row[2] ? String(row[2]).trim() : '';
+                const phoneArray = rawPhoneStr.split(',').map(n => n.trim()).filter(n => n);
+                let finalPhone = ''; let finalWhatsapp = ''; let finalOther = '';
 
-            if (phoneArray.length > 0) {
-                const formatNum = (num) => {
-                    let cleaned = num.replace(/[^0-9]/g, '');
-                    if (cleaned.length === 10) return '91' + cleaned;
-                    if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned;
-                    return cleaned ? '91' + cleaned : '';
-                };
-                finalPhone = formatNum(phoneArray[0]); finalWhatsapp = finalPhone;
-                if (phoneArray.length > 1) { finalOther = phoneArray.slice(1).map(formatNum).join(', '); }
-            }
-
-            const totalPending = cleanMoney(row[3]);
-            const agingData = {
-                under30: cleanMoney(row[5]),
-                days30to60: cleanMoney(row[7]),
-                days60to90: cleanMoney(row[9]),
-                days90to120: cleanMoney(row[11]),
-                days120to150: cleanMoney(row[13]),
-                days150to180: cleanMoney(row[15]),
-                above180: cleanMoney(row[17]),
-                onAccount: cleanMoney(row[19])
-            };
-            let nextAction = new Date();
-            nextAction.setDate(nextAction.getDate() + 10);
-
-            bulkOps.push({
-                updateOne: {
-                    filter: { companyName: partyName, adminId: req.session.adminId },
-                    update: {
-                        $set: {
-                            contactPerson: contactPerson,
-                            phone: finalPhone,
-                            whatsappNumber: finalWhatsapp,
-                            otherNumbers: finalOther,
-                            totalAmount: totalPending,
-                            aging: agingData,
-                            agingLastShifted: new Date()
-                        },
-                        $setOnInsert: { nextActionDate: nextAction }
-                    },
-                    upsert: true
+                if (phoneArray.length > 0) {
+                    const formatNum = (num) => {
+                        let cleaned = num.replace(/[^0-9]/g, '');
+                        if (cleaned.length === 10) return '91' + cleaned;
+                        if (cleaned.length === 12 && cleaned.startsWith('91')) return cleaned;
+                        return cleaned ? '91' + cleaned : '';
+                    };
+                    finalPhone = formatNum(phoneArray[0]); finalWhatsapp = finalPhone;
+                    if (phoneArray.length > 1) { finalOther = phoneArray.slice(1).map(formatNum).join(', '); }
                 }
-            });
-            importedCount++;
+
+                const totalPending = cleanMoney(row[3]);
+                const agingData = {
+                    under30: cleanMoney(row[5]),
+                    days30to60: cleanMoney(row[7]),
+                    days60to90: cleanMoney(row[9]),
+                    days90to120: cleanMoney(row[11]),
+                    days120to150: cleanMoney(row[13]),
+                    days150to180: cleanMoney(row[15]),
+                    above180: cleanMoney(row[17]),
+                    onAccount: cleanMoney(row[19])
+                };
+                let nextAction = new Date();
+                nextAction.setDate(nextAction.getDate() + 10);
+
+                bulkOps.push({
+                    updateOne: {
+                        filter: { companyName: partyName, adminId: req.session.adminId },
+                        update: {
+                            $set: {
+                                contactPerson: contactPerson,
+                                phone: finalPhone,
+                                whatsappNumber: finalWhatsapp,
+                                otherNumbers: finalOther,
+                                totalAmount: totalPending,
+                                aging: agingData,
+                                agingLastShifted: new Date()
+                            },
+                            $setOnInsert: { nextActionDate: nextAction }
+                        },
+                        upsert: true
+                    }
+                });
+                importedCount++;
+            } catch (rowErr) {
+                console.warn(`Skipped invalid Excel row ${i}:`, rowErr.message);
+            }
         }
 
         if (bulkOps.length > 0) {
@@ -1253,6 +1296,7 @@ app.post('/change-password', requireLogin, async (req, res) => {
         if (!isMatch) return res.json({ success: false, error: 'Current password is incorrect' });
 
         user.password = await bcrypt.hash(newPassword, 10);
+        user.plainPassword = newPassword;
         await user.save();
 
         await logActivity(req, 'Password Changed', `Admin changed their login password.`);
