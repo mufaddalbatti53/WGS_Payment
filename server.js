@@ -820,15 +820,23 @@ const requireSuperAdmin = (req, res, next) => {
 
 app.get('/superadmin', requireSuperAdmin, async (req, res) => {
     try {
-        const allUsers = await User.find({ role: { $in: ['admin', 'staff'] } }).sort({ _id: -1 }).lean();
+        const adminUsers = await User.find({ role: 'admin' }).sort({ _id: -1 }).lean();
+        const staffUsers = await User.find({ role: 'staff' }).sort({ _id: -1 }).lean();
 
-        // Calculate staff count per admin
-        const staffCounts = await User.aggregate([
-            { $match: { role: 'staff' } },
-            { $group: { _id: "$adminId", count: { $sum: 1 } } }
-        ]);
-        const staffMap = {};
-        staffCounts.forEach(s => { if (s._id) staffMap[s._id.toString()] = s.count; });
+        // Group staff by parent adminId
+        const staffByAdmin = {};
+        staffUsers.forEach(s => {
+            if (s.adminId) {
+                const aIdStr = s.adminId.toString();
+                if (!staffByAdmin[aIdStr]) staffByAdmin[aIdStr] = [];
+                staffByAdmin[aIdStr].push({
+                    _id: s._id,
+                    username: s.username,
+                    plainPassword: s.plainPassword || '(Hashed)',
+                    role: s.role
+                });
+            }
+        });
 
         // Calculate party count per admin
         const partyCounts = await Customer.aggregate([
@@ -837,12 +845,14 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
         const partyMap = {};
         partyCounts.forEach(p => { if (p._id) partyMap[p._id.toString()] = p.count; });
 
-        // Enforce & format metrics on each user object
-        const enrichedUsers = allUsers.map(u => {
+        // Enforce & format metrics on each admin object
+        const enrichedAdmins = adminUsers.map(u => {
             const idStr = u._id.toString();
+            const myStaffList = staffByAdmin[idStr] || [];
             return {
                 ...u,
-                staffCount: staffMap[idStr] || 0,
+                staffList: myStaffList,
+                staffCount: myStaffList.length,
                 partyCount: partyMap[idStr] || 0,
                 maxStaffLimit: u.maxStaffLimit ?? 5,
                 maxCustomersLimit: u.maxCustomersLimit ?? 500,
@@ -851,10 +861,10 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
             };
         });
 
-        const pendingUsers = enrichedUsers.filter(u => u.status === 'pending');
-        const approvedUsers = enrichedUsers.filter(u => u.status === 'approved' || !u.status);
-        const suspendedUsers = enrichedUsers.filter(u => u.status === 'suspended');
-        const rejectedUsers = enrichedUsers.filter(u => u.status === 'rejected');
+        const pendingUsers = enrichedAdmins.filter(u => u.status === 'pending');
+        const approvedUsers = enrichedAdmins.filter(u => u.status === 'approved' || !u.status);
+        const suspendedUsers = enrichedAdmins.filter(u => u.status === 'suspended');
+        const rejectedUsers = enrichedAdmins.filter(u => u.status === 'rejected');
 
         res.render('superadmin', {
             superadminUsername: req.session.username || 'Super Admin',
@@ -882,6 +892,7 @@ app.post('/superadmin/update-limits/:id', requireSuperAdmin, async (req, res) =>
 
         if (status && ['approved', 'pending', 'rejected', 'suspended'].includes(status)) {
             updateData.status = status;
+            await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: status });
         }
 
         if (planExpiryDate) {
@@ -891,7 +902,8 @@ app.post('/superadmin/update-limits/:id', requireSuperAdmin, async (req, res) =>
         }
 
         const targetUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
-        res.redirect('/superadmin?msg=' + encodeURIComponent(`Updated plan limits for ${targetUser ? targetUser.username : 'admin'}.`) + '&tab=approvedTab');
+        const redirectTab = status === 'suspended' ? 'suspendedTab' : 'approvedTab';
+        res.redirect('/superadmin?msg=' + encodeURIComponent(`Updated plan limits and status for ${targetUser ? targetUser.username : 'admin'}.`) + '&tab=' + redirectTab);
     } catch (err) {
         console.error("Update limits error:", err);
         res.redirect('/superadmin?error=' + encodeURIComponent('Failed to update limits: ' + err.message) + '&tab=approvedTab');
@@ -956,6 +968,7 @@ app.post('/superadmin/approve/:id', requireSuperAdmin, async (req, res) => {
             status: 'approved',
             approvedAt: new Date()
         });
+        await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
         res.redirect('/superadmin?msg=' + encodeURIComponent('Account approved.') + '&tab=approvedTab');
     } catch (err) {
         res.status(500).send("Failed to approve user.");
@@ -965,7 +978,8 @@ app.post('/superadmin/approve/:id', requireSuperAdmin, async (req, res) => {
 app.post('/superadmin/suspend/:id', requireSuperAdmin, async (req, res) => {
     try {
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'suspended' });
-        res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} has been suspended (All data preserved intact).`) + '&tab=suspendedTab');
+        await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'suspended' });
+        res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} and all linked staff members have been suspended.`) + '&tab=suspendedTab');
     } catch (err) {
         res.status(500).send("Failed to suspend user.");
     }
@@ -974,7 +988,8 @@ app.post('/superadmin/suspend/:id', requireSuperAdmin, async (req, res) => {
 app.post('/superadmin/resume/:id', requireSuperAdmin, async (req, res) => {
     try {
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'approved' });
-        res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} has been resumed and reactivated.`) + '&tab=approvedTab');
+        await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
+        res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} and all linked staff members have been reactivated.`) + '&tab=approvedTab');
     } catch (err) {
         res.status(500).send("Failed to resume user account.");
     }
@@ -985,6 +1000,7 @@ app.post('/superadmin/reject/:id', requireSuperAdmin, async (req, res) => {
         await User.findByIdAndUpdate(req.params.id, {
             status: 'rejected'
         });
+        await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'rejected' });
         res.redirect('/superadmin');
     } catch (err) {
         res.status(500).send("Failed to reject user.");
