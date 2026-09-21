@@ -43,6 +43,23 @@ async function ensureSuperAdminAccount() {
         if (updateResult.modifiedCount > 0) {
             console.log(`✅ Auto-approved ${updateResult.modifiedCount} pre-existing account(s).`);
         }
+
+        // Auto-normalize String adminIds to ObjectId in database
+        const db = mongoose.connection.db;
+        if (db) {
+            await db.collection('customers').updateMany(
+                { adminId: { $type: 'string' } },
+                [{ $set: { adminId: { $toObjectId: '$adminId' } } }]
+            );
+            await db.collection('users').updateMany(
+                { adminId: { $type: 'string' } },
+                [{ $set: { adminId: { $toObjectId: '$adminId' } } }]
+            );
+            await db.collection('activities').updateMany(
+                { adminId: { $type: 'string' } },
+                [{ $set: { adminId: { $toObjectId: '$adminId' } } }]
+            );
+        }
     } catch (err) {
         console.error("Auto Super Admin creation error:", err.message);
     }
