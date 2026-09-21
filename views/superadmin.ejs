@@ -399,7 +399,7 @@
                                             <button type="submit" class="btn-approve">Approve ✅</button>
                                         </form>
                                         <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-reject" onclick="return confirm('Reject access for <%= u.username ? u.username.replace(/'/g, &quot;\\'&quot;) : &quot;user&quot; %>?')">Reject ❌</button>
+                                            <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to reject this request?')">Reject ❌</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -449,7 +449,7 @@
                                     </td>
                                     <td>
                                         <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-reject" onclick="return confirm('Revoke access for <%= u.username ? u.username.replace(/'/g, &quot;\\'&quot;) : &quot;user&quot; %>?')">Revoke Access 🚫</button>
+                                            <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to revoke access for this admin?')">Revoke Access 🚫</button>
                                         </form>
                                     </td>
                                 </tr>
