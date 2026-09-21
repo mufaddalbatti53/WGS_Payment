@@ -991,6 +991,9 @@ app.post('/superadmin/reject/:id', requireSuperAdmin, async (req, res) => {
     }
 });
 
+app.get('/create-staff', (req, res) => res.redirect('/staff'));
+app.get('/reset-staff-password', (req, res) => res.redirect('/staff'));
+
 app.post('/create-staff', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
     try {
