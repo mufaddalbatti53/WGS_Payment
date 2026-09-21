@@ -301,7 +301,36 @@
 
         .stat-card.pending { border-left: 5px solid var(--warning); }
         .stat-card.approved { border-left: 5px solid var(--primary); }
+        .stat-card.suspended { border-left: 5px solid #8b5cf6; }
         .stat-card.rejected { border-left: 5px solid var(--danger); }
+
+        .status-suspended { background: #f3e8ff; color: #6b21a8; }
+        .btn-suspend {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #ffedd5;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 4px;
+        }
+        .btn-suspend:hover { background: #ffedd5; }
+        .btn-resume {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 4px;
+        }
+        .btn-resume:hover { background: #a7f3d0; }
 
         .stat-val {
             font-size: 28px;
@@ -480,6 +509,100 @@
             color: var(--text-muted);
             font-size: 15px;
         }
+
+        /* ── RESPONSIVE MOBILE STYLES ── */
+        @media (max-width: 992px) {
+            .container { padding: 0 16px; margin: 20px auto; }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 14px;
+                padding: 14px 18px;
+            }
+
+            .user-actions {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .stat-card {
+                padding: 14px 16px;
+            }
+
+            .stat-val {
+                font-size: 22px;
+            }
+
+            .stat-icon {
+                font-size: 26px;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+                padding-bottom: 8px;
+                gap: 8px;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+
+            .tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .tab-btn {
+                padding: 8px 14px;
+                font-size: 13px;
+                flex-shrink: 0;
+            }
+
+            .card-table {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                min-width: 700px;
+            }
+
+            .settings-card {
+                padding: 24px 18px;
+                border-radius: 16px;
+            }
+
+            .modal-card {
+                width: 92%;
+                max-height: 90vh;
+                overflow-y: auto;
+                padding: 24px 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .brand-title {
+                font-size: 16px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .logout-btn, .settings-nav-btn {
+                padding: 7px 12px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -516,6 +639,13 @@
                 </div>
                 <div class="stat-icon">✅</div>
             </div>
+            <div class="stat-card suspended">
+                <div>
+                    <div class="stat-label">Suspended (Unpaid Fee)</div>
+                    <div class="stat-val"><%= (suspendedUsers || []).length %></div>
+                </div>
+                <div class="stat-icon">⏸️</div>
+            </div>
             <div class="stat-card rejected">
                 <div>
                     <div class="stat-label">Rejected Requests</div>
@@ -532,6 +662,9 @@
             </button>
             <button class="tab-btn" onclick="showTab('approvedTab')">
                 ✅ Approved Admins <span class="badge-count"><%= (approvedUsers || []).length %></span>
+            </button>
+            <button class="tab-btn" onclick="showTab('suspendedTab')">
+                ⏸️ Suspended Admins <span class="badge-count"><%= (suspendedUsers || []).length %></span>
             </button>
             <button class="tab-btn" onclick="showTab('rejectedTab')">
                 ❌ Rejected <span class="badge-count"><%= (rejectedUsers || []).length %></span>
@@ -659,10 +792,74 @@
                                         </div>
                                     </td>
                                     <td>
+                                        <form action="/superadmin/suspend/<%= u._id %>" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn-suspend" onclick="return confirm('Suspend account for <%= u.username %>? All company data will be preserved intact, and account can be resumed anytime.')">Suspend ⏸️</button>
+                                        </form>
                                         <button type="button" class="btn-limits" onclick="openLimitsModal('<%= u._id %>', '<%= u.username %>', <%= u.maxStaffLimit %>, <%= u.maxCustomersLimit %>, <%= u.dailyMessageLimit %>, '<%= u.planExpiryDate %>', '<%= u.status %>')">⚙️ Manage Limits</button>
                                         <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
                                             <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to revoke access for this admin?')">Revoke 🚫</button>
                                         </form>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- ── SUSPENDED ADMINS TAB ── -->
+        <div id="suspendedTab" class="tab-content" style="display:none;">
+            <div class="card-table">
+                <% if ((suspendedUsers || []).length === 0) { %>
+                    <div class="empty-state">No suspended admin accounts.</div>
+                <% } else { %>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Admin User</th>
+                                <th>Contact Info</th>
+                                <th>Preserved Metrics</th>
+                                <th>Password</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% suspendedUsers.forEach(u => { %>
+                                <tr>
+                                    <td>
+                                        <div class="user-cell">👔 <%= u.username %></div>
+                                        <span class="status-badge status-suspended">Suspended</span>
+                                    </td>
+                                    <td class="contact-cell">
+                                        <% if (u.email) { %><div>📧 <a href="mailto:<%= u.email %>"><%= u.email %></a></div><% } %>
+                                        <% if (u.phone) { %><div>📞 <a href="tel:<%= u.phone %>"><%= u.phone %></a></div><% } %>
+                                        <% if (!u.email && !u.phone) { %>
+                                            <span style="color:var(--text-muted); font-size:12px;">No contact info</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <span class="metric-badge">👥 Staff: <%= u.staffCount %></span>
+                                            <span class="metric-badge">📊 Parties: <%= u.partyCount %></span>
+                                            <span class="metric-badge">💬 Msgs Today: <%= u.dailyMessageCount %></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="pwd-field"><%= u.plainPassword || '(Hashed)' %></span>
+                                    </td>
+                                    <td>
+                                        <div style="font-size:12px; color:#6b21a8; font-weight:700;">
+                                            ⏸️ Access Paused
+                                            <div style="font-size:11px; color:var(--text-muted); font-weight:normal;">All data safe & preserved</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <form action="/superadmin/resume/<%= u._id %>" method="POST" style="display:inline;">
+                                            <button type="submit" class="btn-resume" onclick="return confirm('Resume access for <%= u.username %>? All saved data will become active immediately.')">Resume Account ▶️</button>
+                                        </form>
+                                        <button type="button" class="btn-limits" onclick="openLimitsModal('<%= u._id %>', '<%= u.username %>', <%= u.maxStaffLimit %>, <%= u.maxCustomersLimit %>, <%= u.dailyMessageLimit %>, '<%= u.planExpiryDate %>', '<%= u.status %>')">⚙️ Limits</button>
                                     </td>
                                 </tr>
                             <% }) %>
@@ -795,8 +992,9 @@
                     <label>🔰 Account Status</label>
                     <select id="modalStatus" name="status" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#f8fafc; color:var(--text-dark);">
                         <option value="approved">Approved / Active ✅</option>
+                        <option value="suspended">Suspended (Unpaid Fee) ⏸️</option>
                         <option value="pending">Pending Approval ⏳</option>
-                        <option value="rejected">Suspended / Rejected 🚫</option>
+                        <option value="rejected">Rejected 🚫</option>
                     </select>
                 </div>
 

@@ -72,8 +72,30 @@ app.use(session({
     }
 }));
 
-const requireLogin = (req, res, next) => {
+const requireLogin = async (req, res, next) => {
     if (!req.session.userId) return res.redirect('/login');
+    if (req.session.role === 'customer' || req.session.role === 'superadmin') return next();
+
+    try {
+        const adminId = req.session.adminId || req.session.userId;
+        const adminUser = await User.findById(adminId).lean();
+        if (adminUser) {
+            if (adminUser.status === 'suspended') {
+                req.session.destroy();
+                return res.redirect('/login?error=' + encodeURIComponent("⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account."));
+            }
+            if (adminUser.status === 'rejected') {
+                req.session.destroy();
+                return res.redirect('/login?error=' + encodeURIComponent("❌ Your access has been revoked. Please contact support."));
+            }
+            if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
+                req.session.destroy();
+                return res.redirect('/login?error=' + encodeURIComponent("⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription."));
+            }
+        }
+    } catch (e) {
+        console.error("Auth status check error:", e);
+    }
     next();
 };
 
@@ -424,12 +446,32 @@ app.post('/login', async (req, res) => {
 
         if (!user) return res.render('login', { error: "Invalid username or password." });
 
-        if (user.role === 'admin' && user.status === 'pending') {
-            return res.render('login', { error: "⏳ Your account is pending Super Admin approval. Please wait for approval before logging in." });
-        }
-
-        if (user.role === 'admin' && user.status === 'rejected') {
-            return res.render('login', { error: "❌ Your access request was not approved. Please contact support." });
+        if (user.role === 'admin') {
+            if (user.status === 'pending') {
+                return res.render('login', { error: "⏳ Your account is pending Super Admin approval. Please wait for approval before logging in." });
+            }
+            if (user.status === 'suspended') {
+                return res.render('login', { error: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account." });
+            }
+            if (user.status === 'rejected') {
+                return res.render('login', { error: "❌ Your access request was not approved. Please contact support." });
+            }
+            if (user.planExpiryDate && new Date() > new Date(user.planExpiryDate)) {
+                return res.render('login', { error: "⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription." });
+            }
+        } else if (user.role === 'staff') {
+            const parentAdmin = await User.findById(user.adminId).lean();
+            if (parentAdmin) {
+                if (parentAdmin.status === 'suspended') {
+                    return res.render('login', { error: "⏸️ Your company account is currently suspended due to unpaid fees. Please contact Super Admin." });
+                }
+                if (parentAdmin.status === 'rejected') {
+                    return res.render('login', { error: "❌ Your company access has been revoked. Please contact support." });
+                }
+                if (parentAdmin.planExpiryDate && new Date() > new Date(parentAdmin.planExpiryDate)) {
+                    return res.render('login', { error: "⌛ Your company's subscription plan has expired. Please contact Super Admin." });
+                }
+            }
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -764,12 +806,14 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
 
         const pendingUsers = enrichedUsers.filter(u => u.status === 'pending');
         const approvedUsers = enrichedUsers.filter(u => u.status === 'approved' || !u.status);
+        const suspendedUsers = enrichedUsers.filter(u => u.status === 'suspended');
         const rejectedUsers = enrichedUsers.filter(u => u.status === 'rejected');
 
         res.render('superadmin', {
             superadminUsername: req.session.username || 'Super Admin',
             pendingUsers,
             approvedUsers,
+            suspendedUsers,
             rejectedUsers,
             msg: req.query.msg || null,
             error: req.query.error || null
@@ -789,7 +833,7 @@ app.post('/superadmin/update-limits/:id', requireSuperAdmin, async (req, res) =>
             dailyMessageLimit: Math.max(0, parseInt(dailyMessageLimit) || 0)
         };
 
-        if (status && ['approved', 'pending', 'rejected'].includes(status)) {
+        if (status && ['approved', 'pending', 'rejected', 'suspended'].includes(status)) {
             updateData.status = status;
         }
 
@@ -865,9 +909,27 @@ app.post('/superadmin/approve/:id', requireSuperAdmin, async (req, res) => {
             status: 'approved',
             approvedAt: new Date()
         });
-        res.redirect('/superadmin');
+        res.redirect('/superadmin?msg=' + encodeURIComponent('Account approved.') + '&tab=approvedTab');
     } catch (err) {
         res.status(500).send("Failed to approve user.");
+    }
+});
+
+app.post('/superadmin/suspend/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        const u = await User.findByIdAndUpdate(req.params.id, { status: 'suspended' });
+        res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} has been suspended (All data preserved intact).`) + '&tab=suspendedTab');
+    } catch (err) {
+        res.status(500).send("Failed to suspend user.");
+    }
+});
+
+app.post('/superadmin/resume/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        const u = await User.findByIdAndUpdate(req.params.id, { status: 'approved' });
+        res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} has been resumed and reactivated.`) + '&tab=approvedTab');
+    } catch (err) {
+        res.status(500).send("Failed to resume user account.");
     }
 });
 

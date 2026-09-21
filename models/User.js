@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     email: { type: String },
     phone: { type: String },
     plainPassword: { type: String },
-    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], default: 'approved' },
     requestedAt: { type: Date },
     approvedAt: { type: Date },
 
