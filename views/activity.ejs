@@ -300,7 +300,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <% activities.forEach(log=> {
+                    <% (activities || []).forEach(log=> {
                         const rawDate = log.createdAt || log.date || log.timestamp;
                         const hasValidDate = rawDate ? true : false;
                         const validDate = hasValidDate ? new Date(rawDate) : null;

@@ -691,7 +691,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% pendingUsers.forEach(u => { %>
+                            <% (pendingUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
                                         <div class="user-cell">👤 <%= u.username %></div>
@@ -750,7 +750,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% approvedUsers.forEach(u => { %>
+                            <% (approvedUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
                                         <div class="user-cell">👔 <%= u.username %></div>
@@ -826,7 +826,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% suspendedUsers.forEach(u => { %>
+                            <% (suspendedUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
                                         <div class="user-cell">👔 <%= u.username %></div>
@@ -886,7 +886,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% rejectedUsers.forEach(u => { %>
+                            <% (rejectedUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
                                         <div class="user-cell">👤 <%= u.username %></div>

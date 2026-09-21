@@ -1024,8 +1024,8 @@
                                                         <% } %>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <% customers.forEach(function(customer) { %>
+                                     <tbody>
+                                         <% (customers || []).forEach(function(customer) { %>
                                             <% var due=customer.totalAmount - customer.paidAmount; %>
                                                 <% var ag=customer.aging || {}; %>
                                                     <% var reqAction=(due> 0 && (!customer.nextActionDate || new Date()
@@ -2002,25 +2002,34 @@
                     <tbody>
                 `;
 
-                    document.querySelectorAll('.customer-row:not(.d-none)').forEach(row => {
-                        // Determine which column has the phone number based on desktop vs mobile view rendering
-                        let phoneCell = row.children[2]; // Desktop phone cell is usually index 2
+                    (document.querySelectorAll('.customer-row:not(.d-none)') || []).forEach(row => {
+                        let strongEl = row ? row.querySelector('strong') : null;
+                        let partyNameText = strongEl ? (strongEl.innerText || '') : 'Party';
+                        let phoneCell = (row && row.children && row.children.length > 2) ? row.children[2] : null;
                         let phoneText = "";
-                        if (phoneCell) {
+                        if (phoneCell && phoneCell.innerText) {
                             phoneText = phoneCell.innerText.replace('P:', '').replace('W:', ',').replace(/\n/g, '').trim();
                         }
 
+                        let dueVal = row ? (row.getAttribute('data-due') || '0') : '0';
+                        let u30Val = row ? (row.getAttribute('data-u30') || '0') : '0';
+                        let d30_60Val = row ? (row.getAttribute('data-d30_60') || '0') : '0';
+                        let d60_90Val = row ? (row.getAttribute('data-d60_90') || '0') : '0';
+                        let d90_120Val = row ? (row.getAttribute('data-d90_120') || '0') : '0';
+                        let d120_150Val = row ? (row.getAttribute('data-d120_150') || '0') : '0';
+                        let a180Val = row ? (row.getAttribute('data-a180') || '0') : '0';
+
                         html += `
                     <tr>
-                        <td style="padding: 6px; text-align: left; border-color: #000;">${row.querySelector('strong').innerText}</td>
+                        <td style="padding: 6px; text-align: left; border-color: #000;">${partyNameText}</td>
                         <td style="padding: 6px; text-align: left; border-color: #000;">${phoneText}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-due')}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-u30')}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d30_60')}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d60_90')}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d90_120')}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-d120_150')}</td>
-                        <td style="padding: 6px; border-color: #000;">${row.getAttribute('data-a180')}</td>
+                        <td style="padding: 6px; border-color: #000;">${dueVal}</td>
+                        <td style="padding: 6px; border-color: #000;">${u30Val}</td>
+                        <td style="padding: 6px; border-color: #000;">${d30_60Val}</td>
+                        <td style="padding: 6px; border-color: #000;">${d60_90Val}</td>
+                        <td style="padding: 6px; border-color: #000;">${d90_120Val}</td>
+                        <td style="padding: 6px; border-color: #000;">${d120_150Val}</td>
+                        <td style="padding: 6px; border-color: #000;">${a180Val}</td>
                     </tr>
                     `;
                     });

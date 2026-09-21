@@ -353,7 +353,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <% staffMembers.forEach(staff=> { %>
+                    <% (staffMembers || []).forEach(staff=> { %>
                         <tr>
                             <td class="desktop-only"><strong style="font-size: 15px; color: var(--text-dark);">
                                     <%= staff.username %>
