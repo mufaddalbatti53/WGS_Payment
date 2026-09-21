@@ -261,15 +261,14 @@
             border: 1px solid var(--border);
             border-radius: 20px;
             overflow-x: auto;
-            overflow-y: auto;
-            max-height: 68vh;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 4px 16px rgba(0,0,0,0.03);
             position: relative;
         }
 
         table {
             width: 100%;
-            min-width: 960px;
+            min-width: 1100px;
             border-collapse: collapse;
             text-align: left;
         }
@@ -283,9 +282,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-bottom: 1px solid #bae6fd;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            white-space: nowrap;
         }
 
         td {
@@ -410,6 +407,7 @@
         }
 
         /* ── PASSWORD TOGGLE BOX ── */
+        /* ── PASSWORD TOGGLE BOX ── */
         .password-pill-container {
             display: inline-flex;
             align-items: center;
@@ -418,21 +416,15 @@
             padding: 6px 12px;
             border-radius: 12px;
             border: 1px solid #cbd5e1;
-            max-width: 170px;
+            white-space: nowrap;
         }
 
         .pwd-mask-text {
             font-family: monospace;
             font-weight: 700;
-            font-size: 12px;
+            font-size: 13px;
             color: var(--text-dark);
-            min-width: 60px;
-            max-width: 110px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            display: inline-block;
-            vertical-align: middle;
+            user-select: all;
         }
 
         .pwd-eye-btn {
@@ -454,8 +446,9 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            min-width: 150px;
+            min-width: 160px;
             flex-shrink: 0;
+            white-space: nowrap;
         }
 
         .btn-action-soft {
@@ -1234,13 +1227,8 @@
             if (!el) return;
             if (el.innerText === '••••••••') {
                 el.innerText = plainPwd || '(Hashed)';
-                el.style.whiteSpace = 'normal';
-                el.style.wordBreak = 'break-all';
-                el.style.maxWidth = '150px';
             } else {
                 el.innerText = '••••••••';
-                el.style.whiteSpace = 'nowrap';
-                el.style.maxWidth = '110px';
             }
         }
 
