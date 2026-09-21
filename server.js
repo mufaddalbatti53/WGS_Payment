@@ -20,9 +20,29 @@ const app = express();
 // --- DATABASE CONNECTION ---
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
 
+async function ensureSuperAdminAccount() {
+    try {
+        const existingSuper = await User.findOne({ username: 'superadmin' });
+        if (!existingSuper) {
+            const superPassword = await bcrypt.hash('superadmin123', 10);
+            await User.create({
+                username: 'superadmin',
+                password: superPassword,
+                plainPassword: 'superadmin123',
+                role: 'superadmin',
+                status: 'approved'
+            });
+            console.log("✅ Super Admin account initialized.");
+        }
+    } catch (err) {
+        console.error("Auto Super Admin creation error:", err.message);
+    }
+}
+
 mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ DB Connected Successfully");
+        ensureSuperAdminAccount();
         shiftAgingBuckets();
         runAutoBackups(); // Run on startup
         setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
