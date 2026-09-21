@@ -11,6 +11,7 @@
             --primary: #27ae60;
             --primary-dark: #219653;
             --secondary: #3498db;
+            --sidebar-bg: #1e293b;
             --bg-color: #f4f6f9;
             --text-dark: #2c3e50;
             --text-muted: #64748b;
@@ -247,8 +248,13 @@
 </head>
 
 <body>
+    <div style="background: var(--sidebar-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+        <div style="font-weight: bold; font-size: 18px;">
+            <a href="/" style="color: white; text-decoration: none;">← Back to Dashboard</a>
+        </div>
+        <a href="/logout" style="background: #ef4444; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">🚪 Logout</a>
+    </div>
     <div class="main-wrapper">
-        <a href="/" class="back-link">&larr; Back to Dashboard</a>
         <h1 style="margin-top: 10px; margin-bottom: 20px;">📜 Activity Log</h1>
 
         <div class="floating-card">

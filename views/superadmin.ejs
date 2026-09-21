@@ -711,7 +711,7 @@
                                         <% } %>
                                     </td>
                                     <td>
-                                        <span class="pwd-field"><%= u.plainPassword || u.password %></span>
+                                        <span class="pwd-field"><%= u.plainPassword || u.password || 'N/A' %></span>
                                     </td>
                                     <td>
                                         <%= u.requestedAt ? new Date(u.requestedAt).toLocaleString() : 'N/A' %>
@@ -769,19 +769,19 @@
                                     </td>
                                     <td>
                                         <div>
-                                            <span class="metric-badge <%= u.staffCount >= u.maxStaffLimit && u.maxStaffLimit > 0 ? 'warning' : '' %>">
-                                                👥 Staff: <%= u.staffCount %> / <%= u.maxStaffLimit === 0 ? '∞' : u.maxStaffLimit %>
+                                            <span class="metric-badge <%= (u.staffCount || 0) >= (u.maxStaffLimit || 5) && (u.maxStaffLimit || 5) > 0 ? 'warning' : '' %>">
+                                                👥 Staff: <%= (u.staffCount || 0) %> / <%= u.maxStaffLimit === 0 ? '∞' : (u.maxStaffLimit || 5) %>
                                             </span>
-                                            <span class="metric-badge <%= u.partyCount >= u.maxCustomersLimit && u.maxCustomersLimit > 0 ? 'warning' : '' %>">
-                                                📊 Parties: <%= u.partyCount %> / <%= u.maxCustomersLimit === 0 ? '∞' : u.maxCustomersLimit %>
+                                            <span class="metric-badge <%= (u.partyCount || 0) >= (u.maxCustomersLimit || 500) && (u.maxCustomersLimit || 500) > 0 ? 'warning' : '' %>">
+                                                📊 Parties: <%= (u.partyCount || 0) %> / <%= u.maxCustomersLimit === 0 ? '∞' : (u.maxCustomersLimit || 500) %>
                                             </span>
-                                            <span class="metric-badge <%= u.dailyMessageCount >= u.dailyMessageLimit && u.dailyMessageLimit > 0 ? 'warning' : '' %>">
-                                                💬 Msgs Today: <%= u.dailyMessageCount %> / <%= u.dailyMessageLimit === 0 ? '∞' : u.dailyMessageLimit %>
+                                            <span class="metric-badge <%= (u.dailyMessageCount || 0) >= (u.dailyMessageLimit || 100) && (u.dailyMessageLimit || 100) > 0 ? 'warning' : '' %>">
+                                                💬 Msgs Today: <%= (u.dailyMessageCount || 0) %> / <%= u.dailyMessageLimit === 0 ? '∞' : (u.dailyMessageLimit || 100) %>
                                             </span>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="pwd-field"><%= u.plainPassword || '(Hashed)' %></span>
+                                        <span class="pwd-field"><%= u.plainPassword || u.password || '(Hashed)' %></span>
                                     </td>
                                     <td>
                                         <div style="font-size:12px;">
@@ -1131,6 +1131,9 @@
             const activeTab = params.get('tab');
             if (activeTab && document.getElementById(activeTab)) {
                 showTab(activeTab);
+            }
+            if (window.location.search) {
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         });
     </script>

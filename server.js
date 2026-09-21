@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
@@ -14,6 +15,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 const Customer = require('./models/Customer');
 const User = require('./models/User');
+const ActivityLog = require('./models/Activity');
 
 const app = express();
 
@@ -58,12 +60,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 1000
 app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'secretkey', // Keep whatever secret you already have here
+    secret: process.env.SESSION_SECRET || 'wgs_payment_tracker_production_secret_key_2026',
     resave: false,
     saveUninitialized: false,
-    // Add the store configuration below:
     store: MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin',
+        mongoUrl: dbURI,
         collectionName: 'sessions',
         autoRemove: 'native'
     }),
@@ -86,7 +87,7 @@ const requireLogin = async (req, res, next) => {
         return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
     }
 
-    if (req.session.role === 'customer' || req.session.role === 'superadmin') return next();
+    if (req.session.role === 'superadmin') return next();
 
     try {
         const adminId = req.session.adminId || req.session.userId;
@@ -141,19 +142,10 @@ const requireAdmin = async (req, res, next) => {
     return requireLogin(req, res, next);
 };
 
-const activitySchema = new mongoose.Schema({
-    adminId: { type: String, required: true },
-    userId: { type: String, required: true },
-    username: { type: String, required: true },
-    action: { type: String, required: true },
-    details: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-const ActivityLog = mongoose.model('ActivityLog', activitySchema);
-
 async function logActivity(req, action, details) {
     try {
         if (!req.session || !req.session.adminId) return;
+        if (req.session.role === 'customer') return;
         await ActivityLog.create({
             adminId: req.session.adminId,
             userId: req.session.userId || req.session.adminId,
@@ -174,9 +166,9 @@ const { google } = require('googleapis');
 
 function getOAuth2Client(tokens) {
     const client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID || '636131280622-8ptviiun9hnh3538urpjfhio536as2fi.apps.googleusercontent.com',
-        process.env.GOOGLE_CLIENT_SECRET || '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',
-        process.env.GOOGLE_CALLBACK_URL || 'https://wgs-payment.onrender.com/auth/google/callback'
+        process.env.GOOGLE_CLIENT_ID || '',
+        process.env.GOOGLE_CLIENT_SECRET || '',
+        process.env.GOOGLE_CALLBACK_URL || 'https://payment.webgraphicsstudio.in/auth/google/callback'
     );
     if (tokens) {
         client.setCredentials(tokens);
@@ -219,10 +211,15 @@ app.get('/auth/google/callback', requireLogin, async (req, res) => {
 });
 
 app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
-    await User.findByIdAndUpdate(req.session.adminId, {
-        $unset: { googleDriveToken: "", googleEmail: "" }
-    });
-    res.redirect('/?msg=party_deleted');
+    try {
+        await User.findByIdAndUpdate(req.session.adminId, {
+            $unset: { googleDriveToken: "", googleEmail: "" }
+        });
+        res.redirect('/?msg=gdrive_disconnected');
+    } catch (e) {
+        console.error("Disconnect GDrive error:", e);
+        res.redirect('/?msg=error');
+    }
 });
 
 app.get('/drive-backup', requireLogin, async (req, res) => {
@@ -233,7 +230,7 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
         return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
     }
     try {
-        const adminUser = await User.findById(req.session.adminId).lean();
+        const adminUser = await User.findById(req.session.adminId).select('+googleDriveToken').lean();
         if (!adminUser || !adminUser.googleDriveToken) {
             return res.status(400).send("Google Drive not linked.");
         }
@@ -253,43 +250,42 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
             timestamp: new Date()
         });
 
-        const fileMetadata = {
-            name: `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`,
-            parents: ['appDataFolder']
-        };
-        const media = {
-            mimeType: 'application/json',
-            body: backupData
-        };
-
         await drive.files.create({
-            resource: fileMetadata,
-            media: media,
+            resource: {
+                name: `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`,
+                parents: ['appDataFolder']
+            },
+            media: { mimeType: 'application/json', body: backupData },
             fields: 'id'
         });
-
-        res.json({ success: true, message: "Backed up to Google Drive successfully!" });
+        await logActivity(req, 'Cloud Backup', `Created backup on Google Drive.`);
+        res.json({ success: true, message: "Successfully backed up to Google Drive!" });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: "Drive Backup Failed" });
+        console.error("Drive Backup Error:", err);
+        res.status(500).json({ success: false, message: "Failed to push to Google Drive. Please try again." });
     }
 });
 
 // 4. The "WhatsApp Style" Silent Restore Route
-app.get('/drive-restore', requireAdmin, async (req, res) => {
+app.get('/drive-restore', requireLogin, async (req, res) => {
+    if (req.session.role !== 'admin' && req.session.role !== 'superadmin') {
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
+    }
     try {
-        const adminUser = await User.findById(req.session.adminId).lean();
+        const adminUser = await User.findById(req.session.adminId).select('+googleDriveToken').lean();
         if (!adminUser || !adminUser.googleDriveToken) {
-            return res.status(400).json({ success: false, message: "Google Drive not linked." });
+            return res.status(400).send("Google Drive not linked.");
         }
 
         const client = getOAuth2Client(adminUser.googleDriveToken);
         const drive = google.drive({ version: 'v3', auth: client });
 
         const response = await drive.files.list({
-            spaces: 'appDataFolder, drive',
-            q: "name contains 'WGS_'",
+            spaces: 'appDataFolder',
             fields: 'files(id, name, createdTime)',
             orderBy: 'createdTime desc',
             pageSize: 1
@@ -308,26 +304,38 @@ app.get('/drive-restore', requireAdmin, async (req, res) => {
         }
 
         const adminId = req.session.adminId;
+        const existingCustomers = await Customer.find({ adminId }).lean();
+        const existingStaff = await User.find({ role: 'staff', adminId }).lean();
 
-        // Restore Customers
-        if (Array.isArray(backup.customers)) {
-            await Customer.deleteMany({ adminId });
-            const toInsertC = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
-            if (toInsertC.length > 0) await Customer.insertMany(toInsertC, { ordered: false });
-        }
+        try {
+            if (Array.isArray(backup.customers)) {
+                await Customer.deleteMany({ adminId });
+                const toInsertC = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
+                if (toInsertC.length > 0) await Customer.insertMany(toInsertC, { ordered: false });
+            }
 
-        // Restore Staff
-        if (Array.isArray(backup.staff)) {
-            await User.deleteMany({ role: 'staff', adminId });
-            const toInsertS = backup.staff.map(s => ({ ...s, adminId, _id: undefined }));
-            if (toInsertS.length > 0) await User.insertMany(toInsertS, { ordered: false });
-        }
+            if (Array.isArray(backup.staff)) {
+                await User.deleteMany({ role: 'staff', adminId });
+                const toInsertS = backup.staff.map(s => ({ ...s, adminId, _id: undefined }));
+                if (toInsertS.length > 0) await User.insertMany(toInsertS, { ordered: false });
+            }
 
-        // Restore Activities
-        if (Array.isArray(backup.activities)) {
-            await ActivityLog.deleteMany({ adminId });
-            const toInsertA = backup.activities.map(a => ({ ...a, adminId, _id: undefined }));
-            if (toInsertA.length > 0) await ActivityLog.insertMany(toInsertA, { ordered: false });
+            if (Array.isArray(backup.activities)) {
+                await ActivityLog.deleteMany({ adminId });
+                const toInsertA = backup.activities.map(a => ({ ...a, adminId, _id: undefined }));
+                if (toInsertA.length > 0) await ActivityLog.insertMany(toInsertA, { ordered: false });
+            }
+        } catch (restoreError) {
+            console.error("Restore failed, rolling back original data:", restoreError);
+            if (existingCustomers.length > 0) {
+                await Customer.deleteMany({ adminId });
+                await Customer.insertMany(existingCustomers, { ordered: false });
+            }
+            if (existingStaff.length > 0) {
+                await User.deleteMany({ role: 'staff', adminId });
+                await User.insertMany(existingStaff, { ordered: false });
+            }
+            throw restoreError;
         }
         await logActivity(req, 'Cloud Restored', `Restored data from Google Drive backup.`);
         res.json({ success: true, message: "Database successfully restored from Google Drive!" });
@@ -345,15 +353,19 @@ async function shiftAgingBuckets() {
         const customers = await Customer.find({});
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        let shiftedCount = 0;
+        const bulkOps = [];
 
         for (const cust of customers) {
             if (!cust.aging) continue;
 
             const lastShifted = cust.agingLastShifted ? new Date(cust.agingLastShifted) : null;
             if (!lastShifted) {
-                cust.agingLastShifted = today;
-                await cust.save();
+                bulkOps.push({
+                    updateOne: {
+                        filter: { _id: cust._id },
+                        update: { $set: { agingLastShifted: today } }
+                    }
+                });
                 continue;
             }
 
@@ -385,24 +397,27 @@ async function shiftAgingBuckets() {
                 ag.under30 = 0;
             }
 
-            cust.aging.under30 = ag.under30;
-            cust.aging.days30to60 = ag.days30to60;
-            cust.aging.days60to90 = ag.days60to90;
-            cust.aging.days90to120 = ag.days90to120;
-            cust.aging.days120to150 = ag.days120to150;
-            cust.aging.days150to180 = ag.days150to180;
-            cust.aging.above180 = ag.above180;
-            cust.markModified('aging');
-
             const newLastShifted = new Date(lastShifted);
             newLastShifted.setDate(newLastShifted.getDate() + (periods * 30));
-            cust.agingLastShifted = newLastShifted;
 
-            await cust.save();
-            shiftedCount++;
+            bulkOps.push({
+                updateOne: {
+                    filter: { _id: cust._id },
+                    update: {
+                        $set: {
+                            aging: ag,
+                            agingLastShifted: newLastShifted
+                        }
+                    }
+                }
+            });
         }
 
-        console.log(`Aging shift complete. Shifted ${shiftedCount} customers.`);
+        if (bulkOps.length > 0) {
+            await Customer.bulkWrite(bulkOps);
+        }
+
+        console.log(`Aging shift complete. Shifted ${bulkOps.length} customers.`);
     } catch (err) {
         console.error("Aging shift error:", err.message);
     }
@@ -412,7 +427,7 @@ async function shiftAgingBuckets() {
 async function runAutoBackups() {
     try {
         console.log("Checking for scheduled Auto-Backups...");
-        const admins = await User.find({ role: 'admin', autoBackupInterval: { $gt: 0 } });
+        const admins = await User.find({ role: 'admin', autoBackupInterval: { $gt: 0 } }).select('+googleDriveToken');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -470,7 +485,8 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         if (req.body.type === 'customer') {
-            const phoneRaw = req.body.phone.replace(/[^0-9]/g, '');
+            const phoneRaw = (req.body.phone || '').replace(/[^0-9]/g, '');
+            if (!phoneRaw) return res.render('login', { error: "Please enter a valid phone number." });
             const customer = await Customer.findOne({
                 phone: { $regex: new RegExp(phoneRaw + '$') }
             }).sort({ _id: -1 });
@@ -565,6 +581,11 @@ app.get('/logout', (req, res) => {
 
 app.post('/customers/:id/auto-snooze', requireLogin, async (req, res) => {
     try {
+        const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
+        if (!customer) {
+            return res.status(404).json({ success: false, message: "Customer not found." });
+        }
+
         const adminUser = await User.findById(req.session.adminId);
         if (adminUser) {
             const now = new Date();
@@ -583,23 +604,16 @@ app.post('/customers/:id/auto-snooze', requireLogin, async (req, res) => {
             await adminUser.save();
         }
 
-        const customer = await Customer.findById(req.params.id);
-        if (customer) {
-            const newDate = new Date();
-            newDate.setDate(newDate.getDate() + 10);
-            customer.nextActionDate = newDate;
-            await customer.save();
-            await ActivityLog.create({
-                adminId: req.session.adminId,
-                userId: req.session.userId,
-                username: req.session.role ? req.session.role.toUpperCase() : 'USER',
-                action: "Reminder Sent",
-                details: `Sent payment reminder to ${customer.companyName || 'Party'}. Auto-snoozed for 10 days.`
-            });
-        }
+        const newDate = new Date();
+        newDate.setDate(newDate.getDate() + 10);
+        customer.nextActionDate = newDate;
+        await customer.save();
+        await logActivity(req, "Reminder Sent", `Sent payment reminder to ${customer.companyName || 'Party'}. Auto-snoozed for 10 days.`);
+
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ success: false });
+        console.error("Auto snooze error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
     }
 });
 
@@ -772,7 +786,7 @@ app.get('/staff', requireAdmin, async (req, res) => {
 
 app.get('/activity', requireLogin, async (req, res) => {
     try {
-        const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).lean();
+        const activities = await ActivityLog.find({ adminId: req.session.adminId }).sort({ createdAt: -1 }).limit(500).lean();
         res.render('activity', { activities: activities, role: req.session.role });
     } catch (err) { res.status(500).send("Error loading activity."); }
 });
@@ -802,15 +816,20 @@ app.post('/activity/delete-bulk', requireAdmin, async (req, res) => {
 });
 
 app.put('/settings', requireAdmin, async (req, res) => {
-    await User.findByIdAndUpdate(req.session.adminId, {
-        companyName: req.body.companyName, addressLine1: req.body.addressLine1, addressLine2: req.body.addressLine2,
-        addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo,
-        contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
-        bankName: req.body.bankName, accountName: req.body.accountName,
-        accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails,
-    });
-    await logActivity(req, "Company Profile", "Updated company profile and settings.");
-    res.redirect('/?msg=party_edited');
+    try {
+        await User.findByIdAndUpdate(req.session.adminId, {
+            companyName: req.body.companyName, addressLine1: req.body.addressLine1, addressLine2: req.body.addressLine2,
+            addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo,
+            contactNo: req.body.contactNo, companyEmail: req.body.companyEmail,
+            bankName: req.body.bankName, accountName: req.body.accountName,
+            accountNumber: req.body.accountNumber, ifscCode: req.body.ifscCode, upiDetails: req.body.upiDetails,
+        });
+        await logActivity(req, "Company Profile", "Updated company profile and settings.");
+        res.redirect('/?msg=party_edited');
+    } catch (err) {
+        console.error("Settings update error:", err);
+        res.redirect('/?msg=error');
+    }
 });
 
 app.put('/settings/auto-backup', requireAdmin, async (req, res) => {
@@ -880,8 +899,11 @@ const requireSuperAdmin = (req, res, next) => {
 
 app.get('/superadmin', requireSuperAdmin, async (req, res) => {
     try {
-        const adminUsers = await User.find({ role: 'admin' }).sort({ _id: -1 }).lean();
-        const staffUsers = await User.find({ role: 'staff' }).sort({ _id: -1 }).lean();
+        const [adminUsers, staffUsers, partyCounts] = await Promise.all([
+            User.find({ role: 'admin' }).sort({ _id: -1 }).lean(),
+            User.find({ role: 'staff' }).sort({ _id: -1 }).lean(),
+            Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }])
+        ]);
 
         // Group staff by parent adminId
         const staffByAdmin = {};
@@ -898,10 +920,6 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
             }
         });
 
-        // Calculate party count per admin
-        const partyCounts = await Customer.aggregate([
-            { $group: { _id: "$adminId", count: { $sum: 1 } } }
-        ]);
         const partyMap = {};
         partyCounts.forEach(p => { if (p._id) partyMap[p._id.toString()] = p.count; });
 
@@ -942,6 +960,10 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
 
 app.post('/superadmin/update-limits/:id', requireSuperAdmin, async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Invalid User ID provided.') + '&tab=approvedTab');
+        }
+
         const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status } = req.body;
 
         const updateData = {
@@ -1024,6 +1046,9 @@ app.post('/superadmin/change-credentials', requireSuperAdmin, async (req, res) =
 
 app.post('/superadmin/approve/:id', requireSuperAdmin, async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Invalid User ID provided.') + '&tab=pendingTab');
+        }
         await User.findByIdAndUpdate(req.params.id, {
             status: 'approved',
             approvedAt: new Date()
@@ -1031,39 +1056,48 @@ app.post('/superadmin/approve/:id', requireSuperAdmin, async (req, res) => {
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
         res.redirect('/superadmin?msg=' + encodeURIComponent('Account approved.') + '&tab=approvedTab');
     } catch (err) {
-        res.status(500).send("Failed to approve user.");
+        res.redirect('/superadmin?error=' + encodeURIComponent('Failed to approve user: ' + err.message) + '&tab=pendingTab');
     }
 });
 
 app.post('/superadmin/suspend/:id', requireSuperAdmin, async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Invalid User ID provided.') + '&tab=approvedTab');
+        }
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'suspended' });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'suspended' });
         res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} and all linked staff members have been suspended.`) + '&tab=suspendedTab');
     } catch (err) {
-        res.status(500).send("Failed to suspend user.");
+        res.redirect('/superadmin?error=' + encodeURIComponent('Failed to suspend user: ' + err.message) + '&tab=approvedTab');
     }
 });
 
 app.post('/superadmin/resume/:id', requireSuperAdmin, async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Invalid User ID provided.') + '&tab=suspendedTab');
+        }
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'approved' });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
         res.redirect('/superadmin?msg=' + encodeURIComponent(`Account for ${u ? u.username : 'admin'} and all linked staff members have been reactivated.`) + '&tab=approvedTab');
     } catch (err) {
-        res.status(500).send("Failed to resume user account.");
+        res.redirect('/superadmin?error=' + encodeURIComponent('Failed to resume user account: ' + err.message) + '&tab=suspendedTab');
     }
 });
 
 app.post('/superadmin/reject/:id', requireSuperAdmin, async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Invalid User ID provided.') + '&tab=pendingTab');
+        }
         await User.findByIdAndUpdate(req.params.id, {
             status: 'rejected'
         });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'rejected' });
-        res.redirect('/superadmin');
+        res.redirect('/superadmin?msg=' + encodeURIComponent('Account request rejected.') + '&tab=rejectedTab');
     } catch (err) {
-        res.status(500).send("Failed to reject user.");
+        res.redirect('/superadmin?error=' + encodeURIComponent('Failed to reject user: ' + err.message) + '&tab=pendingTab');
     }
 });
 
@@ -1074,7 +1108,7 @@ app.post('/create-staff', requireAdmin, async (req, res) => {
     try {
         const rawUsername = req.body.username ? req.body.username.trim() : '';
         if (!rawUsername || !req.body.password) {
-            return res.redirect('/staff?error=missing_fields');
+            return res.redirect('/staff?error=' + encodeURIComponent('Username and Password are required.'));
         }
 
         // Quota check: Staff limit
@@ -1083,12 +1117,12 @@ app.post('/create-staff', requireAdmin, async (req, res) => {
         if (maxStaff > 0) {
             const currentStaffCount = await User.countDocuments({ role: 'staff', adminId: req.session.adminId });
             if (currentStaffCount >= maxStaff) {
-                return res.redirect('/staff?error=quota_exceeded&msg=' + encodeURIComponent(`Staff limit reached (${currentStaffCount}/${maxStaff}). Contact Super Admin to upgrade your quota.`));
+                return res.redirect('/staff?error=' + encodeURIComponent(`Staff limit reached (${currentStaffCount}/${maxStaff}). Contact Super Admin to upgrade your quota.`));
             }
         }
         const existingUser = await User.findOne({ username: new RegExp('^' + escapeRegExp(rawUsername) + '$', 'i') });
         if (existingUser) {
-            return res.redirect('/staff?error=duplicate&name=' + encodeURIComponent(rawUsername));
+            return res.redirect('/staff?error=' + encodeURIComponent(`Username "${rawUsername}" is already taken.`));
         }
 
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
@@ -1106,11 +1140,30 @@ app.post('/create-staff', requireAdmin, async (req, res) => {
         });
 
         await logActivity(req, "Created Staff", `Created: ${rawUsername}`);
-        res.redirect('/staff');
+        res.redirect('/staff?msg=' + encodeURIComponent(`Staff account "${rawUsername}" created successfully.`));
 
     } catch (e) {
         console.error("Staff Creation Error: ", e);
-        res.status(500).send("Failed to create staff. Error: " + e.message);
+        res.redirect('/staff?error=' + encodeURIComponent('Failed to create staff: ' + e.message));
+    }
+});
+
+app.post('/reset-staff-password', requireAdmin, async (req, res) => {
+    try {
+        const { staffId, newPassword } = req.body;
+        if (!staffId || !newPassword) return res.redirect('/staff?error=' + encodeURIComponent('Staff member and new password are required.'));
+        if (!mongoose.Types.ObjectId.isValid(staffId)) return res.redirect('/staff?error=' + encodeURIComponent('Invalid Staff ID.'));
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const staff = await User.findOneAndUpdate(
+            { _id: staffId, adminId: req.session.adminId },
+            { password: hashedPassword, plainPassword: newPassword }
+        );
+        if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
+        res.redirect('/staff?msg=' + encodeURIComponent('Staff password reset successfully.'));
+    } catch (err) {
+        console.error("Staff Reset Error:", err);
+        res.redirect('/staff?error=' + encodeURIComponent('Failed to reset staff password: ' + err.message));
     }
 });
 
@@ -1343,6 +1396,14 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
         }
 
         if (bulkOps.length > 0) {
+            const adminUser = await User.findById(req.session.adminId);
+            const maxCust = adminUser ? (adminUser.maxCustomersLimit ?? 500) : 500;
+            if (maxCust > 0) {
+                const currentPartyCount = await Customer.countDocuments({ adminId: req.session.adminId });
+                if (currentPartyCount + bulkOps.length > maxCust) {
+                    return res.redirect('/?quota_error=1&msg=' + encodeURIComponent(`Importing ${bulkOps.length} parties exceeds your party limit (${currentPartyCount}/${maxCust}). Contact Super Admin to upgrade.`));
+                }
+            }
             await Customer.bulkWrite(bulkOps);
         }
 
@@ -1384,7 +1445,7 @@ app.get('/customers/check-duplicate', requireLogin, async (req, res) => {
 });
 
 app.post('/customers', requireLogin, async (req, res) => {
-    if (!req.session.userId) return res.redirect('/login');
+    if (!req.session.userId || req.session.role === 'customer') return res.redirect('/login');
     try {
         // Quota check: Customer / Party limit
         const adminUser = await User.findById(req.session.adminId);
@@ -1467,9 +1528,14 @@ app.put('/customers/:id/edit', requireAdmin, async (req, res) => {
 });
 
 app.delete('/customers/:id', requireAdmin, async (req, res) => {
-    const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
-    if (customer) await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName || 'Party'}`);
-    res.redirect('/');
+    try {
+        const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
+        if (customer) await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName || 'Party'}`);
+        res.redirect('/');
+    } catch (err) {
+        console.error("Delete customer error:", err);
+        res.redirect('/?msg=error');
+    }
 });
 
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
@@ -1522,12 +1588,19 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
 });
 
 app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
-    const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
-    if (!customer) return res.status(404).send("Customer not found.");
-    customer.nextActionDate = new Date(req.body.nextDate);
-    await customer.save();
-    await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName || 'Party'} set to ${req.body.nextDate}`);
-    res.redirect('/');
+    try {
+        const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
+        if (!customer) return res.status(404).send("Customer not found.");
+        if (req.body.nextDate) {
+            customer.nextActionDate = new Date(req.body.nextDate);
+            await customer.save();
+            await logActivity(req, "Reminder Updated", `Next reminder for ${customer.companyName || 'Party'} set to ${req.body.nextDate}`);
+        }
+        res.redirect('/');
+    } catch (err) {
+        console.error("Update reminder error:", err);
+        res.redirect('/?msg=error');
+    }
 });
 
 app.post('/customers/bulk', requireAdmin, async (req, res) => {
@@ -1618,11 +1691,21 @@ app.post('/restore-backup', upload.single('backupFile'), requireAdmin, async (re
         }
 
         const adminId = req.session.adminId;
+        const existingCustomers = await Customer.find({ adminId }).lean();
 
-        if (Array.isArray(backup.customers)) {
-            await Customer.deleteMany({ adminId });
-            const toInsert = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
-            if (toInsert.length > 0) await Customer.insertMany(toInsert, { ordered: false });
+        try {
+            if (Array.isArray(backup.customers)) {
+                await Customer.deleteMany({ adminId });
+                const toInsert = backup.customers.map(c => ({ ...c, adminId, _id: undefined }));
+                if (toInsert.length > 0) await Customer.insertMany(toInsert, { ordered: false });
+            }
+        } catch (insertErr) {
+            console.error("Local restore failed, rolling back:", insertErr);
+            if (existingCustomers.length > 0) {
+                await Customer.deleteMany({ adminId });
+                await Customer.insertMany(existingCustomers, { ordered: false });
+            }
+            return res.redirect('/?restoreError=failed');
         }
 
         if (backup.companyProfile) {

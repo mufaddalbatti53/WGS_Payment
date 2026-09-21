@@ -202,8 +202,8 @@
         <h2>Welcome Back</h2>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('staff')">Admin / Staff</div>
-            <div class="tab" onclick="switchTab('customer')">Customer View</div>
+            <div class="tab active" onclick="switchTab('staff', event)">Admin / Staff</div>
+            <div class="tab" onclick="switchTab('customer', event)">Customer View</div>
         </div>
 
         <% if (error) { %>
@@ -243,11 +243,13 @@
     </div>
 
     <script>
-        function switchTab(tabName) {
+        function switchTab(tabName, evt) {
             document.querySelectorAll('.form-box').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+            const targetForm = document.getElementById(tabName);
+            if (targetForm) targetForm.classList.add('active');
+            const targetBtn = (evt && evt.target) ? evt.target : document.querySelector(`.tab[onclick*="${tabName}"]`);
+            if (targetBtn) targetBtn.classList.add('active');
         }
 
         function togglePassword() {

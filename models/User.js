@@ -1,52 +1,66 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
+    username: { type: String, required: true, unique: true, trim: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'staff', 'superadmin'], required: true },
-    adminId: { type: String },
+    role: { type: String, enum: ['admin', 'staff', 'superadmin', 'customer'], default: 'admin', required: true },
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     securityQuestion: { type: String },
     securityAnswer: { type: String },
 
     // Registration & Approval status
-    email: { type: String },
-    phone: { type: String },
-    plainPassword: { type: String },
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], default: 'approved' },
-    requestedAt: { type: Date },
+    email: { 
+        type: String, 
+        trim: true,
+        match: [/^(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})?$/, 'Please enter a valid email address']
+    },
+    phone: { type: String, trim: true },
+    plainPassword: { type: String, select: false },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'suspended'], default: 'pending' },
+    requestedAt: { type: Date, default: Date.now },
     approvedAt: { type: Date },
 
     // Profile Info
-    companyName: { type: String },
-    addressLine1: { type: String },
-    addressLine2: { type: String },
-    addressLine3: { type: String },
-    dlNo: { type: String },
-    msmeNo: { type: String },
-    contactNo: { type: String },
-    companyEmail: { type: String },
-    // ☁️ Add this line right here!
-    googleDriveToken: { type: Object },
-    googleEmail: { type: String },
-    autoBackupInterval: { type: Number, default: 0 }, // 0 means disabled
+    companyName: { type: String, trim: true },
+    addressLine1: { type: String, trim: true },
+    addressLine2: { type: String, trim: true },
+    addressLine3: { type: String, trim: true },
+    dlNo: { type: String, trim: true },
+    msmeNo: { type: String, trim: true },
+    contactNo: { type: String, trim: true },
+    companyEmail: { 
+        type: String, 
+        trim: true,
+        match: [/^(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})?$/, 'Please enter a valid email address']
+    },
+    
+    // ☁️ Google Drive Integration
+    googleDriveToken: { type: mongoose.Schema.Types.Mixed, select: false },
+    googleEmail: { type: String, trim: true },
+    autoBackupInterval: { type: Number, default: 0 },
     lastAutoBackupDate: { type: Date },
 
-    // 🏦 Bank & UPI Details (Optional)
-    bankName: { type: String },
-    accountName: { type: String },
-    accountNumber: { type: String },
-    ifscCode: { type: String },
-    upiDetails: { type: String },
+    // 🏦 Bank & UPI Details
+    bankName: { type: String, trim: true },
+    accountName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    ifscCode: { type: String, trim: true },
+    upiDetails: { type: String, trim: true },
 
     // ⚙️ Super Admin Quotas & Limits
-    maxStaffLimit: { type: Number, default: 5 },           // Default 5 staff per admin (0 = unlimited)
-    maxCustomersLimit: { type: Number, default: 500 },      // Default 500 parties per admin (0 = unlimited)
-    dailyMessageLimit: { type: Number, default: 100 },      // Default 100 reminders per day (0 = unlimited)
-    dailyMessageCount: { type: Number, default: 0 },        // Messages sent today
-    lastMessageResetDate: { type: Date, default: Date.now }, // Daily counter reset timestamp
-    planExpiryDate: { type: Date, default: null }           // Optional subscription expiry
-});
+    maxStaffLimit: { type: Number, default: 5 },
+    maxCustomersLimit: { type: Number, default: 500 },
+    dailyMessageLimit: { type: Number, default: 100 },
+    dailyMessageCount: { type: Number, default: 0 },
+    lastMessageResetDate: { type: Date, default: Date.now },
+    planExpiryDate: { type: Date, default: null }
+}, { timestamps: true });
 
+// Dedicated Single & Compound Indexes for ultra-fast query performance
+userSchema.index({ role: 1 });
+userSchema.index({ status: 1 });
+userSchema.index({ adminId: 1 });
 userSchema.index({ role: 1, status: 1 });
+userSchema.index({ role: 1, adminId: 1 });
 
 module.exports = mongoose.model('User', userSchema);

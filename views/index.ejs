@@ -1845,8 +1845,15 @@
                     clearTimeout(_dupCheckTimer);
                     _dupCheckTimer = setTimeout(function () {
                         fetch('/customers/check-duplicate?name=' + encodeURIComponent(nameVal) + '&phone=' + encodeURIComponent(phoneVal))
-                            .then(r => r.json())
+                            .then(r => {
+                                if (r.status === 401) {
+                                    window.location.href = '/login?error=' + encodeURIComponent("Session expired. Please log in again.");
+                                    return;
+                                }
+                                return r.json();
+                            })
                             .then(data => {
+                                if (!data) return;
                                 var alert = document.getElementById('addDupAlert');
                                 var msg = document.getElementById('addDupMsg');
                                 if (data.isDuplicate) {
@@ -1923,10 +1930,18 @@
                 function triggerDriveBackup() {
                     alert("Backing up to Google Drive in the background...");
                     fetch('/drive-backup')
-                        .then(response => response.json())
+                        .then(response => {
+                            if (response.status === 401) {
+                                window.location.href = '/login?error=' + encodeURIComponent("Session expired. Please log in again.");
+                                return;
+                            }
+                            return response.json();
+                        })
                         .then(data => {
+                            if (!data) return;
+                            if (data.redirect) { window.location.href = data.redirect; return; }
                             if (data.success) alert("✅ " + data.message);
-                            else alert("❌ Backup failed. Did you Link your Google Drive first?");
+                            else alert("❌ Backup failed. " + (data.message || "Did you Link your Google Drive first?"));
                         }).catch(e => alert("Error communicating with server."));
                 }
 
@@ -1934,8 +1949,16 @@
                     if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
                         showToast("⏳ Downloading backup from Google Drive...");
                         fetch('/drive-restore')
-                            .then(response => response.json())
+                            .then(response => {
+                                if (response.status === 401) {
+                                    window.location.href = '/login?error=' + encodeURIComponent("Session expired. Please log in again.");
+                                    return;
+                                }
+                                return response.json();
+                            })
                             .then(data => {
+                                if (!data) return;
+                                if (data.redirect) { window.location.href = data.redirect; return; }
                                 if (data.success) {
                                     alert("✅ " + data.message);
                                     window.location.reload();
