@@ -274,20 +274,27 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
             timestamp: new Date()
         });
 
-        await drive.files.create({
-            resource: {
-                name: `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`,
-                parents: ['appDataFolder']
-            },
-            media: { mimeType: 'application/json', body: backupData },
-            fields: 'id'
-        });
+        const backupFileName = `WGS_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+        try {
+            await drive.files.create({
+                resource: { name: backupFileName, parents: ['appDataFolder'] },
+                media: { mimeType: 'application/json', body: backupData },
+                fields: 'id'
+            });
+        } catch (appDataErr) {
+            console.warn("appDataFolder upload failed, falling back to root Drive:", appDataErr.message);
+            await drive.files.create({
+                resource: { name: backupFileName },
+                media: { mimeType: 'application/json', body: backupData },
+                fields: 'id'
+            });
+        }
         await logActivity(req, 'Cloud Backup', `Created backup on Google Drive.`);
         res.json({ success: true, message: "Successfully backed up to Google Drive!" });
 
     } catch (err) {
         console.error("Drive Backup Error:", err);
-        res.status(500).json({ success: false, message: "Failed to push to Google Drive. Please try again." });
+        res.status(500).json({ success: false, message: "Failed to push to Google Drive: " + (err.message || "Please try again.") });
     }
 });
 
@@ -478,14 +485,21 @@ async function runAutoBackups() {
                         timestamp: new Date()
                     });
 
-                    await drive.files.create({
-                        resource: {
-                            name: `WGS_AutoBackup_${new Date().toISOString().slice(0, 10)}.json`,
-                            parents: ['appDataFolder']
-                        },
-                        media: { mimeType: 'application/json', body: backupData },
-                        fields: 'id'
-                    });
+                    const autoBackupFileName = `WGS_AutoBackup_${new Date().toISOString().slice(0, 10)}.json`;
+                    try {
+                        await drive.files.create({
+                            resource: { name: autoBackupFileName, parents: ['appDataFolder'] },
+                            media: { mimeType: 'application/json', body: backupData },
+                            fields: 'id'
+                        });
+                    } catch (appDataErr) {
+                        console.warn(`appDataFolder auto-backup failed for ${admin.username}, falling back to root Drive:`, appDataErr.message);
+                        await drive.files.create({
+                            resource: { name: autoBackupFileName },
+                            media: { mimeType: 'application/json', body: backupData },
+                            fields: 'id'
+                        });
+                    }
 
                     admin.lastAutoBackupDate = new Date();
                     await admin.save();
@@ -856,17 +870,22 @@ app.put('/settings', requireAdmin, async (req, res) => {
     }
 });
 
-app.put('/settings/auto-backup', requireAdmin, async (req, res) => {
+const handleAutoBackupSave = async (req, res) => {
     try {
+        const interval = Number(req.body.autoBackupInterval) || 0;
         await User.findByIdAndUpdate(req.session.adminId, {
-            autoBackupInterval: Number(req.body.autoBackupInterval) || 0
+            autoBackupInterval: interval
         });
-        await logActivity(req, "Automation Updated", `Set Google Drive auto-backup interval to ${req.body.autoBackupInterval} days.`);
+        await logActivity(req, "Automation Updated", `Set Google Drive auto-backup interval to ${interval} days.`);
         res.redirect('/?msg=auto_backup_saved');
     } catch (err) {
-        res.status(500).send("Failed to save settings.");
+        console.error("Auto-backup settings save error:", err);
+        res.status(500).send("Failed to save auto-backup settings.");
     }
-});
+};
+
+app.put('/settings/auto-backup', requireAdmin, handleAutoBackupSave);
+app.post('/settings/auto-backup', requireAdmin, handleAutoBackupSave);
 
 app.get('/landing', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'landing.html'));
@@ -1220,15 +1239,16 @@ app.delete('/staff/:id', requireAdmin, async (req, res) => {
 });
 
 // --- EXPORT (Perfectly Mapped & Styled to Tally Format) ---
-app.get('/export', requireAdmin, async (req, res) => {
+app.get('/export', requireLogin, async (req, res) => {
     try {
-        const customers = await Customer.find({ adminId: req.session.adminId }).lean();
-        const admin = await User.findById(req.session.adminId).lean();
+        const adminId = req.session.adminId || req.session.userId;
+        const customers = await Customer.find({ adminId: adminId }).lean();
+        const admin = (await User.findById(adminId).lean()) || {};
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Sundry Debtors');
 
         // 1. Company Header Info
-        worksheet.addRow([admin.companyName || '']);
+        worksheet.addRow([admin.companyName || 'WGS Payment Tracker']);
         worksheet.addRow([admin.addressLine1 || '']);
         worksheet.addRow([admin.addressLine2 || '']);
         worksheet.addRow([admin.addressLine3 || '']);
@@ -1253,7 +1273,7 @@ app.get('/export', requireAdmin, async (req, res) => {
         const hr1 = worksheet.addRow(headerRow1);
         const hr2 = worksheet.addRow(headerRow2);
 
-        // Merge parent headers so it spans across Debit & Credit (Looks professional)
+        // Merge parent headers so it spans across Debit & Credit
         worksheet.mergeCells('D13:E13'); // Pending Bills
         worksheet.mergeCells('F13:G13'); // < 30 days
         worksheet.mergeCells('H13:I13'); // 30 to 60
@@ -1305,11 +1325,9 @@ app.get('/export', requireAdmin, async (req, res) => {
 
         // 4. Style Data Rows
         worksheet.eachRow((row, rowNumber) => {
-            // Apply bolding to company details at the top
             if (rowNumber <= 11) {
                 row.eachCell(cell => { cell.font = { bold: true }; });
             }
-            // Align numbers to the right for the data rows
             if (rowNumber > 14) {
                 for (let i = 4; i <= 21; i++) {
                     row.getCell(i).alignment = { horizontal: 'right' };
@@ -1317,12 +1335,15 @@ app.get('/export', requireAdmin, async (req, res) => {
             }
         });
 
+        const rawCompName = admin.companyName || 'WGS';
+        const safeCompanyName = rawCompName.replace(/[^a-zA-Z0-9_\-]/g, '_');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${admin.companyName || 'WGS'}_Sundry_Debtors.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${safeCompanyName}_Sundry_Debtors.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
     } catch (err) {
-        res.status(500).send("Failed to export Excel.");
+        console.error("Export Error:", err);
+        res.status(500).send("Failed to export Excel file: " + err.message);
     }
 });
 
