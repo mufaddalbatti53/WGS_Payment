@@ -7,9 +7,9 @@
     <link rel="icon" href="/images/WGS.png" type="image/png">
     <style>
         :root {
-            --primary: #27ae60;
-            --primary-dark: #219653;
-            --secondary: #3498db;
+            --primary: #1558cc;
+            --primary-dark: #0f2d52;
+            --secondary: #3b82f6;
             --text-dark: #1e293b;
             --text-muted: #64748b;
             --bg-color: #f8fafc;
@@ -17,6 +17,7 @@
             --border: #e2e8f0;
             --danger: #ef4444;
             --warning: #f59e0b;
+            --success: #10b981;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,14 +25,21 @@
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: var(--bg-color);
             color: var(--text-dark);
-            padding-bottom: 50px;
+            padding-bottom: 60px;
+        }
+
+        /* ── TOP GRADIENT STRIP ── */
+        .top-gradient-strip {
+            height: 4px;
+            width: 100%;
+            background: linear-gradient(90deg, #f43f5e, #ec4899, #8b5cf6, #3b82f6, #06b6d4);
         }
 
         /* ── HEADER ── */
         header {
             background: white;
             border-bottom: 1px solid var(--border);
-            padding: 16px 32px;
+            padding: 14px 28px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -44,12 +52,12 @@
         .brand {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .brand img {
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             object-fit: contain;
         }
 
@@ -57,43 +65,33 @@
             font-size: 18px;
             font-weight: 800;
             color: var(--text-dark);
+            letter-spacing: -0.3px;
         }
 
         .brand-badge {
-            background: #fef3c7;
-            color: #92400e;
+            background: #fef08a;
+            color: #854d0e;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             padding: 3px 10px;
             border-radius: 20px;
-            border: 1px solid #fde68a;
+            border: 1px solid #fde047;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .user-actions {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 10px;
         }
 
-        .logout-btn {
-            background: #fee2e2;
-            color: #b91c1c;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 700;
-            transition: all 0.2s;
-        }
-
-        .logout-btn:hover { background: #fca5a5; }
-
-        .settings-nav-btn {
-            background: #e0f2fe;
-            color: #0369a1;
-            border: 1px solid #bae6fd;
-            padding: 8px 14px;
-            border-radius: 8px;
+        .btn-change-cred {
+            background: #f43f5e;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 20px;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
@@ -101,16 +99,390 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            box-shadow: 0 2px 8px rgba(244, 63, 94, 0.25);
         }
 
-        .settings-nav-btn:hover { background: #bae6fd; }
+        .btn-change-cred:hover {
+            background: #e11d48;
+            transform: translateY(-1px);
+        }
 
+        .btn-logout-pill {
+            background: #ffe4e6;
+            color: #e11d48;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #fecdd3;
+        }
+
+        .btn-logout-pill:hover {
+            background: #fecdd3;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 28px auto;
+            padding: 0 20px;
+        }
+
+        /* ── STATS CARDS ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        }
+
+        .stat-card.pending {
+            border-color: #fde68a;
+            background: linear-gradient(135deg, #fffbeb, #ffffff);
+        }
+        .stat-card.approved {
+            border-color: #a7f3d0;
+            background: linear-gradient(135deg, #ecfdf5, #ffffff);
+        }
+        .stat-card.suspended {
+            border-color: #ddd6fe;
+            background: linear-gradient(135deg, #f5f3ff, #ffffff);
+        }
+        .stat-card.rejected {
+            border-color: #fecdd3;
+            background: linear-gradient(135deg, #fff1f2, #ffffff);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-val {
+            font-size: 30px;
+            font-weight: 900;
+            color: var(--text-dark);
+            line-height: 1;
+        }
+
+        .stat-icon-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .stat-card.pending .stat-icon-box { background: #fef3c7; color: #d97706; }
+        .stat-card.approved .stat-icon-box { background: #dcfce7; color: #16a34a; }
+        .stat-card.suspended .stat-icon-box { background: #ede9fe; color: #7c3aed; }
+        .stat-card.rejected .stat-icon-box { background: #ffe4e6; color: #e11d48; }
+
+        /* ── PILL TABS ── */
+        .tabs-container {
+            background: #f1f5f9;
+            padding: 6px;
+            border-radius: 16px;
+            display: inline-flex;
+            gap: 6px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-dark);
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--text-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .badge-count {
+            background: #e2e8f0;
+            color: var(--text-dark);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .tab-btn.active .badge-count {
+            background: #2563eb;
+            color: white;
+        }
+
+        /* ── TABLE CARD VIEW ── */
+        .card-table-wrapper {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: #e0f2fe;
+            padding: 14px 18px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #0369a1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #bae6fd;
+        }
+
+        td {
+            padding: 16px 18px;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafafa; }
+
+        /* ── USER & AVATAR CELL ── */
+        .admin-user-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e2e8f0;
+        }
+
+        .online-dot {
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            width: 11px;
+            height: 11px;
+            background: #22c55e;
+            border: 2px solid white;
+            border-radius: 50%;
+        }
+
+        .username-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-dark);
+            line-height: 1.2;
+        }
+
+        .status-badge-pill {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .status-badge-pill.approved { background: #dcfce7; color: #15803d; }
+        .status-badge-pill.pending { background: #fef3c7; color: #b45309; }
+        .status-badge-pill.suspended { background: #f3e8ff; color: #6b21a8; }
+        .status-badge-pill.rejected { background: #fee2e2; color: #b91c1c; }
+
+        /* ── CONTACT CELL ── */
+        .contact-info-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+        }
+
+        .contact-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #0284c7;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .contact-item:hover { text-decoration: underline; }
+
+        /* ── METRICS PROGRESS BARS ── */
+        .metrics-block {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 170px;
+        }
+
+        .metric-progress-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .metric-row-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .progress-track {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .progress-fill-bar {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #60a5fa, #2563eb);
+            transition: width 0.4s ease;
+        }
+
+        /* ── PASSWORD TOGGLE BOX ── */
+        .password-pill-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .pwd-mask-text {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-dark);
+            min-width: 70px;
+        }
+
+        .pwd-eye-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-muted);
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .pwd-eye-btn:hover { color: var(--text-dark); }
+
+        /* ── ACTION BUTTONS ── */
+        .action-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 140px;
+        }
+
+        .btn-action-soft {
+            padding: 7px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-action-suspend { background: #e2e8f0; color: #334155; }
+        .btn-action-suspend:hover { background: #cbd5e1; }
+
+        .btn-action-manage { background: #e0f2fe; color: #0284c7; }
+        .btn-action-manage:hover { background: #bae6fd; }
+
+        .btn-action-revoke { background: #fff1f2; color: #e11d48; }
+        .btn-action-revoke:hover { background: #ffe4e6; }
+
+        .btn-action-approve { background: #dcfce7; color: #15803d; }
+        .btn-action-approve:hover { background: #bbf7d0; }
+
+        .empty-state {
+            padding: 48px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        /* ── SETTINGS CARD ── */
         .settings-card {
             background: white;
             border: 1px solid var(--border);
             border-radius: 20px;
-            padding: 36px;
-            max-width: 520px;
+            padding: 32px;
+            max-width: 500px;
             margin: 20px auto;
             box-shadow: 0 10px 25px rgba(0,0,0,0.03);
             text-align: left;
@@ -130,7 +502,7 @@
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         .form-group label {
@@ -143,40 +515,38 @@
 
         .form-group input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 11px 14px;
             border: 1px solid var(--border);
             border-radius: 10px;
             font-size: 14px;
             background: #f8fafc;
-            transition: all 0.2s;
             outline: none;
             color: var(--text-dark);
         }
 
         .form-group input:focus {
-            border-color: #1558cc;
+            border-color: #2563eb;
             background: white;
-            box-shadow: 0 0 0 3px rgba(21, 88, 204, 0.12);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
         }
 
         .btn-save-settings {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #1558cc, #0f2d52);
+            padding: 13px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
             margin-top: 10px;
-            box-shadow: 0 4px 14px rgba(15, 45, 82, 0.2);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
         }
 
         .btn-save-settings:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(15, 45, 82, 0.3);
+            transform: translateY(-1px);
         }
 
         .alert-msg {
@@ -185,57 +555,10 @@
             font-size: 13px;
             font-weight: 700;
             margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
-        .alert-msg.success {
-            background: #dcfce7;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-
-        .alert-msg.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
-        }
-
-        .metric-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-dark);
-            margin: 2px 2px 2px 0;
-        }
-
-        .metric-badge.warning {
-            background: #fffbe5;
-            border-color: #fde68a;
-            color: #92400e;
-        }
-
-        .btn-limits {
-            background: #e0e7ff;
-            color: #3730a3;
-            border: 1px solid #c7d2fe;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-right: 4px;
-        }
-
-        .btn-limits:hover { background: #c7d2fe; }
+        .alert-msg.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-msg.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 
         /* ── MODAL ── */
         .modal-overlay {
@@ -252,7 +575,7 @@
         .modal-card {
             background: white;
             border-radius: 20px;
-            padding: 32px;
+            padding: 28px;
             width: 100%;
             max-width: 480px;
             max-height: 85vh;
@@ -275,339 +598,95 @@
 
         .modal-close:hover { color: var(--text-dark); }
 
-        /* ── CONTAINER ── */
-        .container {
-            max-width: 1200px;
-            margin: 32px auto;
-            padding: 0 24px;
-        }
-
-        /* ── STATS CARDS ── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 32px;
-        }
-
-        .stat-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px 24px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .stat-card.pending { border-left: 5px solid var(--warning); }
-        .stat-card.approved { border-left: 5px solid var(--primary); }
-        .stat-card.suspended { border-left: 5px solid #8b5cf6; }
-        .stat-card.rejected { border-left: 5px solid var(--danger); }
-
-        .status-suspended { background: #f3e8ff; color: #6b21a8; }
-        .btn-suspend {
-            background: #fff7ed;
-            color: #c2410c;
-            border: 1px solid #ffedd5;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-right: 4px;
-        }
-        .btn-suspend:hover { background: #ffedd5; }
-        .btn-resume {
-            background: #ecfdf5;
-            color: #047857;
-            border: 1px solid #a7f3d0;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-right: 4px;
-        }
-        .btn-resume:hover { background: #a7f3d0; }
-
-        .stat-val {
-            font-size: 28px;
-            font-weight: 800;
-            color: var(--text-dark);
-            margin-top: 4px;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        .stat-icon {
-            font-size: 32px;
-            opacity: 0.8;
-        }
-
-        /* ── SECTION TITLE & TABS ── */
-        .tabs {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 12px;
-        }
-
-        .tab-btn {
-            background: transparent;
-            border: none;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text-muted);
-            cursor: pointer;
-            border-radius: 10px;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .tab-btn:hover { background: #f1f5f9; color: var(--text-dark); }
-        .tab-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .badge-count {
-            background: rgba(255,255,255,0.25);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-        }
-
-        .tab-btn:not(.active) .badge-count {
-            background: #e2e8f0;
-            color: var(--text-dark);
-        }
-
-        /* ── TABLE / LIST ── */
-        .card-table {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.03);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th {
-            background: #f8fafc;
-            padding: 14px 20px;
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        td {
-            padding: 18px 20px;
-            font-size: 14px;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-        }
-
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #fafafa; }
-
-        .user-cell {
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-
-        .contact-cell a {
-            color: var(--secondary);
-            text-decoration: none;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            margin-right: 12px;
-        }
-
-        .contact-cell a:hover { text-decoration: underline; }
-
-        .wa-btn {
-            color: #25d366 !important;
-        }
-
-        .pwd-field {
-            font-family: monospace;
-            background: #f1f5f9;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            user-select: all;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .status-pending { background: #fef3c7; color: #b45309; }
-        .status-approved { background: #dcfce7; color: #15803d; }
-        .status-rejected { background: #fee2e2; color: #b91c1c; }
-
-        .btn-approve {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 18px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-approve:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }
-
-        .btn-reject {
-            background: #fee2e2;
-            color: #b91c1c;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-left: 6px;
-        }
-
-        .btn-reject:hover { background: #fca5a5; }
-
-        .empty-state {
-            padding: 48px;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 15px;
-        }
-
-        /* ── RESPONSIVE MOBILE STYLES ── */
-        @media (max-width: 992px) {
-            .container { padding: 0 16px; margin: 20px auto; }
-        }
-
-        @media (max-width: 768px) {
+        /* ── RESPONSIVE MOBILE VIEW (Matches Reference Image 2) ── */
+        @media (max-width: 850px) {
             header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 14px;
-                padding: 14px 18px;
+                padding: 12px 16px;
+            }
+
+            .brand-title {
+                font-size: 15px;
             }
 
             .user-actions {
-                width: 100%;
-                justify-content: space-between;
-                flex-wrap: wrap;
-                gap: 10px;
+                gap: 8px;
             }
+
+            .btn-change-cred span { display: none; }
+            .btn-logout-pill span { display: none; }
 
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
-                margin-bottom: 20px;
             }
 
-            .stat-card {
-                padding: 14px 16px;
+            .stat-val { font-size: 24px; }
+            .stat-icon-box { width: 36px; height: 36px; font-size: 18px; }
+
+            .card-table-wrapper {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                overflow: visible;
             }
 
-            .stat-val {
-                font-size: 22px;
+            table, thead, tbody, th, td, tr {
+                display: block;
+                width: 100%;
             }
 
-            .stat-icon {
-                font-size: 26px;
+            thead { display: none; }
+
+            tr {
+                background: white;
+                border: 1px solid var(--border);
+                border-radius: 18px;
+                padding: 18px;
+                margin-bottom: 16px;
+                box-shadow: 0 4px 14px rgba(0,0,0,0.03);
             }
 
-            .tabs {
-                overflow-x: auto;
-                white-space: nowrap;
-                padding-bottom: 8px;
+            td {
+                padding: 8px 0;
+                border: none;
+            }
+
+            .mobile-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 12px;
+                margin-bottom: 12px;
+            }
+
+            .metrics-block {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                margin: 10px 0;
+            }
+
+            .action-btn-group {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 8px;
-                scrollbar-width: none;
-                -ms-overflow-style: none;
+                margin-top: 14px;
+                padding-top: 12px;
+                border-top: 1px dashed #e2e8f0;
+                min-width: 100%;
             }
 
-            .tabs::-webkit-scrollbar {
-                display: none;
-            }
-
-            .tab-btn {
-                padding: 8px 14px;
-                font-size: 13px;
-                flex-shrink: 0;
-            }
-
-            .card-table {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-
-            table {
-                min-width: 700px;
-            }
-
-            .settings-card {
-                padding: 24px 18px;
-                border-radius: 16px;
-            }
-
-            .modal-card {
-                width: 92%;
-                max-height: 90vh;
-                overflow-y: auto;
-                padding: 24px 18px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .brand-title {
-                font-size: 16px;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .logout-btn, .settings-nav-btn {
-                padding: 7px 12px;
-                font-size: 12px;
+            .btn-action-soft {
+                font-size: 11px;
+                padding: 9px 8px;
             }
         }
     </style>
 </head>
 <body>
+
+    <div class="top-gradient-strip"></div>
 
     <!-- ── HEADER ── -->
     <header>
@@ -617,56 +696,55 @@
             <span class="brand-badge">SUPER ADMIN</span>
         </div>
         <div class="user-actions">
-            <span style="font-size:14px; font-weight:600; color:var(--text-muted);">Logged in as <strong><%= superadminUsername %></strong></span>
-            <button type="button" class="settings-nav-btn" onclick="showTab('settingsTab')">⚙️ Change Credentials</button>
-            <a href="/logout" class="logout-btn">Logout 👋</a>
+            <button type="button" class="btn-change-cred" onclick="showTab('settingsTab')">⚙️ <span>Change Credentials</span></button>
+            <a href="/logout" class="btn-logout-pill">🚪 <span>Logout</span></a>
         </div>
     </header>
 
     <div class="container">
 
-        <!-- ── STATS OVERVIEW ── -->
+        <!-- ── STATS OVERVIEW (4 KPI CARDS) ── -->
         <div class="stats-grid">
-            <div class="stat-card pending">
+            <div class="stat-card pending" onclick="showTab('pendingTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Pending Approval</div>
                     <div class="stat-val"><%= (pendingUsers || []).length %></div>
                 </div>
-                <div class="stat-icon">⏳</div>
+                <div class="stat-icon-box">⏳</div>
             </div>
-            <div class="stat-card approved">
+            <div class="stat-card approved" onclick="showTab('approvedTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Approved Admins</div>
                     <div class="stat-val"><%= (approvedUsers || []).length %></div>
                 </div>
-                <div class="stat-icon">✅</div>
+                <div class="stat-icon-box">☑️</div>
             </div>
-            <div class="stat-card suspended">
+            <div class="stat-card suspended" onclick="showTab('suspendedTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Suspended (Unpaid Fee)</div>
                     <div class="stat-val"><%= (suspendedUsers || []).length %></div>
                 </div>
-                <div class="stat-icon">⏸️</div>
+                <div class="stat-icon-box">⏸️</div>
             </div>
-            <div class="stat-card rejected">
+            <div class="stat-card rejected" onclick="showTab('rejectedTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Rejected Requests</div>
                     <div class="stat-val"><%= (rejectedUsers || []).length %></div>
                 </div>
-                <div class="stat-icon">❌</div>
+                <div class="stat-icon-box">✖️</div>
             </div>
         </div>
 
-        <!-- ── TABS ── -->
-        <div class="tabs">
+        <!-- ── TABS NAV BAR ── -->
+        <div class="tabs-container">
             <button class="tab-btn active" onclick="showTab('pendingTab')">
-                ⏳ Pending Requests <span class="badge-count"><%= (pendingUsers || []).length %></span>
+                ⏳ Pending <span class="badge-count"><%= (pendingUsers || []).length %></span>
             </button>
             <button class="tab-btn" onclick="showTab('approvedTab')">
-                ✅ Approved Admins <span class="badge-count"><%= (approvedUsers || []).length %></span>
+                ✔️ Approved <span class="badge-count"><%= (approvedUsers || []).length %></span>
             </button>
             <button class="tab-btn" onclick="showTab('suspendedTab')">
-                ⏸️ Suspended Admins <span class="badge-count"><%= (suspendedUsers || []).length %></span>
+                ❗️ Suspended <span class="badge-count"><%= (suspendedUsers || []).length %></span>
             </button>
             <button class="tab-btn" onclick="showTab('rejectedTab')">
                 ❌ Rejected <span class="badge-count"><%= (rejectedUsers || []).length %></span>
@@ -678,53 +756,68 @@
 
         <!-- ── PENDING REQUESTS TAB ── -->
         <div id="pendingTab" class="tab-content">
-            <div class="card-table">
+            <div class="card-table-wrapper">
                 <% if ((pendingUsers || []).length === 0) { %>
                     <div class="empty-state">🎉 No pending registration requests. All clear!</div>
                 <% } else { %>
                     <table>
                         <thead>
                             <tr>
-                                <th>Requested User</th>
-                                <th>Contact Info</th>
-                                <th>Password</th>
-                                <th>Requested Date</th>
-                                <th>Action</th>
+                                <th>ADMIN USER</th>
+                                <th>CONTACT INFO</th>
+                                <th>PASSWORD</th>
+                                <th>REQUESTED DATE</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% (pendingUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
-                                        <div class="user-cell">👤 <%= u.username %></div>
-                                        <div style="font-size:12px; color:var(--text-muted);">Role: Admin</div>
-                                    </td>
-                                    <td class="contact-cell">
-                                        <% if (u.email) { %>
-                                            <div>📧 <a href="mailto:<%= u.email %>"><%= u.email %></a></div>
-                                        <% } %>
-                                        <% if (u.phone) { %>
-                                            <div>📞 <a href="tel:<%= u.phone %>"><%= u.phone %></a> 
-                                                <a href="https://wa.me/<%= u.phone.replace(/[^0-9]/g, '') %>" target="_blank" class="wa-btn">💬 WhatsApp</a>
+                                        <div class="admin-user-cell">
+                                            <div class="avatar-container">
+                                                <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(u.username) %>&background=3b82f6&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                                                <span class="online-dot" style="background:#f59e0b;"></span>
                                             </div>
-                                        <% } %>
-                                        <% if (!u.email && !u.phone) { %>
-                                            <span style="color:var(--text-muted); font-size:12px;">No contact details</span>
-                                        <% } %>
+                                            <div>
+                                                <div class="username-title"><%= u.username %></div>
+                                                <span class="status-badge-pill pending">PENDING</span>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
-                                        <span class="pwd-field"><%= u.plainPassword || u.password || 'N/A' %></span>
+                                        <div class="contact-info-block">
+                                            <% if (u.email) { %>
+                                                <a href="mailto:<%= u.email %>" class="contact-item">✉️ <%= u.email %></a>
+                                            <% } %>
+                                            <% if (u.phone) { %>
+                                                <a href="tel:<%= u.phone %>" class="contact-item">📞 <%= u.phone %></a>
+                                            <% } %>
+                                            <% if (!u.email && !u.phone) { %>
+                                                <span style="color:var(--text-muted);">No contact info</span>
+                                            <% } %>
+                                        </div>
                                     </td>
                                     <td>
-                                        <%= u.requestedAt ? new Date(u.requestedAt).toLocaleString() : 'N/A' %>
+                                        <div class="password-pill-container">
+                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
+                                            <button type="button" class="pwd-eye-btn" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                        </div>
                                     </td>
                                     <td>
-                                        <form action="/superadmin/approve/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-approve">Approve ✅</button>
-                                        </form>
-                                        <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to reject this request?')">Reject ❌</button>
-                                        </form>
+                                        <div style="font-size:12px; color:var(--text-muted);">
+                                            <%= u.requestedAt ? new Date(u.requestedAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : 'N/A' %>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="action-btn-group">
+                                            <form action="/superadmin/approve/<%= u._id %>" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn-action-soft btn-action-approve" style="width:100%;">Approve ✅</button>
+                                            </form>
+                                            <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn-action-soft btn-action-revoke" style="width:100%;" onclick="return confirm('Reject request for <%= u.username %>?')">Reject ❌</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <% }) %>
@@ -736,80 +829,122 @@
 
         <!-- ── APPROVED ADMINS TAB ── -->
         <div id="approvedTab" class="tab-content" style="display:none;">
-            <div class="card-table">
+            <div class="card-table-wrapper">
                 <% if ((approvedUsers || []).length === 0) { %>
                     <div class="empty-state">No approved admins found.</div>
                 <% } else { %>
                     <table>
                         <thead>
                             <tr>
-                                <th>Admin User</th>
-                                <th>Contact Info</th>
-                                <th>Usage Metrics & Quotas</th>
-                                <th>Password</th>
-                                <th>Approved / Expiry</th>
-                                <th>Action</th>
+                                <th>ADMIN USER</th>
+                                <th>CONTACT INFO</th>
+                                <th>USAGE METRICS</th>
+                                <th>PASSWORD</th>
+                                <th>APPROVED / EXPIRY</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <% (approvedUsers || []).forEach(u => { %>
+                            <% (approvedUsers || []).forEach(u => { 
+                                var maxS = u.maxStaffLimit === 0 ? 99999 : (u.maxStaffLimit || 5);
+                                var maxP = u.maxCustomersLimit === 0 ? 99999 : (u.maxCustomersLimit || 500);
+                                var maxM = u.dailyMessageLimit === 0 ? 99999 : (u.dailyMessageLimit || 100);
+                                var sPct = Math.min(100, Math.round(((u.staffCount || 0) / maxS) * 100));
+                                var pPct = Math.min(100, Math.round(((u.partyCount || 0) / maxP) * 100));
+                                var mPct = Math.min(100, Math.round(((u.dailyMessageCount || 0) / maxM) * 100));
+                            %>
                                 <tr>
                                     <td>
-                                        <div class="user-cell">👔 <%= u.username %></div>
-                                        <span class="status-badge status-approved">Approved</span>
-                                    </td>
-                                    <td class="contact-cell">
-                                        <% if (u.email) { %>
-                                            <div>📧 <a href="mailto:<%= u.email %>"><%= u.email %></a></div>
-                                        <% } %>
-                                        <% if (u.phone) { %>
-                                            <div>📞 <a href="tel:<%= u.phone %>"><%= u.phone %></a></div>
-                                        <% } %>
-                                        <% if (!u.email && !u.phone) { %>
-                                            <span style="color:var(--text-muted); font-size:12px;">No contact info</span>
-                                        <% } %>
-                                    </td>
-                                    <td>
-                                        <div>
-                                            <span class="metric-badge <%= (u.staffCount || 0) >= (u.maxStaffLimit || 5) && (u.maxStaffLimit || 5) > 0 ? 'warning' : '' %>">
-                                                👥 Staff: <%= (u.staffCount || 0) %> / <%= u.maxStaffLimit === 0 ? '∞' : (u.maxStaffLimit || 5) %>
-                                            </span>
-                                            <span class="metric-badge <%= (u.partyCount || 0) >= (u.maxCustomersLimit || 500) && (u.maxCustomersLimit || 500) > 0 ? 'warning' : '' %>">
-                                                📊 Parties: <%= (u.partyCount || 0) %> / <%= u.maxCustomersLimit === 0 ? '∞' : (u.maxCustomersLimit || 500) %>
-                                            </span>
-                                            <span class="metric-badge <%= (u.dailyMessageCount || 0) >= (u.dailyMessageLimit || 100) && (u.dailyMessageLimit || 100) > 0 ? 'warning' : '' %>">
-                                                💬 Msgs Today: <%= (u.dailyMessageCount || 0) %> / <%= u.dailyMessageLimit === 0 ? '∞' : (u.dailyMessageLimit || 100) %>
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="pwd-field"><%= u.plainPassword || u.password || '(Hashed)' %></span>
-                                    </td>
-                                    <td>
-                                        <div style="font-size:12px;">
-                                            <div>Approved: <%= u.approvedAt ? new Date(u.approvedAt).toLocaleDateString() : 'Active' %></div>
-                                            <div style="color:var(--text-muted); font-size:11px;">
-                                                Expires: <%= u.planExpiryDate ? new Date(u.planExpiryDate).toLocaleDateString() : 'Never (Lifetime)' %>
+                                        <div class="admin-user-cell">
+                                            <div class="avatar-container">
+                                                <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(u.username) %>&background=2563eb&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                                                <span class="online-dot"></span>
+                                            </div>
+                                            <div>
+                                                <div class="username-title"><%= u.username %></div>
+                                                <span class="status-badge-pill approved">APPROVED</span>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <form action="/superadmin/suspend/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-suspend" onclick="return confirm('Suspend account for <%= u.username %>? All company data will be preserved intact, and account can be resumed anytime.')">Suspend ⏸️</button>
-                                        </form>
-                                        <button type="button" class="btn-limits"
-                                            data-id="<%= u._id %>"
-                                            data-username="<%= u.username %>"
-                                            data-maxstaff="<%= u.maxStaffLimit %>"
-                                            data-maxparties="<%= u.maxCustomersLimit %>"
-                                            data-dailymsgs="<%= u.dailyMessageLimit %>"
-                                            data-planexpiry="<%= u.planExpiryDate %>"
-                                            data-status="<%= u.status %>"
-                                            data-staff="<%= encodeURIComponent(JSON.stringify(u.staffList || [])) %>"
-                                            onclick="openLimitsModal(this)">⚙️ Manage Admin & Staff</button>
-                                        <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to revoke access for this admin?')">Revoke 🚫</button>
-                                        </form>
+                                        <div class="contact-info-block">
+                                            <% if (u.email) { %>
+                                                <a href="mailto:<%= u.email %>" class="contact-item">✉️ <%= u.email %></a>
+                                            <% } %>
+                                            <% if (u.phone) { %>
+                                                <a href="tel:<%= u.phone %>" class="contact-item">📞 <%= u.phone %></a>
+                                            <% } %>
+                                            <% if (!u.email && !u.phone) { %>
+                                                <span style="color:var(--text-muted);">No contact info</span>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="metrics-block">
+                                            <div class="metric-progress-item">
+                                                <div class="metric-row-header">
+                                                    <span>👥 Staff:</span>
+                                                    <span><%= u.staffCount || 0 %> / <%= u.maxStaffLimit === 0 ? '∞' : (u.maxStaffLimit || 5) %></span>
+                                                </div>
+                                                <div class="progress-track">
+                                                    <div class="progress-fill-bar" style="width: <%= sPct %>%;"></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="metric-progress-item">
+                                                <div class="metric-row-header">
+                                                    <span>📊 Parties:</span>
+                                                    <span><%= u.partyCount || 0 %> / <%= u.maxCustomersLimit === 0 ? '∞' : (u.maxCustomersLimit || 500) %></span>
+                                                </div>
+                                                <div class="progress-track">
+                                                    <div class="progress-fill-bar" style="width: <%= pPct %>%; background: linear-gradient(90deg, #34d399, #059669);"></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="metric-progress-item">
+                                                <div class="metric-row-header">
+                                                    <span>💬 Msgs:</span>
+                                                    <span><%= u.dailyMessageCount || 0 %> / <%= u.dailyMessageLimit === 0 ? '∞' : (u.dailyMessageLimit || 100) %></span>
+                                                </div>
+                                                <div class="progress-track">
+                                                    <div class="progress-fill-bar" style="width: <%= mPct %>%; background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="password-pill-container">
+                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
+                                            <button type="button" class="pwd-eye-btn" title="Toggle Password" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="font-size:12px; color:var(--text-dark);">
+                                            <div><strong>Approved:</strong> <%= u.approvedAt ? new Date(u.approvedAt).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : 'Active' %></div>
+                                            <div style="color:var(--text-muted); font-size:11px; margin-top:2px;">
+                                                <strong>Expires:</strong> <%= u.planExpiryDate ? new Date(u.planExpiryDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '(Lifetime)' %>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="action-btn-group">
+                                            <form action="/superadmin/suspend/<%= u._id %>" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn-action-soft btn-action-suspend" style="width:100%;" onclick="return confirm('Suspend account for <%= u.username %>?')">⊗ Suspend</button>
+                                            </form>
+                                            <button type="button" class="btn-action-soft btn-action-manage"
+                                                data-id="<%= u._id %>"
+                                                data-username="<%= u.username %>"
+                                                data-maxstaff="<%= u.maxStaffLimit %>"
+                                                data-maxparties="<%= u.maxCustomersLimit %>"
+                                                data-dailymsgs="<%= u.dailyMessageLimit %>"
+                                                data-planexpiry="<%= u.planExpiryDate %>"
+                                                data-status="<%= u.status %>"
+                                                data-staff="<%= encodeURIComponent(JSON.stringify(u.staffList || [])) %>"
+                                                onclick="openLimitsModal(this)">⊕ Manage Admin & Staff</button>
+                                            <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn-action-soft btn-action-revoke" style="width:100%;" onclick="return confirm('Revoke access for <%= u.username %>?')">⊘ Revoke</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <% }) %>
@@ -821,44 +956,54 @@
 
         <!-- ── SUSPENDED ADMINS TAB ── -->
         <div id="suspendedTab" class="tab-content" style="display:none;">
-            <div class="card-table">
+            <div class="card-table-wrapper">
                 <% if ((suspendedUsers || []).length === 0) { %>
                     <div class="empty-state">No suspended admin accounts.</div>
                 <% } else { %>
                     <table>
                         <thead>
                             <tr>
-                                <th>Admin User</th>
-                                <th>Contact Info</th>
-                                <th>Preserved Metrics</th>
-                                <th>Password</th>
-                                <th>Status</th>
-                                <th>Action</th>
+                                <th>ADMIN USER</th>
+                                <th>CONTACT INFO</th>
+                                <th>PRESERVED METRICS</th>
+                                <th>PASSWORD</th>
+                                <th>STATUS</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% (suspendedUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
-                                        <div class="user-cell">👔 <%= u.username %></div>
-                                        <span class="status-badge status-suspended">Suspended</span>
-                                    </td>
-                                    <td class="contact-cell">
-                                        <% if (u.email) { %><div>📧 <a href="mailto:<%= u.email %>"><%= u.email %></a></div><% } %>
-                                        <% if (u.phone) { %><div>📞 <a href="tel:<%= u.phone %>"><%= u.phone %></a></div><% } %>
-                                        <% if (!u.email && !u.phone) { %>
-                                            <span style="color:var(--text-muted); font-size:12px;">No contact info</span>
-                                        <% } %>
-                                    </td>
-                                    <td>
-                                        <div>
-                                            <span class="metric-badge">👥 Staff: <%= u.staffCount %></span>
-                                            <span class="metric-badge">📊 Parties: <%= u.partyCount %></span>
-                                            <span class="metric-badge">💬 Msgs Today: <%= u.dailyMessageCount %></span>
+                                        <div class="admin-user-cell">
+                                            <div class="avatar-container">
+                                                <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(u.username) %>&background=6b21a8&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                                                <span class="online-dot" style="background:#9333ea;"></span>
+                                            </div>
+                                            <div>
+                                                <div class="username-title"><%= u.username %></div>
+                                                <span class="status-badge-pill suspended">SUSPENDED</span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="pwd-field"><%= u.plainPassword || '(Hashed)' %></span>
+                                        <div class="contact-info-block">
+                                            <% if (u.email) { %><a href="mailto:<%= u.email %>" class="contact-item">✉️ <%= u.email %></a><% } %>
+                                            <% if (u.phone) { %><a href="tel:<%= u.phone %>" class="contact-item">📞 <%= u.phone %></a><% } %>
+                                            <% if (!u.email && !u.phone) { %><span style="color:var(--text-muted);">No contact info</span><% } %>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="font-size:12px; color:var(--text-dark);">
+                                            <div>👥 Staff: <strong><%= u.staffCount || 0 %></strong></div>
+                                            <div>📊 Parties: <strong><%= u.partyCount || 0 %></strong></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="password-pill-container">
+                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
+                                            <button type="button" class="pwd-eye-btn" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                        </div>
                                     </td>
                                     <td>
                                         <div style="font-size:12px; color:#6b21a8; font-weight:700;">
@@ -867,19 +1012,21 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <form action="/superadmin/resume/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-resume" onclick="return confirm('Resume access for <%= u.username %>? All saved data will become active immediately.')">Resume Account ▶️</button>
-                                        </form>
-                                        <button type="button" class="btn-limits"
-                                            data-id="<%= u._id %>"
-                                            data-username="<%= u.username %>"
-                                            data-maxstaff="<%= u.maxStaffLimit %>"
-                                            data-maxparties="<%= u.maxCustomersLimit %>"
-                                            data-dailymsgs="<%= u.dailyMessageLimit %>"
-                                            data-planexpiry="<%= u.planExpiryDate %>"
-                                            data-status="<%= u.status %>"
-                                            data-staff="<%= encodeURIComponent(JSON.stringify(u.staffList || [])) %>"
-                                            onclick="openLimitsModal(this)">⚙️ Manage Admin & Staff</button>
+                                        <div class="action-btn-group">
+                                            <form action="/superadmin/resume/<%= u._id %>" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn-action-soft btn-action-approve" style="width:100%;">▶️ Resume Account</button>
+                                            </form>
+                                            <button type="button" class="btn-action-soft btn-action-manage"
+                                                data-id="<%= u._id %>"
+                                                data-username="<%= u.username %>"
+                                                data-maxstaff="<%= u.maxStaffLimit %>"
+                                                data-maxparties="<%= u.maxCustomersLimit %>"
+                                                data-dailymsgs="<%= u.dailyMessageLimit %>"
+                                                data-planexpiry="<%= u.planExpiryDate %>"
+                                                data-status="<%= u.status %>"
+                                                data-staff="<%= encodeURIComponent(JSON.stringify(u.staffList || [])) %>"
+                                                onclick="openLimitsModal(this)">⚙️ Credentials</button>
+                                        </div>
                                     </td>
                                 </tr>
                             <% }) %>
@@ -891,39 +1038,52 @@
 
         <!-- ── REJECTED REQUESTS TAB ── -->
         <div id="rejectedTab" class="tab-content" style="display:none;">
-            <div class="card-table">
+            <div class="card-table-wrapper">
                 <% if ((rejectedUsers || []).length === 0) { %>
                     <div class="empty-state">No rejected requests.</div>
                 <% } else { %>
                     <table>
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Contact Info</th>
-                                <th>Password</th>
-                                <th>Status</th>
-                                <th>Action</th>
+                                <th>USER</th>
+                                <th>CONTACT INFO</th>
+                                <th>PASSWORD</th>
+                                <th>STATUS</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% (rejectedUsers || []).forEach(u => { %>
                                 <tr>
                                     <td>
-                                        <div class="user-cell">👤 <%= u.username %></div>
-                                    </td>
-                                    <td class="contact-cell">
-                                        <% if (u.email) { %><div>📧 <%= u.email %></div><% } %>
-                                        <% if (u.phone) { %><div>📞 <%= u.phone %></div><% } %>
+                                        <div class="admin-user-cell">
+                                            <div class="avatar-container">
+                                                <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(u.username) %>&background=ef4444&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                                            </div>
+                                            <div>
+                                                <div class="username-title"><%= u.username %></div>
+                                                <span class="status-badge-pill rejected">REJECTED</span>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
-                                        <span class="pwd-field"><%= u.plainPassword || '(Hashed)' %></span>
+                                        <div class="contact-info-block">
+                                            <% if (u.email) { %><div class="contact-item">✉️ <%= u.email %></div><% } %>
+                                            <% if (u.phone) { %><div class="contact-item">📞 <%= u.phone %></div><% } %>
+                                        </div>
                                     </td>
                                     <td>
-                                        <span class="status-badge status-rejected">Rejected</span>
+                                        <div class="password-pill-container">
+                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
+                                            <button type="button" class="pwd-eye-btn" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge-pill rejected">Rejected</span>
                                     </td>
                                     <td>
                                         <form action="/superadmin/approve/<%= u._id %>" method="POST" style="display:inline;">
-                                            <button type="submit" class="btn-approve">Approve Now ✅</button>
+                                            <button type="submit" class="btn-action-soft btn-action-approve">Approve Now ✅</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -980,7 +1140,7 @@
 
     </div>
 
-    <!-- ── LIMITS & PLAN MANAGEMENT MODAL ── -->
+    <!-- ── LIMITS & PLAN MANAGEMENT MODAL (WITH SCROLLING) ── -->
     <div id="limitsModal" class="modal-overlay">
         <div class="modal-card">
             <button type="button" class="modal-close" onclick="closeLimitsModal()">✕</button>
@@ -1053,6 +1213,16 @@
             });
         }
 
+        function togglePassword(id, plainPwd) {
+            const el = document.getElementById('pwd-' + id);
+            if (!el) return;
+            if (el.innerText === '••••••••') {
+                el.innerText = plainPwd || '(Hashed)';
+            } else {
+                el.innerText = '••••••••';
+            }
+        }
+
         function openLimitsModal(btn) {
             const id = btn.getAttribute('data-id');
             const username = btn.getAttribute('data-username');
@@ -1112,7 +1282,7 @@
                     staffList.forEach(s => {
                         html += '<tr style="border-top:1px solid #f1f5f9;">';
                         html += '<td style="padding:8px 12px; font-weight:700; color:var(--text-dark);">👤 ' + s.username + '</td>';
-                        html += '<td style="padding:8px 12px;"><span class="pwd-field">' + (s.plainPassword || '(Hashed)') + '</span></td>';
+                        html += '<td style="padding:8px 12px;"><span class="pwd-mask-text">' + (s.plainPassword || '(Hashed)') + '</span></td>';
                         html += '<td style="padding:8px 12px; text-align:center;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">STAFF</span></td>';
                         html += '</tr>';
                     });
