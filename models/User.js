@@ -36,7 +36,15 @@ const userSchema = new mongoose.Schema({
     accountName: { type: String },
     accountNumber: { type: String },
     ifscCode: { type: String },
-    upiDetails: { type: String }
+    upiDetails: { type: String },
+
+    // ⚙️ Super Admin Quotas & Limits
+    maxStaffLimit: { type: Number, default: 5 },           // Default 5 staff per admin (0 = unlimited)
+    maxCustomersLimit: { type: Number, default: 500 },      // Default 500 parties per admin (0 = unlimited)
+    dailyMessageLimit: { type: Number, default: 100 },      // Default 100 reminders per day (0 = unlimited)
+    dailyMessageCount: { type: Number, default: 0 },        // Messages sent today
+    lastMessageResetDate: { type: Date, default: Date.now }, // Daily counter reset timestamp
+    planExpiryDate: { type: Date, default: null }           // Optional subscription expiry
 });
 
 userSchema.index({ role: 1, status: 1 });

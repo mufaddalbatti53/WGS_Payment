@@ -480,6 +480,24 @@ app.get('/logout', (req, res) => {
 
 app.post('/customers/:id/auto-snooze', requireLogin, async (req, res) => {
     try {
+        const adminUser = await User.findById(req.session.adminId);
+        if (adminUser) {
+            const now = new Date();
+            const lastReset = adminUser.lastMessageResetDate ? new Date(adminUser.lastMessageResetDate) : new Date(0);
+            if (now.toDateString() !== lastReset.toDateString()) {
+                adminUser.dailyMessageCount = 0;
+                adminUser.lastMessageResetDate = now;
+            }
+
+            const dailyLimit = adminUser.dailyMessageLimit ?? 100;
+            if (dailyLimit > 0 && adminUser.dailyMessageCount >= dailyLimit) {
+                return res.status(429).json({ success: false, message: `Daily message limit reached (${adminUser.dailyMessageCount}/${dailyLimit}). Contact Super Admin to upgrade your limit.` });
+            }
+
+            adminUser.dailyMessageCount += 1;
+            await adminUser.save();
+        }
+
         const customer = await Customer.findById(req.params.id);
         if (customer) {
             const newDate = new Date();
@@ -714,18 +732,130 @@ const requireSuperAdmin = (req, res, next) => {
 app.get('/superadmin', requireSuperAdmin, async (req, res) => {
     try {
         const allUsers = await User.find({ role: { $in: ['admin', 'staff'] } }).sort({ _id: -1 }).lean();
-        const pendingUsers = allUsers.filter(u => u.status === 'pending');
-        const approvedUsers = allUsers.filter(u => u.status === 'approved' || !u.status);
-        const rejectedUsers = allUsers.filter(u => u.status === 'rejected');
+
+        // Calculate staff count per admin
+        const staffCounts = await User.aggregate([
+            { $match: { role: 'staff' } },
+            { $group: { _id: "$adminId", count: { $sum: 1 } } }
+        ]);
+        const staffMap = {};
+        staffCounts.forEach(s => { if (s._id) staffMap[s._id.toString()] = s.count; });
+
+        // Calculate party count per admin
+        const partyCounts = await Customer.aggregate([
+            { $group: { _id: "$adminId", count: { $sum: 1 } } }
+        ]);
+        const partyMap = {};
+        partyCounts.forEach(p => { if (p._id) partyMap[p._id.toString()] = p.count; });
+
+        // Enforce & format metrics on each user object
+        const enrichedUsers = allUsers.map(u => {
+            const idStr = u._id.toString();
+            return {
+                ...u,
+                staffCount: staffMap[idStr] || 0,
+                partyCount: partyMap[idStr] || 0,
+                maxStaffLimit: u.maxStaffLimit ?? 5,
+                maxCustomersLimit: u.maxCustomersLimit ?? 500,
+                dailyMessageLimit: u.dailyMessageLimit ?? 100,
+                dailyMessageCount: u.dailyMessageCount || 0
+            };
+        });
+
+        const pendingUsers = enrichedUsers.filter(u => u.status === 'pending');
+        const approvedUsers = enrichedUsers.filter(u => u.status === 'approved' || !u.status);
+        const rejectedUsers = enrichedUsers.filter(u => u.status === 'rejected');
 
         res.render('superadmin', {
             superadminUsername: req.session.username || 'Super Admin',
             pendingUsers,
             approvedUsers,
-            rejectedUsers
+            rejectedUsers,
+            msg: req.query.msg || null,
+            error: req.query.error || null
         });
     } catch (err) {
         res.status(500).send("Error loading Super Admin dashboard: " + err.message);
+    }
+});
+
+app.post('/superadmin/update-limits/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status } = req.body;
+
+        const updateData = {
+            maxStaffLimit: Math.max(0, parseInt(maxStaffLimit) || 0),
+            maxCustomersLimit: Math.max(0, parseInt(maxCustomersLimit) || 0),
+            dailyMessageLimit: Math.max(0, parseInt(dailyMessageLimit) || 0)
+        };
+
+        if (status && ['approved', 'pending', 'rejected'].includes(status)) {
+            updateData.status = status;
+        }
+
+        if (planExpiryDate) {
+            updateData.planExpiryDate = new Date(planExpiryDate);
+        } else if (planExpiryDate === '') {
+            updateData.planExpiryDate = null;
+        }
+
+        const targetUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        res.redirect('/superadmin?msg=' + encodeURIComponent(`Updated plan limits for ${targetUser ? targetUser.username : 'admin'}.`) + '&tab=approvedTab');
+    } catch (err) {
+        console.error("Update limits error:", err);
+        res.redirect('/superadmin?error=' + encodeURIComponent('Failed to update limits: ' + err.message) + '&tab=approvedTab');
+    }
+});
+
+app.post('/superadmin/change-credentials', requireSuperAdmin, async (req, res) => {
+    try {
+        const { newUsername, currentPassword, newPassword, confirmPassword } = req.body;
+        const cleanUsername = (newUsername || '').trim();
+
+        if (!cleanUsername || !currentPassword || !newPassword) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('All fields are required.') + '&tab=settingsTab');
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('New password and confirm password do not match.') + '&tab=settingsTab');
+        }
+
+        if (newPassword.length < 6) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('New password must be at least 6 characters long.') + '&tab=settingsTab');
+        }
+
+        const user = await User.findById(req.session.userId);
+        if (!user || user.role !== 'superadmin') {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Super Admin account not found.') + '&tab=settingsTab');
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.redirect('/superadmin?error=' + encodeURIComponent('Current password is incorrect.') + '&tab=settingsTab');
+        }
+
+        if (cleanUsername.toLowerCase() !== user.username.toLowerCase()) {
+            const existingUser = await User.findOne({
+                username: new RegExp('^' + escapeRegExp(cleanUsername) + '$', 'i'),
+                _id: { $ne: user._id }
+            });
+            if (existingUser) {
+                return res.redirect('/superadmin?error=' + encodeURIComponent('Username "' + cleanUsername + '" is already taken.') + '&tab=settingsTab');
+            }
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.username = cleanUsername;
+        user.password = hashedPassword;
+        user.plainPassword = newPassword;
+        await user.save();
+
+        req.session.username = cleanUsername;
+
+        res.redirect('/superadmin?msg=' + encodeURIComponent('Credentials updated successfully! Logged in as: ' + cleanUsername) + '&tab=settingsTab');
+    } catch (err) {
+        console.error("Superadmin change credentials error:", err);
+        res.redirect('/superadmin?error=' + encodeURIComponent('Failed to update credentials: ' + err.message) + '&tab=settingsTab');
     }
 });
 
@@ -758,6 +888,16 @@ app.post('/create-staff', requireLogin, async (req, res) => {
         const rawUsername = req.body.username ? req.body.username.trim() : '';
         if (!rawUsername || !req.body.password) {
             return res.redirect('/staff?error=missing_fields');
+        }
+
+        // Quota check: Staff limit
+        const adminUser = await User.findById(req.session.adminId);
+        const maxStaff = adminUser ? (adminUser.maxStaffLimit ?? 5) : 5;
+        if (maxStaff > 0) {
+            const currentStaffCount = await User.countDocuments({ role: 'staff', adminId: req.session.adminId });
+            if (currentStaffCount >= maxStaff) {
+                return res.redirect('/staff?error=quota_exceeded&msg=' + encodeURIComponent(`Staff limit reached (${currentStaffCount}/${maxStaff}). Contact Super Admin to upgrade your quota.`));
+            }
         }
         const existingUser = await User.findOne({ username: new RegExp('^' + escapeRegExp(rawUsername) + '$', 'i') });
         if (existingUser) {
@@ -1050,6 +1190,16 @@ app.get('/customers/check-duplicate', requireLogin, async (req, res) => {
 app.post('/customers', requireLogin, async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
     try {
+        // Quota check: Customer / Party limit
+        const adminUser = await User.findById(req.session.adminId);
+        const maxCust = adminUser ? (adminUser.maxCustomersLimit ?? 500) : 500;
+        if (maxCust > 0) {
+            const currentPartyCount = await Customer.countDocuments({ adminId: req.session.adminId });
+            if (currentPartyCount >= maxCust) {
+                return res.redirect('/?quota_error=1&msg=' + encodeURIComponent(`Party limit reached (${currentPartyCount}/${maxCust}). Contact Super Admin to upgrade your quota.`));
+            }
+        }
+
         const totalAmt = parseFloat(req.body.totalAmount) || 0;
         const phoneCombined = (req.body.countryCode || '91') + (req.body.localPhone || '');
         const autoDate = new Date();
