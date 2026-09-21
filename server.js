@@ -72,31 +72,73 @@ app.use(session({
     }
 }));
 
+const isJsonReq = (req) => {
+    return req.xhr || 
+           (req.headers.accept && req.headers.accept.includes('application/json')) ||
+           (req.headers['content-type'] && req.headers['content-type'].includes('application/json'));
+};
+
 const requireLogin = async (req, res, next) => {
-    if (!req.session.userId) return res.redirect('/login');
+    if (!req.session || !req.session.userId) {
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
+    }
+
     if (req.session.role === 'customer' || req.session.role === 'superadmin') return next();
 
     try {
         const adminId = req.session.adminId || req.session.userId;
         const adminUser = await User.findById(adminId).lean();
-        if (adminUser) {
-            if (adminUser.status === 'suspended') {
-                req.session.destroy();
-                return res.redirect('/login?error=' + encodeURIComponent("⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account."));
+        if (!adminUser) {
+            req.session.destroy();
+            if (isJsonReq(req)) {
+                return res.status(401).json({ success: false, redirect: '/login', message: "Account not found. Please log in again." });
             }
-            if (adminUser.status === 'rejected') {
-                req.session.destroy();
-                return res.redirect('/login?error=' + encodeURIComponent("❌ Your access has been revoked. Please contact support."));
+            return res.redirect('/login?error=' + encodeURIComponent("Account not found. Please log in again."));
+        }
+        if (adminUser.status === 'suspended') {
+            req.session.destroy();
+            if (isJsonReq(req)) {
+                return res.status(401).json({ success: false, redirect: '/login', message: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin." });
             }
-            if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
-                req.session.destroy();
-                return res.redirect('/login?error=' + encodeURIComponent("⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription."));
+            return res.redirect('/login?error=' + encodeURIComponent("⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account."));
+        }
+        if (adminUser.status === 'rejected') {
+            req.session.destroy();
+            if (isJsonReq(req)) {
+                return res.status(401).json({ success: false, redirect: '/login', message: "❌ Your access has been revoked. Please contact support." });
             }
+            return res.redirect('/login?error=' + encodeURIComponent("❌ Your access has been revoked. Please contact support."));
+        }
+        if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
+            req.session.destroy();
+            if (isJsonReq(req)) {
+                return res.status(401).json({ success: false, redirect: '/login', message: "⌛ Your subscription plan has expired. Please contact Super Admin." });
+            }
+            return res.redirect('/login?error=' + encodeURIComponent("⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription."));
         }
     } catch (e) {
         console.error("Auth status check error:", e);
     }
     next();
+};
+
+const requireAdmin = async (req, res, next) => {
+    if (!req.session || !req.session.userId) {
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
+    }
+    if (req.session.role !== 'admin') {
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Admin session required." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Admin access required. Please log in as Admin."));
+    }
+    return requireLogin(req, res, next);
 };
 
 const activitySchema = new mongoose.Schema({
@@ -143,8 +185,7 @@ function getOAuth2Client(tokens) {
 }
 
 // 1. Route to start Google Drive Connection
-app.get('/auth/google', requireLogin, (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.get('/auth/google', requireAdmin, (req, res) => {
     const client = getOAuth2Client();
     const url = client.generateAuthUrl({
         access_type: 'offline',
@@ -186,7 +227,10 @@ app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
 
 app.get('/drive-backup', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin' && req.session.role !== 'superadmin') {
-        return res.status(403).json({ success: false, message: "Unauthorized" });
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
     }
     try {
         const adminUser = await User.findById(req.session.adminId).lean();
@@ -233,8 +277,7 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
 });
 
 // 4. The "WhatsApp Style" Silent Restore Route
-app.get('/drive-restore', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.get('/drive-restore', requireAdmin, async (req, res) => {
     try {
         const adminUser = await User.findById(req.session.adminId).lean();
         if (!adminUser || !adminUser.googleDriveToken) {
@@ -420,8 +463,8 @@ async function runAutoBackups() {
 
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
-    if (req.session.userId) return res.redirect('/');
-    res.render('login', { error: null });
+    if (req.session && req.session.userId) return res.redirect('/');
+    res.render('login', { error: req.query.error || null });
 });
 
 app.post('/login', async (req, res) => {
@@ -586,6 +629,21 @@ app.get('/', async (req, res) => {
 
         const adminUser = await User.findById(req.session.adminId).lean() || {};
 
+        if (adminUser && adminUser._id) {
+            if (adminUser.status === 'suspended') {
+                req.session.destroy();
+                return res.redirect('/login?error=' + encodeURIComponent("⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account."));
+            }
+            if (adminUser.status === 'rejected') {
+                req.session.destroy();
+                return res.redirect('/login?error=' + encodeURIComponent("❌ Your access has been revoked. Please contact support."));
+            }
+            if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
+                req.session.destroy();
+                return res.redirect('/login?error=' + encodeURIComponent("⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription."));
+            }
+        }
+
         // Subscription Expiry Warning Check (10 days left or less)
         let subscriptionAlert = null;
         if (adminUser.planExpiryDate) {
@@ -678,8 +736,7 @@ app.get('/', async (req, res) => {
 });
 
 // 3. ADMIN PAGES
-app.get('/staff', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.get('/staff', requireAdmin, async (req, res) => {
     try {
         const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
         const adminUser = await User.findById(req.session.adminId).lean() || {};
@@ -720,8 +777,7 @@ app.get('/activity', requireLogin, async (req, res) => {
     } catch (err) { res.status(500).send("Error loading activity."); }
 });
 
-app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.post('/activity/delete-bulk', requireAdmin, async (req, res) => {
     try {
         const { filterType, startDate, endDate } = req.body;
         let query = { adminId: req.session.adminId };
@@ -745,8 +801,7 @@ app.post('/activity/delete-bulk', requireLogin, async (req, res) => {
     } catch (err) { res.status(500).send("Failed to delete logs."); }
 });
 
-app.put('/settings', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.put('/settings', requireAdmin, async (req, res) => {
     await User.findByIdAndUpdate(req.session.adminId, {
         companyName: req.body.companyName, addressLine1: req.body.addressLine1, addressLine2: req.body.addressLine2,
         addressLine3: req.body.addressLine3, dlNo: req.body.dlNo, msmeNo: req.body.msmeNo,
@@ -758,8 +813,7 @@ app.put('/settings', requireLogin, async (req, res) => {
     res.redirect('/?msg=party_edited');
 });
 
-app.put('/settings/auto-backup', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.put('/settings/auto-backup', requireAdmin, async (req, res) => {
     try {
         await User.findByIdAndUpdate(req.session.adminId, {
             autoBackupInterval: Number(req.body.autoBackupInterval) || 0
@@ -808,13 +862,19 @@ app.post('/register', async (req, res) => {
 
 // ── SUPER ADMIN ROUTES ──
 const requireSuperAdmin = (req, res, next) => {
-    if (!req.session.userId) {
-        return res.redirect('/login');
+    if (!req.session || !req.session.userId) {
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Session expired. Please log in again."));
     }
     if (req.session.role === 'superadmin') {
         next();
     } else {
-        res.status(403).send("Forbidden: Super Admin access required.");
+        if (isJsonReq(req)) {
+            return res.status(401).json({ success: false, redirect: '/login', message: "Super Admin access required." });
+        }
+        return res.redirect('/login?error=' + encodeURIComponent("Super Admin access required. Please log in as Super Admin."));
     }
 };
 
@@ -1010,8 +1070,7 @@ app.post('/superadmin/reject/:id', requireSuperAdmin, async (req, res) => {
 app.get('/create-staff', (req, res) => res.redirect('/staff'));
 app.get('/reset-staff-password', (req, res) => res.redirect('/staff'));
 
-app.post('/create-staff', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.post('/create-staff', requireAdmin, async (req, res) => {
     try {
         const rawUsername = req.body.username ? req.body.username.trim() : '';
         if (!rawUsername || !req.body.password) {
@@ -1055,8 +1114,7 @@ app.post('/create-staff', requireLogin, async (req, res) => {
     }
 });
 
-app.post('/reset-staff-password', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.post('/reset-staff-password', requireAdmin, async (req, res) => {
     try {
         const { staffId, newPassword } = req.body;
         if (!staffId || !newPassword) return res.redirect('/staff?error=missing_fields');
@@ -1073,8 +1131,7 @@ app.post('/reset-staff-password', requireLogin, async (req, res) => {
     }
 });
 
-app.delete('/staff/:id', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.delete('/staff/:id', requireAdmin, async (req, res) => {
     try {
         const staff = await User.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
         if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
@@ -1086,7 +1143,7 @@ app.delete('/staff/:id', requireLogin, async (req, res) => {
 });
 
 // --- EXPORT (Perfectly Mapped & Styled to Tally Format) ---
-app.get('/export', requireLogin, async (req, res) => {
+app.get('/export', requireAdmin, async (req, res) => {
     try {
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
         const admin = await User.findById(req.session.adminId).lean();
@@ -1373,8 +1430,7 @@ app.post('/customers', requireLogin, async (req, res) => {
     } catch (err) { res.status(500).send("Error adding customer."); }
 });
 
-app.put('/customers/:id/edit', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.send("Unauthorized");
+app.put('/customers/:id/edit', requireAdmin, async (req, res) => {
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.redirect('/');
@@ -1410,8 +1466,7 @@ app.put('/customers/:id/edit', requireLogin, async (req, res) => {
     }
 });
 
-app.delete('/customers/:id', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.delete('/customers/:id', requireAdmin, async (req, res) => {
     const customer = await Customer.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
     if (customer) await logActivity(req, "Deleted Party", `Permanently deleted party: ${customer.companyName || 'Party'}`);
     res.redirect('/');
@@ -1475,8 +1530,7 @@ app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
     res.redirect('/');
 });
 
-app.post('/customers/bulk', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send("Unauthorized");
+app.post('/customers/bulk', requireAdmin, async (req, res) => {
     const body = req.body;
     const action = body.action;
 
@@ -1512,8 +1566,7 @@ app.post('/customers/bulk', requireLogin, async (req, res) => {
 });
 
 // JSON BACKUP FIXED: Forces file download instead of showing code on screen
-app.get('/backup-data', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+app.get('/backup-data', requireAdmin, async (req, res) => {
     try {
         const adminUser = await User.findById(req.session.adminId).lean();
         const customers = await Customer.find({ adminId: req.session.adminId }).lean();
@@ -1549,8 +1602,7 @@ app.get('/backup-data', requireLogin, async (req, res) => {
     }
 });
 
-app.post('/restore-backup', upload.single('backupFile'), requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
+app.post('/restore-backup', upload.single('backupFile'), requireAdmin, async (req, res) => {
     try {
         if (!req.file) return res.redirect('/?restoreError=nofile');
 
@@ -1616,8 +1668,7 @@ app.post('/change-password', requireLogin, async (req, res) => {
     }
 });
 
-app.post('/clear-all-data', requireLogin, async (req, res) => {
-    if (req.session.role !== 'admin') return res.status(403).send('Unauthorized');
+app.post('/clear-all-data', requireAdmin, async (req, res) => {
     try {
         const result = await Customer.deleteMany({ adminId: req.session.adminId });
         await logActivity(req, 'Data Cleared', `All party data permanently deleted (${result.deletedCount} parties removed).`);
