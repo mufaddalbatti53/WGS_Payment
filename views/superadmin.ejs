@@ -803,7 +803,7 @@
                                             data-dailymsgs="<%= u.dailyMessageLimit %>"
                                             data-planexpiry="<%= u.planExpiryDate %>"
                                             data-status="<%= u.status %>"
-                                            data-staff="<%= (JSON.stringify(u.staffList || [])).replace(/"/g, '&quot;') %>"
+                                            data-staff="<%= encodeURIComponent(JSON.stringify(u.staffList || [])) %>"
                                             onclick="openLimitsModal(this)">⚙️ Manage Admin & Staff</button>
                                         <form action="/superadmin/reject/<%= u._id %>" method="POST" style="display:inline;">
                                             <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to revoke access for this admin?')">Revoke 🚫</button>
@@ -876,7 +876,7 @@
                                             data-dailymsgs="<%= u.dailyMessageLimit %>"
                                             data-planexpiry="<%= u.planExpiryDate %>"
                                             data-status="<%= u.status %>"
-                                            data-staff="<%= (JSON.stringify(u.staffList || [])).replace(/"/g, '&quot;') %>"
+                                            data-staff="<%= encodeURIComponent(JSON.stringify(u.staffList || [])) %>"
                                             onclick="openLimitsModal(this)">⚙️ Manage Admin & Staff</button>
                                     </td>
                                 </tr>
@@ -1081,9 +1081,20 @@
 
             let staffList = [];
             try {
-                staffList = JSON.parse(rawStaff || '[]');
+                let decoded = rawStaff ? rawStaff : '[]';
+                if (decoded.includes('%')) {
+                    decoded = decodeURIComponent(decoded);
+                }
+                staffList = JSON.parse(decoded || '[]');
+                if (!Array.isArray(staffList)) staffList = [];
             } catch (e) {
                 console.error("Failed to parse staff data", e);
+                try {
+                    staffList = JSON.parse(rawStaff || '[]');
+                    if (!Array.isArray(staffList)) staffList = [];
+                } catch (e2) {
+                    staffList = [];
+                }
             }
 
             const badge = document.getElementById('modalStaffBadge');
