@@ -116,7 +116,27 @@
             margin-left: 260px;
             padding: 30px;
             padding-bottom: 80px;
-            max-width: 100%;
+            width: calc(100% - 260px);
+            max-width: calc(100% - 260px);
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        /* Custom scrollbar styling for table card horizontal overflow */
+        .floating-card::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .floating-card::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        .floating-card::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        .floating-card::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         /* --- MOBILE LAYOUT --- */
@@ -1012,7 +1032,7 @@
                                     Clear</button>
                             </div>
 
-                            <div class="floating-card" style="padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 20px; position: relative;">
+                            <div class="floating-card" style="padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 20px; position: relative; width: 100%; max-width: 100%;">
                                 <table id="mainTable">
                                     <thead>
                                         <tr>
@@ -1020,12 +1040,12 @@
                                                 <th style="width: 40px; text-align: center;"><input type="checkbox"
                                                         id="selectAll" class="checkbox-custom"></th>
                                                 <% } %>
-                                                    <th>Party Details</th>
-                                                    <th>Contact Info</th>
-                                                    <th>Financials</th>
+                                                    <th style="min-width: 200px;">Party Details</th>
+                                                    <th style="min-width: 160px;">Contact Info</th>
+                                                    <th style="min-width: 140px;">Financials</th>
                                                     <% if (role !=='customer' ) { %>
-                                                        <th>Next Action</th>
-                                                        <th style="text-align: right; padding-right: 20px;">Manage</th>
+                                                        <th style="min-width: 140px;">Next Action</th>
+                                                        <th style="min-width: 200px; text-align: right; padding-right: 20px;">Manage</th>
                                                         <% } %>
                                         </tr>
                                     </thead>
