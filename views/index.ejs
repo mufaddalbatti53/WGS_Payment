@@ -148,6 +148,8 @@
             .main-content {
                 margin-left: 0;
                 padding: 15px;
+                width: 100%;
+                max-width: 100%;
             }
 
             .desktop-only {
@@ -832,7 +834,7 @@
                         </div>
                     </div>
 
-                    <button class="back-to-launcher" id="backBtn" onclick="handleMobileBack()">← Home</button>
+                    <button class="back-to-launcher" id="backBtn" onclick="mobileBack()">← Home</button>
                     <% } %>
 
                         <div id="viewAging" class="section-view active">
@@ -1709,6 +1711,7 @@
 
                 // --- NAVIGATION LOGIC WITH MEMORY ---
                 function switchTab(tabId) {
+                    if (isMobile) { openMobileSection(tabId); return; }
                     localStorage.setItem('activeWgsTab', tabId);
                     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
                     var nav = document.getElementById('nav-' + tabId); if (nav) nav.classList.add('active');
@@ -1716,34 +1719,51 @@
                     var view = document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1)); if (view) view.classList.add('active');
                 }
 
-                function openMobileSection(sectionId, fromSection) {
-                    if (!isMobile) return;
+                function renderMobileSection(sectionId, fromSection) {
                     localStorage.setItem('activeWgsTab', sectionId);
-                    if (fromSection) mobileHistory.push(fromSection); else mobileHistory = ['home'];
-                    document.getElementById('homeLauncher').style.display = 'none';
+                    var launcher = document.getElementById('homeLauncher');
+                    if (launcher) launcher.style.display = 'none';
                     document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
-                    document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1)).style.display = 'block';
+                    var view = document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1));
+                    if (view) view.style.display = 'block';
 
                     var backBtn = document.getElementById('backBtn');
-                    backBtn.style.display = 'block';
-                    if (sectionId === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
-                    else if (sectionId === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
-                    else if (sectionId === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
-                    else if (sectionId === 'data') backBtn.innerHTML = '← Home  |  🗄️ Data Management';
+                    if (backBtn) {
+                        backBtn.style.display = 'block';
+                        if (sectionId === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
+                        else if (sectionId === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
+                        else if (sectionId === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
+                        else if (sectionId === 'data') backBtn.innerHTML = '← Home  |  🗄️ Data Management';
+                        else backBtn.innerHTML = '← Back';
+                    }
+                    window.scrollTo(0, 0);
                 }
 
-                function handleMobileBack() {
-                    var lastStop = mobileHistory.pop();
-                    if (lastStop === 'aging') { openMobileSection('aging'); mobileHistory = ['home']; }
-                    else {
-                        localStorage.removeItem('activeWgsTab');
-                        document.getElementById('homeLauncher').style.display = 'block';
-                        document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
-                        document.getElementById('backBtn').style.display = 'none';
-                        mobileHistory = [];
-                        clearFilter();
-                    }
+                function showMobileHome() {
+                    localStorage.removeItem('activeWgsTab');
+                    var launcher = document.getElementById('homeLauncher');
+                    if (launcher) launcher.style.display = 'block';
+                    document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
+                    var backBtn = document.getElementById('backBtn');
+                    if (backBtn) backBtn.style.display = 'none';
+                    if (typeof clearFilter === 'function') clearFilter();
+                    window.scrollTo(0, 0);
                 }
+
+                function openMobileSection(sectionId, fromSection) {
+                    if (!isMobile) return;
+                    try { history.pushState({ wgsSection: sectionId, wgsFrom: fromSection || null }, '', location.pathname); } catch (e) {}
+                    renderMobileSection(sectionId, fromSection);
+                }
+
+                function mobileBack() { history.back(); }
+
+                window.addEventListener('popstate', function (e) {
+                    if (!isMobile) return;
+                    var st = e.state;
+                    if (st && st.wgsSection) renderMobileSection(st.wgsSection, st.wgsFrom);
+                    else showMobileHome();
+                });
 
                 // --- MODAL TRIGGERS ---
                 function openEditModal(id, comp, cont, ph, wa, em, tot, paid, oth) {
@@ -2121,8 +2141,15 @@
                     var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
                     if (!isMobile) {
                         switchTab(savedTab);
-                    } else if (savedTab && savedTab !== 'home') {
-                        openMobileSection(savedTab);
+                    } else if (params.get('from') === 'login') {
+                        window.history.replaceState({ wgsSection: null }, document.title, '/');
+                        showMobileHome();
+                    } else if (savedTab && savedTab !== 'home' && document.getElementById('view' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1))) {
+                        renderMobileSection(savedTab);
+                        window.history.replaceState({ wgsSection: savedTab }, document.title, location.pathname);
+                    } else {
+                        window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
+                        showMobileHome();
                     }
                 };
             </script>
