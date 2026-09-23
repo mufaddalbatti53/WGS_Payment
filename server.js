@@ -535,7 +535,7 @@ app.post('/login', async (req, res) => {
             req.session.userId = customer._id;
             req.session.role = 'customer';
             req.session.adminId = customer.adminId;
-            return res.redirect('/');
+            return res.redirect('/?from=login');
         }
 
         const { username, password } = req.body;
@@ -582,7 +582,7 @@ app.post('/login', async (req, res) => {
             if (user.role === 'superadmin') {
                 return res.redirect('/superadmin');
             }
-            return res.redirect('/');
+            return res.redirect('/?from=login');
         } else {
             return res.render('login', { error: "Invalid username or password." });
         }
