@@ -804,13 +804,13 @@
                                     <strong style="font-size:16px;">Data Mgmt</strong>
                                     <span style="font-size:12px; color:var(--text-muted);">Backups & Imports</span>
                                 </a>
-                                <a class="launcher-tile" href="/staff">
+                                <a class="launcher-tile" href="/staff" onclick="localStorage.removeItem('activeWgsTab')">
                                     <div class="launcher-icon" style="background: #fce7f3;">👤</div>
                                     <strong style="font-size:16px;">Staff</strong>
                                     <span style="font-size:12px; color:var(--text-muted);">Manage Team</span>
                                 </a>
                                 <% } %>
-                                    <a class="launcher-tile" href="/activity">
+                                    <a class="launcher-tile" href="/activity" onclick="localStorage.removeItem('activeWgsTab')">
                                         <div class="launcher-icon" style="background: #fef3c7;">📜</div>
                                         <strong style="font-size:16px;">Activity Log</strong>
                                         <span style="font-size:12px; color:var(--text-muted);">Audit Trail</span>
@@ -2144,9 +2144,15 @@
                     } else if (params.get('from') === 'login') {
                         window.history.replaceState({ wgsSection: null }, document.title, '/');
                         showMobileHome();
+                    } else if (history.state && Object.prototype.hasOwnProperty.call(history.state, 'wgsSection')) {
+                        // Returning via back/forward: restore exactly what this history entry showed
+                        if (history.state.wgsSection) renderMobileSection(history.state.wgsSection, history.state.wgsFrom);
+                        else showMobileHome();
                     } else if (savedTab && savedTab !== 'home' && document.getElementById('view' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1))) {
+                        // Fresh load: put Home underneath so Back goes to Home, never to another page
+                        window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
+                        window.history.pushState({ wgsSection: savedTab, wgsFrom: null }, document.title, location.pathname);
                         renderMobileSection(savedTab);
-                        window.history.replaceState({ wgsSection: savedTab }, document.title, location.pathname);
                     } else {
                         window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
                         showMobileHome();
