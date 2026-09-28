@@ -1,7 +1,5 @@
-const CACHE_NAME = 'wgs-payment-v1';
+const CACHE_NAME = 'wgs-payment-v2';
 const ASSETS_TO_CACHE = [
-    '/',
-    '/login',
     '/manifest.json',
     '/favicon.ico',
     '/images/WGS.png'
@@ -31,6 +29,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
+    // Never cache HTML pages (dashboard, login) — they contain private data
+    // and must always come from the network so logged-out/shared devices
+    // can never see a previous user's data.
+    if (event.request.headers.get('accept')?.includes('text/html')) return;
     event.respondWith(
         fetch(event.request)
             .then((response) => {
@@ -42,13 +44,6 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             })
-            .catch(() => {
-                return caches.match(event.request).then((cachedResponse) => {
-                    if (cachedResponse) return cachedResponse;
-                    if (event.request.headers.get('accept')?.includes('text/html')) {
-                        return caches.match('/login');
-                    }
-                });
-            })
+            .catch(() => caches.match(event.request))
     );
 });
