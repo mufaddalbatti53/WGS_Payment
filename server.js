@@ -19,6 +19,15 @@ const ActivityLog = require('./models/Activity');
 
 const app = express();
 
+// Hostinger VPS health check. Nginx and monitoring can use this without a login.
+let databaseReady = false;
+app.get('/health', (req, res) => {
+    res.status(databaseReady ? 200 : 503).json({
+        status: databaseReady ? 'ok' : 'starting',
+        database: databaseReady ? 'connected' : 'connecting'
+    });
+});
+
 // --- DATABASE CONNECTION ---
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
 
@@ -68,15 +77,21 @@ async function ensureSuperAdminAccount() {
 mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ DB Connected Successfully");
+        databaseReady = true;
         ensureSuperAdminAccount();
         shiftAgingBuckets();
         runAutoBackups(); // Run on startup
         setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
         setInterval(runAutoBackups, 24 * 60 * 60 * 1000); // Check for backups every 24 hours
     })
-    .catch(err => console.log("❌ DB Connection Error: ", err));
+    .catch(err => {
+        databaseReady = false;
+        console.log("❌ DB Connection Error: ", err);
+    });
 
 // --- CONFIGURATION ---
+// Required when HTTPS is terminated by Hostinger's Nginx reverse proxy.
+app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'favicon.ico')));
@@ -93,7 +108,10 @@ app.use(session({
         autoRemove: 'native'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
     }
 }));
 
