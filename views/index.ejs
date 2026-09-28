@@ -703,6 +703,57 @@
             accent-color: var(--primary);
             cursor: pointer;
         }
+    
+        /* ── MOBILE: party cards must never inherit the desktop table width ── */
+        @media (max-width: 850px) {
+            html, body {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .main-content,
+            .section-view,
+            .floating-card,
+            .table-controls {
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .floating-card {
+                overflow: visible;
+            }
+
+            table {
+                min-width: 0 !important;
+                max-width: 100% !important;
+                table-layout: auto;
+            }
+
+            .search-micro {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .m-name,
+            .m-fin,
+            .m-tool-btn {
+                min-width: 0;
+            }
+
+            .m-name strong,
+            .m-name a,
+            .m-fin,
+            .m-tools,
+            .m-tool-btn {
+                overflow-wrap: anywhere;
+            }
+
+            .m-tools {
+                width: 100%;
+            }
+        }
+
     </style>
 </head>
 
