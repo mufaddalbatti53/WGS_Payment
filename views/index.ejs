@@ -1233,7 +1233,7 @@
                                                                                                                 0) { %>
                                                                                                                 <button
                                                                                                                     class="btn-table"
-                                                                                                                    onclick="openActionModal('<%= customer._id %>', '<%= customer.companyName %>')">📅
+                                                                                                                    onclick='openActionModal(<%- JSON.stringify(String(customer._id)) %>, <%- JSON.stringify(customer.companyName || "") %>)'>📅
                                                                                                                     Action
                                                                                                                     Date</button>
                                                                                                                 <% } %>
@@ -1248,7 +1248,7 @@
                                                                                                                             <button
                                                                                                                                 class="btn-table"
                                                                                                                                 style="flex:1;"
-                                                                                                                                onclick="openEditModal('<%= customer._id %>', '<%= customer.companyName %>', '<%= customer.contactPerson %>', '<%= customer.phone %>', '<%= customer.whatsappNumber %>', '<%= customer.email %>', '<%= customer.totalAmount %>', '<%= customer.paidAmount %>', '<%= customer.otherNumbers %>')">✏️
+                                                                                                                                onclick='openEditModal(<%- JSON.stringify(String(customer._id)) %>, <%- JSON.stringify(customer.companyName || "") %>, <%- JSON.stringify(customer.contactPerson || "") %>, <%- JSON.stringify(customer.phone || "") %>, <%- JSON.stringify(customer.whatsappNumber || "") %>, <%- JSON.stringify(customer.email || "") %>, <%- JSON.stringify(String(customer.totalAmount || 0)) %>, <%- JSON.stringify(String(customer.paidAmount || 0)) %>, <%- JSON.stringify(customer.otherNumbers || "") %>)'>✏️
                                                                                                                                 Edit</button>
                                                                                                                             <form
                                                                                                                                 action="/customers/<%= customer._id %>?_method=DELETE"
@@ -1413,7 +1413,7 @@
                                                                                                                             %>
                                                                                                                             <button
                                                                                                                                 class="m-tool-btn"
-                                                                                                                                onclick="openActionModal('<%= customer._id %>', '<%= customer.companyName %>')">📅
+                                                                                                                                onclick='openActionModal(<%- JSON.stringify(String(customer._id)) %>, <%- JSON.stringify(customer.companyName || "") %>)'>📅
                                                                                                                                 Action</button>
                                                                                                                             <% }
                                                                                                                                 %>
@@ -1424,7 +1424,7 @@
                                                                                                                                     %>
                                                                                                                                     <button
                                                                                                                                         class="m-tool-btn"
-                                                                                                                                        onclick="openEditModal('<%= customer._id %>', '<%= customer.companyName %>', '<%= customer.contactPerson %>', '<%= customer.phone %>', '<%= customer.whatsappNumber %>', '<%= customer.email %>', '<%= customer.totalAmount %>', '<%= customer.paidAmount %>', '<%= customer.otherNumbers %>')">✏️</button>
+                                                                                                                                        onclick='openEditModal(<%- JSON.stringify(String(customer._id)) %>, <%- JSON.stringify(customer.companyName || "") %>, <%- JSON.stringify(customer.contactPerson || "") %>, <%- JSON.stringify(customer.phone || "") %>, <%- JSON.stringify(customer.whatsappNumber || "") %>, <%- JSON.stringify(customer.email || "") %>, <%- JSON.stringify(String(customer.totalAmount || 0)) %>, <%- JSON.stringify(String(customer.paidAmount || 0)) %>, <%- JSON.stringify(customer.otherNumbers || "") %>)'>✏️</button>
                                                                                                                                     <form
                                                                                                                                         action="/customers/<%= customer._id %>?_method=DELETE"
                                                                                                                                         method="POST"
@@ -1993,7 +1993,7 @@
                 function triggerDriveRestore() {
                     if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
                         showToast("⏳ Downloading backup from Google Drive...");
-                        fetch('/drive-restore')
+                        fetch('/drive-restore', { method: 'POST' })
                             .then(response => {
                                 if (response.status === 401) {
                                     window.location.href = '/login?error=' + encodeURIComponent("Session expired. Please log in again.");
