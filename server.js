@@ -20,20 +20,28 @@ const ActivityLog = require('./models/Activity');
 const app = express();
 
 // --- DATABASE CONNECTION ---
-const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+const dbURI = process.env.MONGODB_URI;
+if (!dbURI) {
+    console.error("❌ MONGODB_URI environment variable is not set. Set it in your hosting dashboard (Render → Environment).");
+    process.exit(1);
+}
 
 async function ensureSuperAdminAccount() {
     try {
         const existingSuper = await User.findOne({ username: 'superadmin' });
         if (!existingSuper) {
-            await User.create({
-                username: 'superadmin',
-                password: '$2b$10$QKo/6ChmBFeP8UZRYGt/aO3vURZiLC.iF3ikC3MkBEsCyES.m8j4e',
-                plainPassword: 'superadmin123',
-                role: 'superadmin',
-                status: 'approved'
-            });
-            console.log("✅ Super Admin account initialized.");
+            const initialPassword = process.env.SUPERADMIN_INITIAL_PASSWORD;
+            if (!initialPassword) {
+                console.warn("⚠️ No superadmin account exists and SUPERADMIN_INITIAL_PASSWORD is not set. Skipping superadmin creation.");
+            } else {
+                await User.create({
+                    username: 'superadmin',
+                    password: await bcrypt.hash(initialPassword, 10),
+                    role: 'superadmin',
+                    status: 'approved'
+                });
+                console.log("✅ Super Admin account initialized.");
+            }
         }
         // Auto-approve pre-existing admin accounts created prior to status requirement
         const updateResult = await User.updateMany(
@@ -84,7 +92,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 1000
 app.use(express.json({ limit: '50mb' }));
 app.use(methodOverride('_method'));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'wgs_payment_tracker_production_secret_key_2026',
+    secret: process.env.SESSION_SECRET || (() => { console.error("❌ SESSION_SECRET environment variable is not set."); process.exit(1); })(),
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -96,6 +104,30 @@ app.use(session({
         maxAge: 1000 * 60 * 60 * 24
     }
 }));
+
+// Basic security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    next();
+});
+
+// Simple in-memory login rate limiter (per IP): 10 attempts / 10 min
+const loginAttempts = new Map();
+function loginRateLimit(req, res, next) {
+    const key = req.ip || 'unknown';
+    const now = Date.now();
+    const rec = loginAttempts.get(key) || { count: 0, resetAt: now + 10 * 60 * 1000 };
+    if (now > rec.resetAt) { rec.count = 0; rec.resetAt = now + 10 * 60 * 1000; }
+    if (rec.count >= 10) {
+        return res.render('login', { error: "Too many login attempts. Please try again in a few minutes." });
+    }
+    rec.count += 1;
+    loginAttempts.set(key, rec);
+    if (loginAttempts.size > 5000) loginAttempts.clear();
+    next();
+}
 
 const isJsonReq = (req) => {
     return req.xhr || 
@@ -299,7 +331,11 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
 });
 
 // 4. The "WhatsApp Style" Silent Restore Route
-app.get('/drive-restore', requireLogin, async (req, res) => {
+app.get('/drive-restore', requireLogin, (req, res) => {
+    res.status(405).json({ success: false, message: "Restore must be confirmed via POST." });
+});
+
+app.post('/drive-restore', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin' && req.session.role !== 'superadmin') {
         if (isJsonReq(req)) {
             return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
@@ -347,7 +383,7 @@ app.get('/drive-restore', requireLogin, async (req, res) => {
 
             if (Array.isArray(backup.staff)) {
                 await User.deleteMany({ role: 'staff', adminId });
-                const toInsertS = backup.staff.map(s => ({ ...s, adminId, _id: undefined }));
+                const toInsertS = backup.staff.map(s => ({ ...s, adminId, _id: undefined, role: 'staff', plainPassword: undefined }));
                 if (toInsertS.length > 0) await User.insertMany(toInsertS, { ordered: false });
             }
 
@@ -520,7 +556,7 @@ app.get('/login', (req, res) => {
     res.render('login', { error: req.query.error || null });
 });
 
-app.post('/login', async (req, res) => {
+app.post('/login', loginRateLimit, async (req, res) => {
     try {
         if (req.body.type === 'customer') {
             const phoneRaw = (req.body.phone || '').replace(/[^0-9]/g, '');
@@ -593,7 +629,7 @@ app.post('/login', async (req, res) => {
 
 app.get('/forgot-password', (req, res) => { res.render('forgot', { error: null }); });
 
-app.post('/forgot-password', async (req, res) => {
+app.post('/forgot-password', loginRateLimit, async (req, res) => {
     try {
         const { username, securityQuestion, securityAnswer, newPassword } = req.body;
         const user = await User.findOne({ username });
@@ -603,7 +639,7 @@ app.post('/forgot-password', async (req, res) => {
         if (!isMatch) return res.render('forgot', { error: "Wrong Security Answer" });
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
-        user.plainPassword = newPassword;
+        user.plainPassword = undefined;
         await user.save();
         res.redirect('/login');
     } catch (err) {
@@ -618,6 +654,7 @@ app.get('/logout', (req, res) => {
 });
 
 app.post('/customers/:id/auto-snooze', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') return res.status(403).json({ success: false, message: 'Customers cannot modify records.' });
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) {
@@ -790,7 +827,7 @@ app.get('/', async (req, res) => {
 // 3. ADMIN PAGES
 app.get('/staff', requireAdmin, async (req, res) => {
     try {
-        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).select('+plainPassword').lean();
+        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
         const adminUser = await User.findById(req.session.adminId).lean() || {};
         const maxStaffLimit = adminUser.maxStaffLimit ?? 5;
 
@@ -906,7 +943,6 @@ app.post('/register', async (req, res) => {
         await User.create({
             username: rawUsername,
             password: hashedPassword,
-            plainPassword: req.body.password,
             email: req.body.email ? req.body.email.trim() : '',
             phone: req.body.phone ? req.body.phone.trim() : '',
             role: 'admin',
@@ -943,8 +979,8 @@ const requireSuperAdmin = (req, res, next) => {
 app.get('/superadmin', requireSuperAdmin, async (req, res) => {
     try {
         const [adminUsers, staffUsers, partyCounts] = await Promise.all([
-            User.find({ role: 'admin' }).select('+plainPassword').sort({ _id: -1 }).lean(),
-            User.find({ role: 'staff' }).select('+plainPassword').sort({ _id: -1 }).lean(),
+            User.find({ role: 'admin' }).sort({ _id: -1 }).lean(),
+            User.find({ role: 'staff' }).sort({ _id: -1 }).lean(),
             Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }])
         ]);
 
@@ -957,7 +993,7 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
                 staffByAdmin[aIdStr].push({
                     _id: s._id,
                     username: s.username,
-                    plainPassword: s.plainPassword || '(Hashed)',
+                    plainPassword: '(Protected)',
                     role: s.role
                 });
             }
@@ -1075,7 +1111,7 @@ app.post('/superadmin/change-credentials', requireSuperAdmin, async (req, res) =
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.username = cleanUsername;
         user.password = hashedPassword;
-        user.plainPassword = newPassword;
+        user.plainPassword = undefined;
         await user.save();
 
         req.session.username = cleanUsername;
@@ -1174,7 +1210,6 @@ app.post('/create-staff', requireAdmin, async (req, res) => {
         await User.create({
             username: rawUsername,
             password: hashedPassword,
-            plainPassword: req.body.password,
             role: 'staff',
             status: 'approved',
             adminId: req.session.adminId,
@@ -1200,30 +1235,13 @@ app.post('/reset-staff-password', requireAdmin, async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         const staff = await User.findOneAndUpdate(
             { _id: staffId, adminId: req.session.adminId },
-            { password: hashedPassword, plainPassword: newPassword }
+            { password: hashedPassword, $unset: { plainPassword: "" } }
         );
         if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
         res.redirect('/staff?msg=' + encodeURIComponent('Staff password reset successfully.'));
     } catch (err) {
         console.error("Staff Reset Error:", err);
         res.redirect('/staff?error=' + encodeURIComponent('Failed to reset staff password: ' + err.message));
-    }
-});
-
-app.post('/reset-staff-password', requireAdmin, async (req, res) => {
-    try {
-        const { staffId, newPassword } = req.body;
-        if (!staffId || !newPassword) return res.redirect('/staff?error=missing_fields');
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        const staff = await User.findOneAndUpdate(
-            { _id: staffId, adminId: req.session.adminId },
-            { password: hashedPassword, plainPassword: newPassword }
-        );
-        if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
-        res.redirect('/staff');
-    } catch (err) {
-        console.error("Staff Reset Error:", err);
-        res.status(500).send("Failed to reset staff password.");
     }
 });
 
@@ -1584,6 +1602,7 @@ app.delete('/customers/:id', requireAdmin, async (req, res) => {
 });
 
 app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') return res.status(403).json({ success: false, message: 'Customers cannot modify records.' });
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.status(404).send("Customer not found.");
@@ -1633,6 +1652,7 @@ app.put('/customers/:id/transaction', requireLogin, async (req, res) => {
 });
 
 app.put('/customers/:id/update-reminder', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') return res.status(403).json({ success: false, message: 'Customers cannot modify records.' });
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.status(404).send("Customer not found.");
@@ -1786,7 +1806,7 @@ app.post('/change-password', requireLogin, async (req, res) => {
         if (!isMatch) return res.json({ success: false, error: 'Current password is incorrect' });
 
         user.password = await bcrypt.hash(newPassword, 10);
-        user.plainPassword = newPassword;
+        user.plainPassword = undefined;
         await user.save();
 
         await logActivity(req, 'Password Changed', `Admin changed their login password.`);
