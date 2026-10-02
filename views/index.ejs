@@ -148,6 +148,8 @@
             .main-content {
                 margin-left: 0;
                 padding: 15px;
+                width: 100%;
+                max-width: 100%;
             }
 
             .desktop-only {
@@ -701,6 +703,57 @@
             accent-color: var(--primary);
             cursor: pointer;
         }
+    
+        /* ── MOBILE: party cards must never inherit the desktop table width ── */
+        @media (max-width: 850px) {
+            html, body {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .main-content,
+            .section-view,
+            .floating-card,
+            .table-controls {
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .floating-card {
+                overflow: visible;
+            }
+
+            table {
+                min-width: 0 !important;
+                max-width: 100% !important;
+                table-layout: auto;
+            }
+
+            .search-micro {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .m-name,
+            .m-fin,
+            .m-tool-btn {
+                min-width: 0;
+            }
+
+            .m-name strong,
+            .m-name a,
+            .m-fin,
+            .m-tools,
+            .m-tool-btn {
+                overflow-wrap: anywhere;
+            }
+
+            .m-tools {
+                width: 100%;
+            }
+        }
+
     </style>
 </head>
 
@@ -802,13 +855,13 @@
                                     <strong style="font-size:16px;">Data Mgmt</strong>
                                     <span style="font-size:12px; color:var(--text-muted);">Backups & Imports</span>
                                 </a>
-                                <a class="launcher-tile" href="/staff">
+                                <a class="launcher-tile" href="/staff" onclick="localStorage.removeItem('activeWgsTab')">
                                     <div class="launcher-icon" style="background: #fce7f3;">👤</div>
                                     <strong style="font-size:16px;">Staff</strong>
                                     <span style="font-size:12px; color:var(--text-muted);">Manage Team</span>
                                 </a>
                                 <% } %>
-                                    <a class="launcher-tile" href="/activity">
+                                    <a class="launcher-tile" href="/activity" onclick="localStorage.removeItem('activeWgsTab')">
                                         <div class="launcher-icon" style="background: #fef3c7;">📜</div>
                                         <strong style="font-size:16px;">Activity Log</strong>
                                         <span style="font-size:12px; color:var(--text-muted);">Audit Trail</span>
@@ -832,7 +885,7 @@
                         </div>
                     </div>
 
-                    <button class="back-to-launcher" id="backBtn" onclick="handleMobileBack()">← Home</button>
+                    <button class="back-to-launcher" id="backBtn" onclick="mobileBack()">← Home</button>
                     <% } %>
 
                         <div id="viewAging" class="section-view active">
@@ -1709,6 +1762,7 @@
 
                 // --- NAVIGATION LOGIC WITH MEMORY ---
                 function switchTab(tabId) {
+                    if (isMobile) { openMobileSection(tabId); return; }
                     localStorage.setItem('activeWgsTab', tabId);
                     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
                     var nav = document.getElementById('nav-' + tabId); if (nav) nav.classList.add('active');
@@ -1716,34 +1770,51 @@
                     var view = document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1)); if (view) view.classList.add('active');
                 }
 
-                function openMobileSection(sectionId, fromSection) {
-                    if (!isMobile) return;
+                function renderMobileSection(sectionId, fromSection) {
                     localStorage.setItem('activeWgsTab', sectionId);
-                    if (fromSection) mobileHistory.push(fromSection); else mobileHistory = ['home'];
-                    document.getElementById('homeLauncher').style.display = 'none';
+                    var launcher = document.getElementById('homeLauncher');
+                    if (launcher) launcher.style.display = 'none';
                     document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
-                    document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1)).style.display = 'block';
+                    var view = document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1));
+                    if (view) view.style.display = 'block';
 
                     var backBtn = document.getElementById('backBtn');
-                    backBtn.style.display = 'block';
-                    if (sectionId === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
-                    else if (sectionId === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
-                    else if (sectionId === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
-                    else if (sectionId === 'data') backBtn.innerHTML = '← Home  |  🗄️ Data Management';
+                    if (backBtn) {
+                        backBtn.style.display = 'block';
+                        if (sectionId === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
+                        else if (sectionId === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
+                        else if (sectionId === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
+                        else if (sectionId === 'data') backBtn.innerHTML = '← Home  |  🗄️ Data Management';
+                        else backBtn.innerHTML = '← Back';
+                    }
+                    window.scrollTo(0, 0);
                 }
 
-                function handleMobileBack() {
-                    var lastStop = mobileHistory.pop();
-                    if (lastStop === 'aging') { openMobileSection('aging'); mobileHistory = ['home']; }
-                    else {
-                        localStorage.removeItem('activeWgsTab');
-                        document.getElementById('homeLauncher').style.display = 'block';
-                        document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
-                        document.getElementById('backBtn').style.display = 'none';
-                        mobileHistory = [];
-                        clearFilter();
-                    }
+                function showMobileHome() {
+                    localStorage.removeItem('activeWgsTab');
+                    var launcher = document.getElementById('homeLauncher');
+                    if (launcher) launcher.style.display = 'block';
+                    document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
+                    var backBtn = document.getElementById('backBtn');
+                    if (backBtn) backBtn.style.display = 'none';
+                    if (typeof clearFilter === 'function') clearFilter();
+                    window.scrollTo(0, 0);
                 }
+
+                function openMobileSection(sectionId, fromSection) {
+                    if (!isMobile) return;
+                    try { history.pushState({ wgsSection: sectionId, wgsFrom: fromSection || null }, '', location.pathname); } catch (e) {}
+                    renderMobileSection(sectionId, fromSection);
+                }
+
+                function mobileBack() { history.back(); }
+
+                window.addEventListener('popstate', function (e) {
+                    if (!isMobile) return;
+                    var st = e.state;
+                    if (st && st.wgsSection) renderMobileSection(st.wgsSection, st.wgsFrom);
+                    else showMobileHome();
+                });
 
                 // --- MODAL TRIGGERS ---
                 function openEditModal(id, comp, cont, ph, wa, em, tot, paid, oth) {
@@ -2121,8 +2192,21 @@
                     var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
                     if (!isMobile) {
                         switchTab(savedTab);
-                    } else if (savedTab && savedTab !== 'home') {
-                        openMobileSection(savedTab);
+                    } else if (params.get('from') === 'login') {
+                        window.history.replaceState({ wgsSection: null }, document.title, '/');
+                        showMobileHome();
+                    } else if (history.state && Object.prototype.hasOwnProperty.call(history.state, 'wgsSection')) {
+                        // Returning via back/forward: restore exactly what this history entry showed
+                        if (history.state.wgsSection) renderMobileSection(history.state.wgsSection, history.state.wgsFrom);
+                        else showMobileHome();
+                    } else if (savedTab && savedTab !== 'home' && document.getElementById('view' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1))) {
+                        // Fresh load: put Home underneath so Back goes to Home, never to another page
+                        window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
+                        window.history.pushState({ wgsSection: savedTab, wgsFrom: null }, document.title, location.pathname);
+                        renderMobileSection(savedTab);
+                    } else {
+                        window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
+                        showMobileHome();
                     }
                 };
             </script>

@@ -691,6 +691,152 @@
                 padding: 9px 8px;
             }
         }
+    
+        /* ── MOBILE USER CARDS: no desktop-width table or horizontal scroll ── */
+        @media (max-width: 850px) {
+            html, body {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            header {
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .brand {
+                min-width: 0;
+                gap: 7px;
+            }
+
+            .brand img {
+                width: 30px;
+                height: 30px;
+                flex: 0 0 auto;
+            }
+
+            .brand-title {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .brand-badge {
+                display: none;
+            }
+
+            .container {
+                margin: 16px auto;
+                padding: 0 12px;
+            }
+
+            .tabs-container {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 4px;
+                padding: 4px;
+            }
+
+            .tab-btn {
+                min-width: 0;
+                justify-content: center;
+                padding: 10px 7px;
+                gap: 4px;
+                font-size: 12px;
+            }
+
+            .tab-btn:last-child {
+                grid-column: 1 / -1;
+            }
+
+            .card-table-wrapper table {
+                min-width: 0 !important;
+                max-width: 100% !important;
+                table-layout: fixed;
+            }
+
+            .card-table-wrapper tr {
+                min-width: 0;
+                overflow: hidden;
+            }
+
+            .card-table-wrapper td {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .card-table-wrapper td:not(:first-child) {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                border-top: 1px solid #f1f5f9;
+            }
+
+            .card-table-wrapper td:not(:first-child)::before {
+                flex: 0 0 88px;
+                color: var(--text-muted);
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                line-height: 1.5;
+                text-transform: uppercase;
+            }
+
+            .card-table-wrapper td:last-child {
+                display: block;
+            }
+
+            .card-table-wrapper td:last-child::before {
+                display: block;
+                margin-bottom: 8px;
+            }
+
+            #pendingTab td:nth-child(2)::before,
+            #approvedTab td:nth-child(2)::before,
+            #suspendedTab td:nth-child(2)::before,
+            #rejectedTab td:nth-child(2)::before { content: "Contact"; }
+
+            #pendingTab td:nth-child(3)::before,
+            #approvedTab td:nth-child(4)::before,
+            #suspendedTab td:nth-child(4)::before,
+            #rejectedTab td:nth-child(3)::before { content: "Password"; }
+
+            #pendingTab td:nth-child(4)::before { content: "Requested"; }
+
+            #approvedTab td:nth-child(3)::before { content: "Limits"; }
+            #approvedTab td:nth-child(5)::before,
+            #suspendedTab td:nth-child(5)::before,
+            #rejectedTab td:nth-child(4)::before { content: "Status"; }
+
+            #suspendedTab td:nth-child(3)::before { content: "Data"; }
+
+            #pendingTab td:nth-child(5)::before,
+            #approvedTab td:nth-child(6)::before,
+            #suspendedTab td:nth-child(6)::before,
+            #rejectedTab td:nth-child(5)::before { content: "Actions"; }
+
+            .admin-user-cell,
+            .contact-info-block,
+            .metrics-block,
+            .password-pill-container {
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .contact-item {
+                overflow-wrap: anywhere;
+            }
+
+            .metrics-block {
+                grid-template-columns: 1fr;
+                flex: 1;
+            }
+
+            .action-btn-group {
+                width: 100%;
+            }
+        }
+
     </style>
 </head>
 <body>

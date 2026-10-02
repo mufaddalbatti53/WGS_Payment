@@ -20,6 +20,15 @@ const ActivityLog = require('./models/Activity');
 
 const app = express();
 
+// Hostinger VPS health check. Nginx and monitoring can use this without a login.
+let databaseReady = false;
+app.get('/health', (req, res) => {
+    res.status(databaseReady ? 200 : 503).json({
+        status: databaseReady ? 'ok' : 'starting',
+        database: databaseReady ? 'connected' : 'connecting'
+    });
+});
+
 // --- DATABASE CONNECTION ---
 const dbURI = process.env.MONGODB_URI;
 if (!dbURI) {
@@ -75,6 +84,7 @@ async function ensureSuperAdminAccount() {
 mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ DB Connected Successfully");
+        databaseReady = true;
         ensureSuperAdminAccount();
         if (process.env.VERCEL !== '1') {
             shiftAgingBuckets();
@@ -83,9 +93,14 @@ mongoose.connect(dbURI)
             setInterval(runAutoBackups, 24 * 60 * 60 * 1000); // Check for backups every 24 hours
         }
     })
-    .catch(err => console.log("❌ DB Connection Error: ", err));
+    .catch(err => {
+        databaseReady = false;
+        console.log("❌ DB Connection Error: ", err);
+    });
 
 // --- CONFIGURATION ---
+// Required when HTTPS is terminated by Hostinger's Nginx reverse proxy.
+app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('trust proxy', 1);
 app.use(helmet());
@@ -110,8 +125,9 @@ app.use(session({
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
-        secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
-        sameSite: 'lax'
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
     }
 }));
 
@@ -601,7 +617,7 @@ app.post('/login', loginLimiter, async (req, res) => {
             req.session.userId = customer._id;
             req.session.role = 'customer';
             req.session.adminId = customer.adminId;
-            return res.redirect('/');
+            return res.redirect('/?from=login');
         }
 
         const { username, password } = req.body;
@@ -648,7 +664,7 @@ app.post('/login', loginLimiter, async (req, res) => {
             if (user.role === 'superadmin') {
                 return res.redirect('/superadmin');
             }
-            return res.redirect('/');
+            return res.redirect('/?from=login');
         } else {
             return res.render('login', { error: "Invalid username or password." });
         }
