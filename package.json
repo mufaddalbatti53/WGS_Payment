@@ -10,7 +10,7 @@
     "migrate:security": "node migrate_security.js"
   },
   "engines": {
-    "node": ">=18.0.0 <=22.x"
+    "node": ">=18.0.0"
   },
   "keywords": [
     "crm",
@@ -34,8 +34,8 @@
     "googleapis": "^171.4.0",
     "helmet": "^8.0.0",
     "method-override": "^3.0.0",
-    "mongodb": "^7.7.0",
-    "mongoose": "^9.10.3",
+    "mongodb": "^6.16.0",
+    "mongoose": "^8.14.0",
     "multer": "^2.0.2"
   },
   "devDependencies": {

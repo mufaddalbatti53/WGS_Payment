@@ -3,12 +3,12 @@ services:
     name: wgs-payment-manager
     runtime: node
     plan: free
-    buildCommand: npm ci
+    buildCommand: rm -rf node_modules && npm install
     startCommand: node server.js
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
-        value: 20.18.0
+        value: 22.23.3
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
