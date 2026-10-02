@@ -198,6 +198,22 @@
             display: inline-block;
         }
 
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+            user-select: none;
+            margin-top: -8px;
+        }
+
         @media screen and (max-width: 768px) {
 
             table,
@@ -303,7 +319,7 @@
     <div
         style="background: var(--sidebar-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
         <div style="font-weight: bold; font-size: 18px;">
-            <a href="/" onclick="if (document.referrer && document.referrer.indexOf(location.origin) === 0 && history.length > 1) { history.back(); return false; }" style="color: white; text-decoration: none;">← Back to Dashboard</a>
+            <a href="/" style="color: white; text-decoration: none;">← Back to Dashboard</a>
         </div>
         <a href="/logout"
             style="background: #ef4444; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">🚪
@@ -336,12 +352,21 @@
                 </span>
             </div>
         
-            <form action="/create-staff" method="POST" style="position: relative; z-index: 101;">
+            <form id="createStaffForm" action="/create-staff" method="POST" style="position: relative; z-index: 101;">
                 <input type="text" name="username" placeholder="Staff Username" required class="input-style"
                     style="position: relative; z-index: 102; pointer-events: auto;">
         
-                <input type="password" name="password" placeholder="Staff Password" required class="input-style"
-                    style="margin-bottom: 20px; position: relative; z-index: 102; pointer-events: auto;">
+                <div class="input-group">
+                    <input type="password" id="staffPassword" name="password" placeholder="Staff Password" required class="input-style"
+                        style="margin-bottom: 10px; position: relative; z-index: 102; pointer-events: auto; width:100%;">
+                    <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                </div>
+
+                <div class="input-group">
+                    <input type="password" id="staffConfirmPassword" placeholder="Retype Staff Password" required class="input-style"
+                        style="margin-bottom: 20px; position: relative; z-index: 102; pointer-events: auto; width:100%;">
+                    <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                </div>
         
                 <button type="submit" class="btn-primary" style="position: relative; z-index: 102;">Create Account</button>
             </form>
@@ -368,10 +393,16 @@
                                 </span></td>
                             <td class="desktop-only">
                                 <form action="/reset-staff-password" method="POST"
-                                    style="display:flex; gap:8px; align-items: center;">
+                                    style="display:flex; gap:8px; align-items: center;" class="resetStaffForm">
                                     <input type="hidden" name="staffId" value="<%= staff._id %>">
-                                    <input type="password" name="newPassword" placeholder="New Password" required
-                                        class="input-style" style="margin-bottom: 0; max-width: 200px;">
+                                    <div class="input-group">
+                                        <input type="password" name="newPassword" class="reset-new-password input-style" placeholder="New Password" required style="margin-bottom: 0; max-width: 150px;">
+                                        <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
+                                    </div>
+                                    <div class="input-group">
+                                        <input type="password" class="reset-confirm-password input-style" placeholder="Retype Password" required style="margin-bottom: 0; max-width: 150px;">
+                                        <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
+                                    </div>
                                     <button type="submit" class="btn-blue">Reset</button>
                                 </form>
                             </td>
@@ -390,10 +421,16 @@
                                         <%= staff.role.toUpperCase() %>
                                     </span>
                                 </div>
-                                <form action="/reset-staff-password" method="POST" class="reset-form">
+                                <form action="/reset-staff-password" method="POST" class="reset-form resetStaffForm">
                                     <input type="hidden" name="staffId" value="<%= staff._id %>">
-                                    <input type="password" name="newPassword" placeholder="Type new password..."
-                                        required class="input-style">
+                                    <div class="input-group" style="margin-bottom:8px;">
+                                        <input type="password" name="newPassword" class="reset-new-password input-style" placeholder="Type new password..." required style="margin-bottom:0; width:100%;">
+                                        <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
+                                    </div>
+                                    <div class="input-group" style="margin-bottom:15px;">
+                                        <input type="password" class="reset-confirm-password input-style" placeholder="Retype new password..." required style="margin-bottom:0; width:100%;">
+                                        <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
+                                    </div>
                                     <button type="submit" class="btn-blue">Reset</button>
                                 </form>
                                 <div class="staff-actions">
@@ -409,6 +446,44 @@
             </table>
         </div>
     </div>
+
+    <script>
+        function togglePassword(icon) {
+            const input = icon.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                icon.innerText = '👁️';
+            }
+        }
+
+        // Validate create staff form
+        const createStaffForm = document.getElementById('createStaffForm');
+        if (createStaffForm) {
+            createStaffForm.addEventListener('submit', function(e) {
+                const password = document.getElementById('staffPassword').value;
+                const confirmPassword = document.getElementById('staffConfirmPassword').value;
+                if (password !== confirmPassword) {
+                    e.preventDefault();
+                    alert('Passwords do not match. Please retype carefully.');
+                }
+            });
+        }
+
+        // Validate reset staff forms
+        document.querySelectorAll('.resetStaffForm').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const password = this.querySelector('.reset-new-password').value;
+                const confirmPassword = this.querySelector('.reset-confirm-password').value;
+                if (password !== confirmPassword) {
+                    e.preventDefault();
+                    alert('Passwords do not match. Please retype carefully.');
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

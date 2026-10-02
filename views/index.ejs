@@ -25,6 +25,22 @@
             --shadow-btn: 0 6px 15px rgba(39, 174, 96, 0.25);
         }
 
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+            user-select: none;
+            margin-top: -8px;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -783,6 +799,8 @@
                             <a class="nav-item"
                                 onclick="document.getElementById('settingsModal').style.display='block'">⚙️ Profile
                                 Settings</a>
+                            <a class="nav-item"
+                                onclick="document.getElementById('changePasswordModal').style.display='block'">🔑 Change Password</a>
                             <% } %>
                                 <div style="flex:1;"></div>
                                 <a class="nav-item" href="/logout"
@@ -1740,6 +1758,34 @@
                 </form>
             </div>
         </div>
+
+        <div id="changePasswordModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="document.getElementById('changePasswordModal').style.display='none'">&times;</span>
+                <h3 style="margin-top: 0;">🔑 Change Password</h3>
+                <form id="adminChangePasswordForm">
+                    <label class="trans-label">Current Password</label>
+                    <div class="input-group">
+                        <input type="password" name="currentPassword" id="adminCurrentPassword" placeholder="Enter current password" required class="input-style" style="width:100%; margin-bottom:15px;">
+                        <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                    </div>
+
+                    <label class="trans-label">New Password</label>
+                    <div class="input-group">
+                        <input type="password" name="newPassword" id="adminNewPassword" placeholder="Enter new password (min 6 chars)" required class="input-style" style="width:100%; margin-bottom:15px;">
+                        <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                    </div>
+
+                    <label class="trans-label">Retype New Password</label>
+                    <div class="input-group">
+                        <input type="password" id="adminConfirmPassword" placeholder="Re-enter new password" required class="input-style" style="width:100%; margin-bottom:20px;">
+                        <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width:100%;">Update Password</button>
+                </form>
+            </div>
+        </div>
     
         <div id="bulkActionBar" class="bulk-action-bar">
             <span id="selectedCount" style="font-weight: 700;">0 Selected</span>
@@ -2211,6 +2257,57 @@
                         showMobileHome();
                     }
                 };
+
+                // --- PASSWORD TOGGLE & ADMIN CHANGE PASSWORD ---
+                function togglePassword(icon) {
+                    const input = icon.previousElementSibling;
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.innerText = '🔒';
+                    } else {
+                        input.type = 'password';
+                        icon.innerText = '👁️';
+                    }
+                }
+
+                const adminChangePasswordForm = document.getElementById('adminChangePasswordForm');
+                if (adminChangePasswordForm) {
+                    adminChangePasswordForm.addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        const currentPassword = document.getElementById('adminCurrentPassword').value;
+                        const newPassword = document.getElementById('adminNewPassword').value;
+                        const confirmPassword = document.getElementById('adminConfirmPassword').value;
+
+                        if (newPassword !== confirmPassword) {
+                            alert('New Passwords do not match. Please retype carefully.');
+                            return;
+                        }
+
+                        if (newPassword.length < 6) {
+                            alert('Password must be at least 6 characters.');
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch('/change-password', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ currentPassword, newPassword })
+                            });
+                            const data = await response.json();
+                            
+                            if (data.success) {
+                                alert('Password changed successfully! Next time you login, please use your new password.');
+                                document.getElementById('changePasswordModal').style.display = 'none';
+                                adminChangePasswordForm.reset();
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        } catch (err) {
+                            alert('Server error while changing password.');
+                        }
+                    });
+                }
             </script>
             </body>
     

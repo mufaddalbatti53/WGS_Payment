@@ -99,6 +99,22 @@
             margin-top: 4px;
         }
 
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+            user-select: none;
+            margin-top: -8px;
+        }
+
         button {
             width: 100%;
             padding: 14px;
@@ -144,12 +160,21 @@
             ℹ️ <strong>Note:</strong> Super Admin approval is required to activate your account. Please enter your valid Email & Phone so we can contact you regarding your account setup.
         </div>
 
-        <form action="/register" method="POST">
+        <form id="registerForm" action="/register" method="POST">
             <label>Admin Username</label>
             <input type="text" name="username" placeholder="Choose Admin Username" required>
 
             <label>Secure Password</label>
-            <input type="password" name="password" placeholder="Choose Password" required>
+            <div class="input-group">
+                <input type="password" name="password" id="password" placeholder="Choose Password" required>
+                <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+            </div>
+
+            <label>Retype Password</label>
+            <div class="input-group">
+                <input type="password" id="confirmPassword" placeholder="Retype Password" required>
+                <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+            </div>
 
             <label>Email Address</label>
             <input type="email" name="email" placeholder="your.email@example.com" required>
@@ -169,6 +194,29 @@
         </form>
         <a href="/login" class="back-link">&larr; Back to Login</a>
     </div>
+
+    <script>
+        function togglePassword(icon) {
+            const input = icon.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                icon.innerText = '👁️';
+            }
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match. Please retype carefully.');
+            }
+        });
+    </script>
 </body>
 
 </html>

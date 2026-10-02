@@ -204,6 +204,22 @@
         .stat-card.suspended .stat-icon-box { background: #ede9fe; color: #7c3aed; }
         .stat-card.rejected .stat-icon-box { background: #ffe4e6; color: #e11d48; }
 
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+            user-select: none;
+            margin-top: -8px;
+        }
+
         /* ── PILL TABS ── */
         .tabs-container {
             background: #f1f5f9;
@@ -1263,7 +1279,7 @@
                     </div>
                 <% } %>
 
-                <form action="/superadmin/change-credentials" method="POST">
+                <form id="superadminCredForm" action="/superadmin/change-credentials" method="POST">
                     <div class="form-group">
                         <label>Super Admin Username / ID</label>
                         <input type="text" name="newUsername" value="<%= superadminUsername %>" placeholder="Enter Super Admin Username" required>
@@ -1271,17 +1287,26 @@
 
                     <div class="form-group">
                         <label>Current Password</label>
-                        <input type="password" name="currentPassword" placeholder="Enter current password" required>
+                        <div class="input-group">
+                            <input type="password" name="currentPassword" placeholder="Enter current password" required style="margin:0; width:100%;">
+                            <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label>New Password</label>
-                        <input type="password" name="newPassword" placeholder="Enter new password (min 6 characters)" required>
+                        <div class="input-group">
+                            <input type="password" id="saNewPassword" name="newPassword" placeholder="Enter new password (min 6 characters)" required style="margin:0; width:100%;">
+                            <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label>Confirm New Password</label>
-                        <input type="password" name="confirmPassword" placeholder="Re-enter new password" required>
+                        <div class="input-group">
+                            <input type="password" id="saConfirmPassword" name="confirmPassword" placeholder="Re-enter new password" required style="margin:0; width:100%;">
+                            <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn-save-settings">Save New Credentials 🔒</button>
@@ -1459,6 +1484,31 @@
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         });
+
+        // Toggle password visibility
+        function togglePassword(icon) {
+            const input = icon.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                icon.innerText = '👁️';
+            }
+        }
+
+        // Validate superadmin credential form
+        const superadminCredForm = document.getElementById('superadminCredForm');
+        if (superadminCredForm) {
+            superadminCredForm.addEventListener('submit', function(e) {
+                const password = document.getElementById('saNewPassword').value;
+                const confirmPassword = document.getElementById('saConfirmPassword').value;
+                if (password !== confirmPassword) {
+                    e.preventDefault();
+                    alert('New Passwords do not match. Please retype carefully.');
+                }
+            });
+        }
     </script>
 </body>
 </html>
