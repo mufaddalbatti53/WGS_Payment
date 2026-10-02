@@ -6,6 +6,11 @@
       "dest": "/api/index.js"
     }
   ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "node_modules/mongodb/**"
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/maintenance",
