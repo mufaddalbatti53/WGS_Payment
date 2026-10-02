@@ -12,6 +12,14 @@
       "dest": "/api/index.js"
     }
   ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": [
+        "node_modules/mongodb/lib/**/*.js",
+        "node_modules/mongodb/lib/**/*.js.map"
+      ]
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/maintenance",
