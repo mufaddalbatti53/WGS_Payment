@@ -3,7 +3,10 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 
 // 🚨 THE FIX: Use your live MongoDB Atlas connection string!
-const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+const dbURI = process.env.MONGODB_URI;
+if (!dbURI) {
+    throw new Error('MONGODB_URI must be configured before running this script.');
+}
 
 mongoose.connect(dbURI)
     .then(() => console.log("✅ Live Database Connected for Reset..."))
@@ -11,24 +14,24 @@ mongoose.connect(dbURI)
 
 const resetAdmin = async () => {
     try {
-        // 1. Choose the new password you want
-        const newPasswordRaw = "newAdmin123";
+        const username = process.env.RESET_USERNAME;
+        const newPasswordRaw = process.env.RESET_PASSWORD;
+        if (!username || !newPasswordRaw) {
+            throw new Error('RESET_USERNAME and RESET_PASSWORD must be configured.');
+        }
 
-        // 2. Encrypt (Hash) it exactly as your server.js does (salt rounds = 10)
-        const hashedPassword = await bcrypt.hash(newPasswordRaw, 10);
+        const hashedPassword = await bcrypt.hash(newPasswordRaw, 12);
 
-        // 3. Find the user 'admin' and update their password
-        // (If your username is different, change 'admin' below)
         const updatedUser = await User.findOneAndUpdate(
-            { username: 'admin' },
+            { username },
             { password: hashedPassword },
             { new: true }
         );
 
         if (updatedUser) {
-            console.log(`✅ Success! Password for '${updatedUser.username}' changed to: ${newPasswordRaw}`);
+            console.log(`✅ Password for '${updatedUser.username}' changed.`);
         } else {
-            console.log("❌ Error: User 'admin' not found in the live database.");
+            console.log(`❌ User '${username}' not found in the live database.`);
         }
     } catch (error) {
         console.error("❌ An error occurred during reset:", error);

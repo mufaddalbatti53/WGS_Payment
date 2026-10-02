@@ -809,8 +809,7 @@
                                     </td>
                                     <td>
                                         <div class="password-pill-container">
-                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
-                                            <button type="button" class="pwd-eye-btn" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                            <span class="pwd-mask-text">Managed securely</span>
                                         </div>
                                     </td>
                                     <td>
@@ -923,8 +922,7 @@
                                     </td>
                                     <td>
                                         <div class="password-pill-container">
-                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
-                                            <button type="button" class="pwd-eye-btn" title="Toggle Password" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                            <span class="pwd-mask-text">Managed securely</span>
                                         </div>
                                     </td>
                                     <td>
@@ -1010,8 +1008,7 @@
                                     </td>
                                     <td>
                                         <div class="password-pill-container">
-                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
-                                            <button type="button" class="pwd-eye-btn" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                            <span class="pwd-mask-text">Managed securely</span>
                                         </div>
                                     </td>
                                     <td>
@@ -1083,8 +1080,7 @@
                                     </td>
                                     <td>
                                         <div class="password-pill-container">
-                                            <span class="pwd-mask-text" id="pwd-<%= u._id %>">••••••••</span>
-                                            <button type="button" class="pwd-eye-btn" onclick="togglePassword('<%= u._id %>', '<%= (u.plainPassword || u.password || '').replace(/'/g, "\\'") %>')">👁️</button>
+                                            <span class="pwd-mask-text">Managed securely</span>
                                         </div>
                                     </td>
                                     <td>
@@ -1291,7 +1287,7 @@
                     staffList.forEach(s => {
                         html += '<tr style="border-top:1px solid #f1f5f9;">';
                         html += '<td style="padding:8px 12px; font-weight:700; color:var(--text-dark);">👤 ' + s.username + '</td>';
-                        html += '<td style="padding:8px 12px;"><span class="pwd-mask-text">' + (s.plainPassword || '(Hashed)') + '</span></td>';
+                        html += '<td style="padding:8px 12px;"><span class="pwd-mask-text">Managed securely</span></td>';
                         html += '<td style="padding:8px 12px; text-align:center;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">STAFF</span></td>';
                         html += '</tr>';
                     });

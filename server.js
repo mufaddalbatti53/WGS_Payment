@@ -6,12 +6,13 @@ const connectMongo = require('connect-mongo');
 const MongoStore = connectMongo.default || connectMongo;
 const bcrypt = require('bcryptjs');
 const methodOverride = require('method-override');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const xlsx = require('xlsx');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const Customer = require('./models/Customer');
 const User = require('./models/User');
@@ -20,16 +21,20 @@ const ActivityLog = require('./models/Activity');
 const app = express();
 
 // --- DATABASE CONNECTION ---
-const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+const dbURI = process.env.MONGODB_URI;
+if (!dbURI) {
+    throw new Error('MONGODB_URI must be configured before starting the application.');
+}
 
 async function ensureSuperAdminAccount() {
     try {
         const existingSuper = await User.findOne({ username: 'superadmin' });
-        if (!existingSuper) {
+        const bootstrapUsername = process.env.SUPERADMIN_USERNAME;
+        const bootstrapPassword = process.env.SUPERADMIN_PASSWORD;
+        if (!existingSuper && bootstrapUsername && bootstrapPassword) {
             await User.create({
-                username: 'superadmin',
-                password: '$2b$10$QKo/6ChmBFeP8UZRYGt/aO3vURZiLC.iF3ikC3MkBEsCyES.m8j4e',
-                plainPassword: 'superadmin123',
+                username: bootstrapUsername,
+                password: await bcrypt.hash(bootstrapPassword, 12),
                 role: 'superadmin',
                 status: 'approved'
             });
@@ -43,6 +48,8 @@ async function ensureSuperAdminAccount() {
         if (updateResult.modifiedCount > 0) {
             console.log(`✅ Auto-approved ${updateResult.modifiedCount} pre-existing account(s).`);
         }
+
+        await User.updateMany({}, { $unset: { plainPassword: 1 } });
 
         // Auto-normalize String adminIds to ObjectId in database
         const db = mongoose.connection.db;
@@ -69,22 +76,31 @@ mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ DB Connected Successfully");
         ensureSuperAdminAccount();
-        shiftAgingBuckets();
-        runAutoBackups(); // Run on startup
-        setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
-        setInterval(runAutoBackups, 24 * 60 * 60 * 1000); // Check for backups every 24 hours
+        if (process.env.VERCEL !== '1') {
+            shiftAgingBuckets();
+            runAutoBackups(); // Run on startup
+            setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
+            setInterval(runAutoBackups, 24 * 60 * 60 * 1000); // Check for backups every 24 hours
+        }
     })
     .catch(err => console.log("❌ DB Connection Error: ", err));
 
 // --- CONFIGURATION ---
 app.set('view engine', 'ejs');
+app.set('trust proxy', 1);
+app.use(helmet());
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'favicon.ico')));
-app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 100000 }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb', parameterLimit: 10000 }));
+app.use(express.json({ limit: '2mb' }));
 app.use(methodOverride('_method'));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'wgs_payment_tracker_production_secret_key_2026',
+    secret: process.env.SESSION_SECRET || (() => {
+        if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') {
+            throw new Error('SESSION_SECRET must be configured in production.');
+        }
+        return 'local-development-only-session-secret';
+    })(),
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -93,9 +109,42 @@ app.use(session({
         autoRemove: 'native'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24,
+        secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
+        sameSite: 'lax'
     }
 }));
+
+const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+app.use((req, res, next) => {
+    if (!unsafeMethods.has(req.method)) return next();
+
+    const origin = req.get('origin');
+    const referer = req.get('referer');
+    if (!origin && !referer) {
+        return res.status(403).send('Request origin could not be verified.');
+    }
+
+    try {
+        const source = origin || new URL(referer).origin;
+        const expected = `${req.protocol}://${req.get('host')}`;
+        if (source !== expected) {
+            return res.status(403).send('Request origin could not be verified.');
+        }
+    } catch (err) {
+        return res.status(403).send('Request origin could not be verified.');
+    }
+
+    next();
+});
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: 'Too many login attempts. Please try again later.'
+});
 
 const isJsonReq = (req) => {
     return req.xhr || 
@@ -514,13 +563,30 @@ async function runAutoBackups() {
     }
 }
 
+app.get('/api/cron/maintenance', async (req, res) => {
+    const expectedToken = process.env.CRON_SECRET;
+    const suppliedToken = req.headers.authorization;
+    if (!expectedToken || suppliedToken !== `Bearer ${expectedToken}`) {
+        return res.status(401).json({ success: false, message: 'Unauthorized.' });
+    }
+
+    try {
+        await shiftAgingBuckets();
+        await runAutoBackups();
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Scheduled maintenance error:', err);
+        res.status(500).json({ success: false, message: 'Scheduled maintenance failed.' });
+    }
+});
+
 // 1. LOGIN & RECOVERY
 app.get('/login', (req, res) => {
     if (req.session && req.session.userId) return res.redirect('/');
     res.render('login', { error: req.query.error || null });
 });
 
-app.post('/login', async (req, res) => {
+app.post('/login', loginLimiter, async (req, res) => {
     try {
         if (req.body.type === 'customer') {
             const phoneRaw = (req.body.phone || '').replace(/[^0-9]/g, '');
@@ -603,7 +669,6 @@ app.post('/forgot-password', async (req, res) => {
         if (!isMatch) return res.render('forgot', { error: "Wrong Security Answer" });
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
-        user.plainPassword = newPassword;
         await user.save();
         res.redirect('/login');
     } catch (err) {
@@ -790,7 +855,7 @@ app.get('/', async (req, res) => {
 // 3. ADMIN PAGES
 app.get('/staff', requireAdmin, async (req, res) => {
     try {
-        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).select('+plainPassword').lean();
+        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
         const adminUser = await User.findById(req.session.adminId).lean() || {};
         const maxStaffLimit = adminUser.maxStaffLimit ?? 5;
 
@@ -906,7 +971,6 @@ app.post('/register', async (req, res) => {
         await User.create({
             username: rawUsername,
             password: hashedPassword,
-            plainPassword: req.body.password,
             email: req.body.email ? req.body.email.trim() : '',
             phone: req.body.phone ? req.body.phone.trim() : '',
             role: 'admin',
@@ -943,8 +1007,8 @@ const requireSuperAdmin = (req, res, next) => {
 app.get('/superadmin', requireSuperAdmin, async (req, res) => {
     try {
         const [adminUsers, staffUsers, partyCounts] = await Promise.all([
-            User.find({ role: 'admin' }).select('+plainPassword').sort({ _id: -1 }).lean(),
-            User.find({ role: 'staff' }).select('+plainPassword').sort({ _id: -1 }).lean(),
+            User.find({ role: 'admin' }).sort({ _id: -1 }).lean(),
+            User.find({ role: 'staff' }).sort({ _id: -1 }).lean(),
             Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }])
         ]);
 
@@ -957,7 +1021,6 @@ app.get('/superadmin', requireSuperAdmin, async (req, res) => {
                 staffByAdmin[aIdStr].push({
                     _id: s._id,
                     username: s.username,
-                    plainPassword: s.plainPassword || '(Hashed)',
                     role: s.role
                 });
             }
@@ -1075,7 +1138,6 @@ app.post('/superadmin/change-credentials', requireSuperAdmin, async (req, res) =
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.username = cleanUsername;
         user.password = hashedPassword;
-        user.plainPassword = newPassword;
         await user.save();
 
         req.session.username = cleanUsername;
@@ -1174,7 +1236,6 @@ app.post('/create-staff', requireAdmin, async (req, res) => {
         await User.create({
             username: rawUsername,
             password: hashedPassword,
-            plainPassword: req.body.password,
             role: 'staff',
             status: 'approved',
             adminId: req.session.adminId,
@@ -1200,7 +1261,7 @@ app.post('/reset-staff-password', requireAdmin, async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         const staff = await User.findOneAndUpdate(
             { _id: staffId, adminId: req.session.adminId },
-            { password: hashedPassword, plainPassword: newPassword }
+            { password: hashedPassword }
         );
         if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
         res.redirect('/staff?msg=' + encodeURIComponent('Staff password reset successfully.'));
@@ -1217,7 +1278,7 @@ app.post('/reset-staff-password', requireAdmin, async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         const staff = await User.findOneAndUpdate(
             { _id: staffId, adminId: req.session.adminId },
-            { password: hashedPassword, plainPassword: newPassword }
+            { password: hashedPassword }
         );
         if (staff) await logActivity(req, "Password Reset", `Reset password for: ${staff.username}`);
         res.redirect('/staff');
@@ -1361,9 +1422,13 @@ app.post('/import', upload.single('excelFile'), requireLogin, async (req, res) =
             }
         }
 
-        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        const sheet = workbook.worksheets[0];
+        const rawData = [];
+        sheet.eachRow({ includeEmpty: true }, row => {
+            rawData.push(row.values.slice(1));
+        });
         let importedCount = 0;
         let dataStartIndex = 0;
 
@@ -1786,7 +1851,6 @@ app.post('/change-password', requireLogin, async (req, res) => {
         if (!isMatch) return res.json({ success: false, error: 'Current password is incorrect' });
 
         user.password = await bcrypt.hash(newPassword, 10);
-        user.plainPassword = newPassword;
         await user.save();
 
         await logActivity(req, 'Password Changed', `Admin changed their login password.`);
@@ -1807,4 +1871,8 @@ app.post('/clear-all-data', requireAdmin, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
+if (require.main === module) {
+    app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
+}
+
+module.exports = app;

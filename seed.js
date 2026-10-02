@@ -3,7 +3,10 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 
 // 🚨 THE FIX 1: Use your LIVE MongoDB Atlas connection!
-const dbURI = process.env.MONGODB_URI || 'mongodb+srv://admin:Mlhb1606@admin.tkins6m.mongodb.net/paymentApp?retryWrites=true&w=majority&appName=admin';
+const dbURI = process.env.MONGODB_URI;
+if (!dbURI) {
+    throw new Error('MONGODB_URI must be configured before running this script.');
+}
 
 mongoose.connect(dbURI)
     .then(() => console.log("✅ Live Database Connected for Seeding..."))
@@ -16,8 +19,14 @@ const seedDB = async () => {
         console.log("⚠️ Existing users are kept intact. Please ensure you handle duplicates if needed.");
 
         // Use 10 salt rounds to match server.js perfectly
-        const hashedPassword = await bcrypt.hash('admin123', 10);
-        const hashedAnswer = await bcrypt.hash('dog', 10); // Answer to "first pet's name"
+        const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+        const staffPasswordValue = process.env.SEED_STAFF_PASSWORD;
+        const securityAnswerValue = process.env.SEED_SECURITY_ANSWER;
+        if (!adminPassword || !staffPasswordValue || !securityAnswerValue) {
+            throw new Error('SEED_ADMIN_PASSWORD, SEED_STAFF_PASSWORD, and SEED_SECURITY_ANSWER must be configured.');
+        }
+        const hashedPassword = await bcrypt.hash(adminPassword, 12);
+        const hashedAnswer = await bcrypt.hash(securityAnswerValue, 12);
 
         // 2. Create the Admin
         const admin = new User({
@@ -30,10 +39,10 @@ const seedDB = async () => {
 
         // Save admin first so we can grab their ID!
         await admin.save();
-        console.log(`✅ Admin created! (Username: admin, Password: admin123)`);
+        console.log('✅ Admin created.');
 
         // 3. Create a Staff member
-        const staffPassword = await bcrypt.hash('staff123', 10);
+        const staffPassword = await bcrypt.hash(staffPasswordValue, 12);
         const staff = new User({
             username: 'staff',
             password: staffPassword,
@@ -47,16 +56,18 @@ const seedDB = async () => {
         // 4. Create Super Admin if not exists
         const existingSuper = await User.findOne({ role: 'superadmin' });
         if (!existingSuper) {
-            const superPassword = await bcrypt.hash('superadmin123', 10);
+            const superPassword = process.env.SUPERADMIN_PASSWORD;
+            if (!superPassword) {
+                throw new Error('SUPERADMIN_PASSWORD must be configured before seeding.');
+            }
             const superAdmin = new User({
-                username: 'superadmin',
-                password: superPassword,
-                plainPassword: 'superadmin123',
+                username: process.env.SUPERADMIN_USERNAME || 'superadmin',
+                password: await bcrypt.hash(superPassword, 12),
                 role: 'superadmin',
                 status: 'approved'
             });
             await superAdmin.save();
-            console.log(`✅ Super Admin created! (Username: superadmin, Password: superadmin123)`);
+            console.log(`✅ Super Admin created! (Username: ${process.env.SUPERADMIN_USERNAME || 'superadmin'})`);
         } else {
             console.log("ℹ️ Super Admin already exists.");
         }
