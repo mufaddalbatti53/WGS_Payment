@@ -15,8 +15,10 @@
   "functions": {
     "api/index.js": {
       "includeFiles": [
-        "node_modules/mongodb/lib/**/*.js",
-        "node_modules/mongodb/lib/**/*.js.map"
+        "node_modules/mongodb/lib/**",
+        "node_modules/bson/lib/**",
+        "node_modules/mongodb-connection-string-url/lib/**",
+        "node_modules/@mongodb-js/saslprep/dist/**"
       ]
     }
   },
