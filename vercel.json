@@ -8,7 +8,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "{node_modules/mongodb/**,node_modules/mongoose/**,node_modules/bson/**,views/**,public/**}"
+      "includeFiles": "node_modules/mongodb/**"
     }
   },
   "crons": [

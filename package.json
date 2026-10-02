@@ -34,8 +34,8 @@
     "googleapis": "^171.4.0",
     "helmet": "^8.0.0",
     "method-override": "^3.0.0",
-    "mongodb": "6.20.0",
-    "mongoose": "8.24.4",
+    "mongodb": "6.8.0",
+    "mongoose": "8.6.0",
     "multer": "^2.0.2"
   },
   "devDependencies": {
