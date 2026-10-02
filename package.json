@@ -10,7 +10,7 @@
     "migrate:security": "node migrate_security.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0 <=22.x"
   },
   "keywords": [
     "crm",
@@ -28,7 +28,7 @@
     "dotenv": "^16.4.7",
     "ejs": "3.1.10",
     "exceljs": "^4.4.0",
-    "express": "^5.2.1",
+    "express": "^4.22.3",
     "express-rate-limit": "^7.5.0",
     "express-session": "^1.19.0",
     "googleapis": "^171.4.0",
