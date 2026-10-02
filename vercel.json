@@ -1,27 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
     {
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
   ],
-  "functions": {
-    "api/index.js": {
-      "includeFiles": [
-        "node_modules/mongodb/lib/**",
-        "node_modules/bson/lib/**",
-        "node_modules/mongodb-connection-string-url/lib/**",
-        "node_modules/@mongodb-js/saslprep/dist/**"
-      ]
-    }
-  },
   "crons": [
     {
       "path": "/api/cron/maintenance",
