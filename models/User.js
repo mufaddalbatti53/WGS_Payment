@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true, trim: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin', 'staff', 'superadmin', 'customer'], default: 'admin', required: true },
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     securityQuestion: { type: String },
-    securityAnswer: { type: String },
+    securityAnswer: { type: String, select: false },
 
     // Registration & Approval status
     email: { 

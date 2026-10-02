@@ -1513,8 +1513,10 @@
                                                     <%= adminUser.googleEmail %>
                                                 </div>
                                             </div>
-                                            <a href="/auth/google/disconnect"
-                                                style="color: #ef4444; font-size: 12px; font-weight: bold; text-decoration: none; border: 1px solid #fca5a5; padding: 5px 10px; border-radius: 6px;">Disconnect</a>
+                                            <form action="/auth/google/disconnect" method="POST" style="margin:0;">
+                                                <button type="submit"
+                                                    style="color: #ef4444; background:transparent; font-size: 12px; font-weight: bold; border: 1px solid #fca5a5; padding: 5px 10px; border-radius: 6px; cursor:pointer;">Disconnect</button>
+                                            </form>
                                         </div>
                                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                                             <button onclick="triggerDriveBackup()" class="btn-primary"
@@ -2025,7 +2027,7 @@
                 // --- GOOGLE DRIVE INTEGRATION ---
                 function triggerDriveBackup() {
                     alert("Backing up to Google Drive in the background...");
-                    fetch('/drive-backup')
+                    fetch('/drive-backup', { method: 'POST' })
                         .then(response => {
                             if (response.status === 401) {
                                 window.location.href = '/login?error=' + encodeURIComponent("Session expired. Please log in again.");
@@ -2044,7 +2046,7 @@
                 function triggerDriveRestore() {
                     if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
                         showToast("⏳ Downloading backup from Google Drive...");
-                        fetch('/drive-restore')
+                        fetch('/drive-restore', { method: 'POST' })
                             .then(response => {
                                 if (response.status === 401) {
                                     window.location.href = '/login?error=' + encodeURIComponent("Session expired. Please log in again.");

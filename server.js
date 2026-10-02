@@ -9,6 +9,7 @@ const methodOverride = require('method-override');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const crypto = require('crypto');
 
 const ExcelJS = require('exceljs');
 const multer = require('multer');
@@ -37,8 +38,10 @@ if (!dbURI) {
 
 async function ensureSuperAdminAccount() {
     try {
-        const existingSuper = await User.findOne({ username: 'superadmin' });
-        const bootstrapUsername = process.env.SUPERADMIN_USERNAME;
+        const bootstrapUsername = (process.env.SUPERADMIN_USERNAME || '').trim();
+        const existingSuper = bootstrapUsername
+            ? await User.findOne({ username: bootstrapUsername })
+            : null;
         const bootstrapPassword = process.env.SUPERADMIN_PASSWORD;
         if (!existingSuper && bootstrapUsername && bootstrapPassword) {
             await User.create({
@@ -49,33 +52,6 @@ async function ensureSuperAdminAccount() {
             });
             console.log("✅ Super Admin account initialized.");
         }
-        // Auto-approve pre-existing admin accounts created prior to status requirement
-        const updateResult = await User.updateMany(
-            { role: { $in: ['admin', 'staff'] }, status: { $exists: false } },
-            { $set: { status: 'approved', approvedAt: new Date() } }
-        );
-        if (updateResult.modifiedCount > 0) {
-            console.log(`✅ Auto-approved ${updateResult.modifiedCount} pre-existing account(s).`);
-        }
-
-        await User.updateMany({}, { $unset: { plainPassword: 1 } });
-
-        // Auto-normalize String adminIds to ObjectId in database
-        const db = mongoose.connection.db;
-        if (db) {
-            await db.collection('customers').updateMany(
-                { adminId: { $type: 'string' } },
-                [{ $set: { adminId: { $toObjectId: '$adminId' } } }]
-            );
-            await db.collection('users').updateMany(
-                { adminId: { $type: 'string' } },
-                [{ $set: { adminId: { $toObjectId: '$adminId' } } }]
-            );
-            await db.collection('activities').updateMany(
-                { adminId: { $type: 'string' } },
-                [{ $set: { adminId: { $toObjectId: '$adminId' } } }]
-            );
-        }
     } catch (err) {
         console.error("Auto Super Admin creation error:", err.message);
     }
@@ -85,7 +61,9 @@ mongoose.connect(dbURI)
     .then(() => {
         console.log("✅ DB Connected Successfully");
         databaseReady = true;
-        ensureSuperAdminAccount();
+        ensureSuperAdminAccount().catch(err => {
+            console.error("Account bootstrap error:", err.message);
+        });
         if (process.env.VERCEL !== '1') {
             shiftAgingBuckets();
             runAutoBackups(); // Run on startup
@@ -102,7 +80,6 @@ mongoose.connect(dbURI)
 // Required when HTTPS is terminated by Hostinger's Nginx reverse proxy.
 app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
-app.set('trust proxy', 1);
 app.use(helmet());
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'favicon.ico')));
@@ -143,8 +120,15 @@ app.use((req, res, next) => {
 
     try {
         const source = origin || new URL(referer).origin;
-        const expected = `${req.protocol}://${req.get('host')}`;
-        if (source !== expected) {
+        const configuredOrigin = process.env.PUBLIC_APP_ORIGIN;
+        const forwardedProtocol = (req.get('x-forwarded-proto') || '').split(',')[0].trim();
+        const forwardedHost = (req.get('x-forwarded-host') || '').split(',')[0].trim();
+        const expectedOrigins = new Set([
+            `${req.protocol}://${req.get('host')}`,
+            forwardedProtocol && forwardedHost ? `${forwardedProtocol}://${forwardedHost}` : '',
+            configuredOrigin ? new URL(configuredOrigin).origin : ''
+        ]);
+        if (!expectedOrigins.has(source)) {
             return res.status(403).send('Request origin could not be verified.');
         }
     } catch (err) {
@@ -268,8 +252,11 @@ function getOAuth2Client(tokens) {
 // 1. Route to start Google Drive Connection
 app.get('/auth/google', requireAdmin, (req, res) => {
     const client = getOAuth2Client();
+    const state = crypto.randomBytes(32).toString('hex');
+    req.session.googleOAuthState = state;
     const url = client.generateAuthUrl({
         access_type: 'offline',
+        state,
         scope: [
             'https://www.googleapis.com/auth/drive.file',
             'https://www.googleapis.com/auth/drive.appdata',
@@ -282,7 +269,14 @@ app.get('/auth/google', requireAdmin, (req, res) => {
 
 app.get('/auth/google/callback', requireLogin, async (req, res) => {
     try {
-        const { code } = req.query;
+        const { code, state } = req.query;
+        const expectedState = req.session.googleOAuthState;
+        delete req.session.googleOAuthState;
+        if (!code || typeof state !== 'string' || !expectedState ||
+            state.length !== expectedState.length ||
+            !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(expectedState))) {
+            return res.status(400).send('Invalid Google authorization request.');
+        }
         const client = getOAuth2Client();
         const { tokens } = await client.getToken(code);
         client.setCredentials(tokens);
@@ -299,7 +293,7 @@ app.get('/auth/google/callback', requireLogin, async (req, res) => {
     } catch (e) { res.redirect('/?msg=error'); }
 });
 
-app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
+app.post('/auth/google/disconnect', requireLogin, async (req, res) => {
     try {
         await User.findByIdAndUpdate(req.session.adminId, {
             $unset: { googleDriveToken: "", googleEmail: "" }
@@ -311,7 +305,7 @@ app.get('/auth/google/disconnect', requireLogin, async (req, res) => {
     }
 });
 
-app.get('/drive-backup', requireLogin, async (req, res) => {
+app.post('/drive-backup', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin' && req.session.role !== 'superadmin') {
         if (isJsonReq(req)) {
             return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
@@ -364,7 +358,7 @@ app.get('/drive-backup', requireLogin, async (req, res) => {
 });
 
 // 4. The "WhatsApp Style" Silent Restore Route
-app.get('/drive-restore', requireLogin, async (req, res) => {
+app.post('/drive-restore', requireLogin, async (req, res) => {
     if (req.session.role !== 'admin' && req.session.role !== 'superadmin') {
         if (isJsonReq(req)) {
             return res.status(401).json({ success: false, redirect: '/login', message: "Session expired. Please log in again." });
@@ -621,7 +615,7 @@ app.post('/login', loginLimiter, async (req, res) => {
         }
 
         const { username, password } = req.body;
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ username }).select('+password');
 
         if (!user) return res.render('login', { error: "Invalid username or password." });
 
@@ -678,7 +672,7 @@ app.get('/forgot-password', (req, res) => { res.render('forgot', { error: null }
 app.post('/forgot-password', async (req, res) => {
     try {
         const { username, securityQuestion, securityAnswer, newPassword } = req.body;
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ username }).select('+securityAnswer');
         if (!user) return res.render('forgot', { error: "Username not found" });
         if (user.securityQuestion !== securityQuestion) return res.render('forgot', { error: "Wrong Security Question" });
         const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
@@ -1131,7 +1125,7 @@ app.post('/superadmin/change-credentials', requireSuperAdmin, async (req, res) =
             return res.redirect('/superadmin?error=' + encodeURIComponent('New password must be at least 6 characters long.') + '&tab=settingsTab');
         }
 
-        const user = await User.findById(req.session.userId);
+        const user = await User.findById(req.session.userId).select('+password');
         if (!user || user.role !== 'superadmin') {
             return res.redirect('/superadmin?error=' + encodeURIComponent('Super Admin account not found.') + '&tab=settingsTab');
         }
@@ -1860,7 +1854,7 @@ app.post('/change-password', requireLogin, async (req, res) => {
         if (!currentPassword || !newPassword) return res.json({ success: false, error: 'All fields required' });
         if (newPassword.length < 6) return res.json({ success: false, error: 'Password must be at least 6 characters' });
 
-        const user = await User.findById(req.session.userId);
+        const user = await User.findById(req.session.userId).select('+password');
         if (!user) return res.json({ success: false, error: 'User not found' });
 
         const isMatch = await bcrypt.compare(currentPassword, user.password);
