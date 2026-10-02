@@ -1,9 +1,21 @@
 services:
   - type: web
-    name: wgs-order-processing
-    env: node
+    name: wgs-payment-manager
+    runtime: node
+    plan: free
     buildCommand: npm install
     startCommand: node server.js
+    healthCheckPath: /health
     envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SUPERADMIN_USERNAME
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
       - key: NODE_OPTIONS
         value: "--max-http-header-size=80000"

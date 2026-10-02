@@ -21,12 +21,13 @@ const ActivityLog = require('./models/Activity');
 
 const app = express();
 
-// Hostinger VPS health check. Nginx and monitoring can use this without a login.
+// Render & UptimeRobot health check. Monitoring services can ping this to keep the application awake.
 let databaseReady = false;
 app.get('/health', (req, res) => {
-    res.status(databaseReady ? 200 : 503).json({
-        status: databaseReady ? 'ok' : 'starting',
-        database: databaseReady ? 'connected' : 'connecting'
+    res.status(200).json({
+        status: 'ok',
+        database: databaseReady ? 'connected' : 'connecting',
+        uptime: Math.floor(process.uptime())
     });
 });
 
