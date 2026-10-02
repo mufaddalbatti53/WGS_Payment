@@ -114,7 +114,11 @@ app.use((req, res, next) => {
 
     const origin = req.get('origin');
     const referer = req.get('referer');
-    if (!origin && !referer) {
+    const fetchSite = req.get('sec-fetch-site');
+    const hasSameOriginFetchMetadata = fetchSite === 'same-origin';
+    const hasNullOriginSameOriginFetch = origin === 'null' && hasSameOriginFetchMetadata;
+    if ((!origin && !referer && !hasSameOriginFetchMetadata) || hasNullOriginSameOriginFetch) {
+        if (hasNullOriginSameOriginFetch) return next();
         return res.status(403).send('Request origin could not be verified.');
     }
 
