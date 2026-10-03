@@ -891,7 +891,14 @@
                                             <strong style="font-size:16px;">Profile</strong>
                                             <span style="font-size:12px; color:var(--text-muted);">Company
                                                 Details</span>
-                                        </a> <% } %>
+                                        </a>
+                                        <a class="launcher-tile"
+                                            onclick="document.getElementById('changePasswordModal').style.display='block'; return false;">
+                                            <div class="launcher-icon" style="background: #fef9c3;">🔑</div>
+                                            <strong style="font-size:16px;">Password</strong>
+                                            <span style="font-size:12px; color:var(--text-muted);">Change Login</span>
+                                        </a>
+                                        <% } %>
                                         <a class="launcher-tile" href="/logout"
                                             style="grid-column: span 2; align-items:center; flex-direction:row; background: #fee2e2; border-color: #fca5a5;">
                                             <div class="launcher-icon"

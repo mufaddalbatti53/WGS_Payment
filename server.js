@@ -81,7 +81,20 @@ mongoose.connect(dbURI)
 // Required when HTTPS is terminated by Hostinger's Nginx reverse proxy.
 app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://www.googleapis.com"],
+            fontSrc: ["'self'", "https:", "data:"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: []
+        }
+    }
+}));
 app.use(express.static('public', { dotfiles: 'allow' }));
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(express.urlencoded({ extended: true, limit: '2mb', parameterLimit: 10000 }));
