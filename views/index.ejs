@@ -1883,6 +1883,7 @@
                 // --- FILTERING LOGIC ---
                 function clickBucket(bucketKey, label, count, amtStr) {
                     activeFilter.bucket = bucketKey;
+                    document.getElementById('filterAging').value = bucketKey;
                     activeFilter.actionOnly = false;
                     var hdr = document.getElementById('filterActiveHeader');
                     if (hdr) {
@@ -1896,6 +1897,7 @@
                 function filterActionRequired() {
                     activeFilter.actionOnly = true;
                     activeFilter.bucket = 'all';
+                    document.getElementById('filterAging').value = 'all';
                     var hdr = document.getElementById('filterActiveHeader');
                     if (hdr) {
                         document.getElementById('filterActiveText').innerHTML = '⚠️ Action Required Parties';
