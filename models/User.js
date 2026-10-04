@@ -52,7 +52,11 @@ const userSchema = new mongoose.Schema({
     dailyMessageLimit: { type: Number, default: 100 },
     dailyMessageCount: { type: Number, default: 0 },
     lastMessageResetDate: { type: Date, default: Date.now },
-    planExpiryDate: { type: Date, default: null }
+    planExpiryDate: { type: Date, default: null },
+
+    // 🔑 Password Reset OTP
+    resetOtp: { type: String, select: false },
+    resetOtpExpiry: { type: Date, select: false }
 }, { timestamps: true });
 
 // Dedicated Single & Compound Indexes for ultra-fast query performance

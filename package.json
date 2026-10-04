@@ -36,7 +36,8 @@
     "method-override": "^3.0.0",
     "mongodb": "^6.16.0",
     "mongoose": "^8.14.0",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "nodemailer": "^10.0.14"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

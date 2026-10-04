@@ -14,6 +14,18 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const nodemailer = require('nodemailer');
+
+// Email transporter for OTP-based password recovery
+const emailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT) || 465,
+    secure: (parseInt(process.env.SMTP_PORT) || 465) === 465,
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
+});
 
 const Customer = require('./models/Customer');
 const User = require('./models/User');
@@ -687,23 +699,105 @@ app.post('/login', loginLimiter, async (req, res) => {
     }
 });
 
-app.get('/forgot-password', (req, res) => { res.render('forgot', { error: null }); });
+app.get('/forgot-password', (req, res) => { res.render('forgot', { error: null, success: null }); });
 
-app.post('/forgot-password', async (req, res) => {
+// Step 1: Request OTP — sends a 6-digit code to the user's registered email
+app.post('/forgot-password/request-otp', async (req, res) => {
     try {
-        const { username, securityQuestion, securityAnswer, newPassword } = req.body;
-        const user = await User.findOne({ username }).select('+securityAnswer');
-        if (!user) return res.render('forgot', { error: "Username not found" });
-        if (user.securityQuestion !== securityQuestion) return res.render('forgot', { error: "Wrong Security Question" });
-        const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer);
-        if (!isMatch) return res.render('forgot', { error: "Wrong Security Answer" });
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        user.password = hashedPassword;
-        await user.save();
-        res.redirect('/login');
+        const username = (req.body.username || '').trim();
+        if (!username) return res.json({ success: false, error: 'Please enter your username.' });
+
+        const user = await User.findOne({ username });
+        if (!user) return res.json({ success: false, error: 'Username not found.' });
+
+        // Find the user's email: check registration email first, then companyEmail
+        const userEmail = user.email || user.companyEmail;
+        if (!userEmail) {
+            return res.json({ success: false, error: 'No email address is linked to this account. Please contact Super Admin.' });
+        }
+
+        // Generate a 6-digit OTP and set 10-minute expiry
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await User.findByIdAndUpdate(user._id, {
+            resetOtp: otp,
+            resetOtpExpiry: expiry
+        });
+
+        // Send the email
+        const mailOptions = {
+            from: `"WGS Payment Manager" <${process.env.SMTP_USER}>`,
+            to: userEmail,
+            subject: '🔑 Password Reset OTP — WGS Payment Manager',
+            html: `
+                <div style="font-family: 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 30px; background: #f8fafc; border-radius: 16px;">
+                    <h2 style="color: #0f2d52; margin-top: 0;">Password Reset Request</h2>
+                    <p style="color: #4a7fa8;">You requested a password reset for your account <strong>"${username}"</strong>.</p>
+                    <div style="background: linear-gradient(135deg, #1558cc, #0f2d52); color: white; padding: 25px; border-radius: 12px; text-align: center; margin: 20px 0;">
+                        <p style="margin: 0 0 5px 0; font-size: 13px; opacity: 0.8;">Your One-Time Password (OTP)</p>
+                        <h1 style="margin: 0; font-size: 36px; letter-spacing: 8px;">${otp}</h1>
+                    </div>
+                    <p style="color: #ef4444; font-weight: 600; font-size: 13px;">⏰ This OTP expires in 10 minutes.</p>
+                    <p style="color: #4a7fa8; font-size: 13px;">If you didn't request this, you can safely ignore this email.</p>
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="color: #94a3b8; font-size: 11px; text-align: center;">WGS Payment Manager — Web Graphics Studio</p>
+                </div>
+            `
+        };
+
+        await emailTransporter.sendMail(mailOptions);
+
+        // Mask email for display (e.g., m***@gmail.com)
+        const parts = userEmail.split('@');
+        const maskedEmail = parts[0].charAt(0) + '***@' + parts[1];
+
+        res.json({ success: true, maskedEmail: maskedEmail });
     } catch (err) {
-        console.error("Forgot password error:", err);
-        res.render('forgot', { error: "An error occurred while resetting password." });
+        console.error('OTP request error:', err);
+        res.json({ success: false, error: 'Failed to send OTP. Please try again later.' });
+    }
+});
+
+// Step 2: Verify OTP and reset password
+app.post('/forgot-password/reset', async (req, res) => {
+    try {
+        const { username, otp, newPassword } = req.body;
+        if (!username || !otp || !newPassword) {
+            return res.json({ success: false, error: 'All fields are required.' });
+        }
+        if (newPassword.length < 6) {
+            return res.json({ success: false, error: 'Password must be at least 6 characters.' });
+        }
+
+        const user = await User.findOne({ username }).select('+resetOtp +resetOtpExpiry');
+        if (!user) return res.json({ success: false, error: 'Username not found.' });
+
+        if (!user.resetOtp || !user.resetOtpExpiry) {
+            return res.json({ success: false, error: 'No OTP was requested. Please go back and request one first.' });
+        }
+
+        if (new Date() > new Date(user.resetOtpExpiry)) {
+            // Clear expired OTP
+            await User.findByIdAndUpdate(user._id, { $unset: { resetOtp: '', resetOtpExpiry: '' } });
+            return res.json({ success: false, error: 'OTP has expired. Please request a new one.' });
+        }
+
+        if (user.resetOtp !== otp.trim()) {
+            return res.json({ success: false, error: 'Invalid OTP. Please check and try again.' });
+        }
+
+        // OTP is valid — reset the password
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        await User.findByIdAndUpdate(user._id, {
+            password: hashedPassword,
+            $unset: { resetOtp: '', resetOtpExpiry: '' }
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Password reset error:', err);
+        res.json({ success: false, error: 'An error occurred. Please try again.' });
     }
 });
 
