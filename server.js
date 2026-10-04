@@ -18,13 +18,16 @@ const nodemailer = require('nodemailer');
 
 // Email transporter for OTP-based password recovery
 const emailTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: (process.env.SMTP_HOST || '').trim(),
     port: parseInt(process.env.SMTP_PORT) || 465,
     secure: (parseInt(process.env.SMTP_PORT) || 465) === 465,
     auth: {
-        user: process.env.SMTP_USER,
+        user: (process.env.SMTP_USER || '').trim(),
         pass: process.env.SMTP_PASS
-    }
+    },
+    connectionTimeout: 10000, // 10 seconds max to connect
+    greetingTimeout: 10000,
+    socketTimeout: 15000 // 15 seconds max for operations
 });
 
 const Customer = require('./models/Customer');
