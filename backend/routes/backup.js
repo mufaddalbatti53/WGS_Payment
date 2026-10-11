@@ -52,9 +52,9 @@ router.get('/google', requireAdmin, async (req, res) => {
 });
 
 router.get('/google/callback', async (req, res) => {
+    const frontendUrl = (process.env.FRONTEND_ORIGIN || process.env.PUBLIC_APP_ORIGIN || 'https://payment.webgraphicsstudio.in').replace(/\/+$/, '');
     try {
         const { code, state } = req.query;
-        const frontendUrl = process.env.FRONTEND_ORIGIN || '';
         if (!code || !state) {
             return res.redirect(`${frontendUrl}/dashboard.html?msg=error`);
         }
@@ -111,7 +111,6 @@ router.get('/google/callback', async (req, res) => {
         return res.redirect(`${frontendUrl}/dashboard.html?driveConnected=true`);
     } catch (e) {
         console.error("Google OAuth callback error:", e);
-        const frontendUrl = process.env.FRONTEND_ORIGIN || '';
         return res.redirect(`${frontendUrl}/dashboard.html?error=` + encodeURIComponent("Google Drive linking failed: " + (e.message || "Unknown error")));
     }
 });

@@ -1,4 +1,7 @@
-const API_BASE = window.API_BASE || 'http://localhost:3000';
+const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE = (window.API_BASE && (!window.API_BASE.includes('localhost') || isLocalHost))
+    ? window.API_BASE.replace(/\/+$/, '')
+    : (isLocalHost ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app');
 
 async function apiFetch(path, options = {}) {
     const url = API_BASE + path;

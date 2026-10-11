@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://wgs-payment.vercel.app/api/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://wgs-payment.vercel.app/auth/:path*"
+    }
+  ]
+}

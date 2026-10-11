@@ -5,7 +5,11 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️ Unhandled Promise Rejection at:', promise, 'reason:', reason);
 });
-require('dns').setServers(['8.8.8.8', '8.8.4.4']);
+if (!process.env.VERCEL) {
+    try {
+        require('dns').setServers(['8.8.8.8', '8.8.4.4']);
+    } catch (e) {}
+}
 const express = require('express');
 const mongoose = require('mongoose');
 mongoose.connection.on('error', err => {
@@ -27,8 +31,31 @@ const ActivityLog = require('./models/Activity');
 
 const app = express();
 
+const allowedOrigins = [
+    process.env.FRONTEND_ORIGIN,
+    process.env.PUBLIC_APP_ORIGIN,
+    'https://payment.webgraphicsstudio.in',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'http://localhost:5173',
+    'http://localhost:3000'
+].filter(Boolean).map(o => o.replace(/\/+$/, ''));
+
 app.use(cors({
-    origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.replace(/\/+$/, '');
+        if (
+            allowedOrigins.includes(cleanOrigin) ||
+            /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(cleanOrigin) ||
+            /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(cleanOrigin)
+        ) {
+            return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     exposedHeaders: ['Content-Disposition']
 }));
@@ -50,11 +77,14 @@ if (!dbURI) {
 async function ensureSuperAdminAccount() {
     try {
         const bootstrapUsername = (process.env.SUPERADMIN_USERNAME || '').trim();
-        const existingSuper = bootstrapUsername
-            ? await User.findOne({ username: bootstrapUsername })
-            : null;
         const bootstrapPassword = process.env.SUPERADMIN_PASSWORD;
-        if (!existingSuper && bootstrapUsername && bootstrapPassword) {
+        if (!bootstrapUsername) return;
+
+        const existingSuper = await User.findOne({
+            username: new RegExp('^\\s*' + bootstrapUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'i')
+        }).select('+password');
+
+        if (!existingSuper && bootstrapPassword) {
             await User.create({
                 username: bootstrapUsername,
                 password: await bcrypt.hash(bootstrapPassword, 12),
@@ -62,6 +92,20 @@ async function ensureSuperAdminAccount() {
                 status: 'approved'
             });
             console.log("✅ Super Admin account initialized.");
+        } else if (existingSuper) {
+            let updated = false;
+            if (existingSuper.role !== 'superadmin') {
+                existingSuper.role = 'superadmin';
+                updated = true;
+            }
+            if (existingSuper.status !== 'approved') {
+                existingSuper.status = 'approved';
+                updated = true;
+            }
+            if (updated) {
+                await existingSuper.save();
+                console.log("✅ Super Admin account role/status verified.");
+            }
         }
     } catch (err) {
         console.error("Auto Super Admin creation error:", err.message);
@@ -92,9 +136,11 @@ app.use(helmet());
 app.use(express.urlencoded({ extended: true, limit: '2mb', parameterLimit: 10000 }));
 app.use(express.json({ limit: '2mb' }));
 
+const isProductionOrVercel = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+
 app.use(session({
     secret: process.env.SESSION_SECRET || (() => {
-        if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') {
+        if (isProductionOrVercel) {
             throw new Error('SESSION_SECRET must be configured in production.');
         }
         return 'local-development-only-session-secret';
@@ -107,10 +153,10 @@ app.use(session({
         autoRemove: 'native'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60, // 1 hour
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        secure: process.env.NODE_ENV === 'production'
+        sameSite: isProductionOrVercel ? 'none' : 'lax',
+        secure: isProductionOrVercel
     }
 }));
 
