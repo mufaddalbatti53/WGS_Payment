@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Linking Google Drive...</title>
+    <script>
+        (function () {
+            var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            var apiBase = isLocal ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';
+            window.location.replace(apiBase + '/auth/google/callback' + window.location.search);
+        })();
+    </script>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: #334155;">
+    <p>Linking your Google Drive account, please wait...</p>
+</body>
+</html>
