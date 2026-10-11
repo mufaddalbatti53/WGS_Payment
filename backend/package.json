@@ -1,0 +1,33 @@
+{
+  "name": "wgs-payment-api",
+  "version": "1.0.0",
+  "description": "Smart CRM and Payment Tracking API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "connect-mongo": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.19.0",
+    "googleapis": "^171.4.0",
+    "helmet": "^8.0.0",
+    "mongodb": "^6.16.0",
+    "mongoose": "^8.14.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.0.14"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

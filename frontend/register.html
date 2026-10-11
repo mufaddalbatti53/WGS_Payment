@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Request Admin Access — WGS Payment Tracker</title>
+    <meta name="description" content="Register for an Admin workspace on WGS Payment Tracker to manage client ledgers, aging analysis, and automated payment reminders.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Request Admin Access — WGS Payment Tracker">
+    <meta property="og:description" content="Register for an Admin workspace on WGS Payment Tracker to manage client ledgers and automated reminders.">
+    <meta property="og:image" content="https://payment.webgraphicsstudio.in/images/dashboard-demo.jpg">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/images/WGS.png" type="image/png">
+    <link rel="apple-touch-icon" href="/images/WGS.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .box {
+            padding: 35px 30px;
+            max-width: 440px;
+            border: 1px solid rgba(39, 174, 96, 0.15);
+        }
+        h2 { font-size: 24px; margin-bottom: 8px; }
+        .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+        .info-alert {
+            background: #e6f4ea; border: 1px solid #a3e0b7; color: #1e7e44; padding: 10px 14px; border-radius: 10px; font-size: 12px; text-align: left; margin-bottom: 18px; line-height: 1.4;
+        }
+        input, select {
+            margin: 6px 0 14px 0;
+        }
+        label {
+            display: block; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;
+        }
+        .input-group {
+            position: relative; display: flex; align-items: center; margin: 0;
+        }
+        .toggle-password {
+            position: absolute; right: 15px; cursor: pointer; font-size: 18px; color: var(--text-muted); user-select: none; margin-top: -8px; top: auto; transform: none;
+        }
+        button {
+            margin-top: 10px;
+        }
+        .back-link {
+            display: inline-block; margin-top: 18px; font-size: 13px; color: var(--text-muted); text-decoration: none; font-weight: 600; transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--primary-dark); }
+        .alert-error, .alert-success {
+            font-size: 13px; font-weight: bold; padding: 12px; border-radius: 10px; margin-bottom: 20px;
+        }
+        .alert-error { color: #ef4444; background: #fee2e2; }
+        .alert-success { color: #16a34a; background: #dcfce7; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Request Admin Access</h2>
+        <div class="subtitle">Submit your details to request an Admin account. Super Admin will review your request for approval.</div>
+
+        <div class="info-alert">
+            ℹ️ <strong>Note:</strong> Super Admin approval is required to activate your account. Please enter your valid Email & Phone so we can contact you regarding your account setup.
+        </div>
+        
+        <div id="alertBox" style="display:none;"></div>
+
+        <form id="registerForm">
+            <label>Admin Username</label>
+            <input type="text" name="username" placeholder="Choose Admin Username" required autocomplete="username">
+
+            <label>Secure Password</label>
+            <div class="input-group">
+                <input type="password" name="password" id="password" placeholder="Choose Password" required autocomplete="new-password">
+                <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+            </div>
+
+            <label>Retype Password</label>
+            <div class="input-group">
+                <input type="password" id="confirmPassword" placeholder="Retype Password" required autocomplete="new-password">
+                <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+            </div>
+
+            <label>Email Address</label>
+            <input type="email" name="email" placeholder="your.email@example.com" required>
+
+            <label>Phone / WhatsApp Number</label>
+            <input type="tel" name="phone" placeholder="+91 9876543210" required>
+
+            <label>Security Question (For Recovery):</label>
+            <select name="securityQuestion">
+                <option value="pet">What is your first pet's name?</option>
+                <option value="school">What is your first school name?</option>
+                <option value="city">In which city were you born?</option>
+            </select>
+            <input type="text" name="securityAnswer" placeholder="Your Security Answer" required>
+
+            <button type="submit" id="submitBtn">Submit Access Request</button>
+        </form>
+        <a href="login.html" class="back-link">&larr; Back to Login</a>
+    </div>
+
+    <script>
+        window.API_BASE = 'http://localhost:3000'; 
+    </script>
+    <script src="js/api.js"></script>
+    <script>
+        function togglePassword(icon) {
+            const input = icon.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                icon.innerText = '👁️';
+            }
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const alertBox = document.getElementById('alertBox');
+            
+            if (password !== confirmPassword) {
+                alertBox.className = 'alert-error';
+                alertBox.innerText = '⚠️ Passwords do not match. Please retype carefully.';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            alertBox.style.display = 'none';
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
+
+            try {
+                const response = await apiJson('/api/register', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.success || response.message) {
+                    alertBox.className = 'alert-success';
+                    alertBox.innerText = '✅ ' + (response.message || 'Request submitted successfully! Redirecting...');
+                    alertBox.style.display = 'block';
+                    const submittedUser = data.username || '';
+                    e.target.reset();
+                    setTimeout(() => {
+                        window.location.href = 'thank-you.html?user=' + encodeURIComponent(submittedUser);
+                    }, 900);
+                } else {
+                    alertBox.className = 'alert-error';
+                    alertBox.innerText = '⚠️ ' + (response.error || 'Registration failed');
+                    alertBox.style.display = 'block';
+                }
+            } catch (err) {
+                alertBox.className = 'alert-error';
+                alertBox.innerText = '⚠️ Network error. Please try again.';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Submit Access Request';
+            }
+        });
+    </script>
+</body>
+</html>

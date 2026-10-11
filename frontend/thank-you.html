@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank You — Request Submitted | WGS Payment Tracker</title>
+  <meta name="description" content="Thank you for requesting Admin access to WGS Payment Tracker. Your registration is pending Super Admin approval.">
+  <meta name="theme-color" content="#2c3e50">
+
+  <!-- Open Graph / Social Preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://payment.webgraphicsstudio.in/thank-you.html">
+  <meta property="og:title" content="Thank You — WGS Payment Tracker">
+  <meta property="og:description" content="Your Admin access request has been received and is pending Super Admin approval.">
+  <meta property="og:image" content="https://payment.webgraphicsstudio.in/images/dashboard-demo.jpg">
+
+  <!-- Favicon Set -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/images/WGS.png" type="image/png">
+  <link rel="apple-touch-icon" href="/images/WGS.png">
+  <link rel="manifest" href="/manifest.json">
+
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .thank-you-box {
+      background: white;
+      border-radius: 24px;
+      padding: 42px 34px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+      border: 1px solid rgba(39, 174, 96, 0.2);
+      text-align: center;
+    }
+    .check-badge {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 6px 18px rgba(34, 197, 94, 0.2);
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+    }
+    .lead {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .steps-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 18px 20px;
+      text-align: left;
+      margin-bottom: 26px;
+    }
+    .steps-card h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .step-item:last-child { margin-bottom: 0; }
+    .btn-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-primary-link {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      font-weight: 700;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 15px;
+      box-shadow: var(--shadow-btn);
+      transition: transform 0.2s;
+    }
+    .btn-primary-link:hover {
+      transform: translateY(-2px);
+    }
+    .btn-secondary-link {
+      display: block;
+      padding: 10px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .btn-secondary-link:hover {
+      color: var(--primary-dark);
+    }
+  </style>
+</head>
+<body>
+  <div class="thank-you-box">
+    <div class="check-badge">✅</div>
+    <h1>Access Request Submitted!</h1>
+    <p class="lead" id="thankYouLead">
+      Thank you for registering with <strong>WGS Payment Tracker</strong>. Your Admin workspace request has been logged for review.
+    </p>
+
+    <div class="steps-card">
+      <h3>What Happens Next?</h3>
+      <div class="step-item">
+        <span>1️⃣</span>
+        <div><strong>Request Logged:</strong> Your username and security credentials are encrypted and queued.</div>
+      </div>
+      <div class="step-item">
+        <span>2️⃣</span>
+        <div><strong>Super Admin Review:</strong> Our administrator will verify and approve your workspace plan.</div>
+      </div>
+      <div class="step-item">
+        <span>3️⃣</span>
+        <div><strong>Ready to Sign In:</strong> Once approved, log in directly via the Admin Portal to manage parties and backups.</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <a href="login.html" class="btn-primary-link">→ Proceed to Login Portal</a>
+      <a href="index.html" class="btn-secondary-link">← Back to Home Page</a>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get('user');
+    if (username) {
+      const lead = document.getElementById('thankYouLead');
+      lead.innerHTML = `Thank you, <strong>${username.replace(/[<>&"']/g, '')}</strong>! Your Admin workspace request has been received and is pending Super Admin approval.`;
+    }
+  </script>
+</body>
+</html>

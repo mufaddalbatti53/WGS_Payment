@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manage Staff — WGS Payment Tracker</title>
+    <meta name="description" content="Create, manage, and reset credentials for Staff members in your WGS Payment Tracker workspace.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Manage Staff — WGS Payment Tracker">
+    <meta property="og:description" content="Create and manage staff accounts in your WGS Payment Tracker workspace.">
+    <meta property="og:image" content="https://payment.webgraphicsstudio.in/images/dashboard-demo.jpg">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/images/WGS.png" type="image/png">
+    <link rel="apple-touch-icon" href="/images/WGS.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <style>
+        :root {
+            --primary: #27ae60;
+            --primary-dark: #219653;
+            --primary-light: #eafff0;
+            --secondary: #3498db;
+            --sidebar-bg: #1e293b;
+            --bg-color: #f4f6f9;
+            --text-dark: #2c3e50;
+            --text-muted: #64748b;
+            --card-bg: #ffffff;
+            --shadow-soft: 0 10px 30px rgba(44, 62, 80, 0.06);
+            --shadow-hover: 0 20px 40px rgba(44, 62, 80, 0.12);
+            --shadow-btn: 0 6px 15px rgba(39, 174, 96, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+        }
+
+        .main-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 50px;
+        }
+
+        .floating-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 25px;
+            border: 1px solid rgba(44, 62, 80, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .back-link {
+            display: inline-block;
+            text-decoration: none;
+            color: var(--secondary);
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 8px 15px;
+            background: #f0f7ff;
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+
+        .back-link:hover {
+            background: #e0f2fe;
+        }
+
+        h1 {
+            margin-top: 10px;
+            margin-bottom: 25px;
+            color: var(--text-dark);
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .input-style {
+            padding: 12px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 14px;
+            background: #f8fafc;
+            transition: all 0.2s;
+            outline: none;
+            color: var(--text-dark);
+        }
+
+        .input-style:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: var(--shadow-btn);
+            transition: all 0.2s ease;
+            width: 100%;
+            font-size: 15px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-red {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-red:hover {
+            background: #dc2626;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-blue {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-blue:hover {
+            background: #2980b9;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
+        }
+
+        table {
+            width: 100%;
+            min-width: 700px;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8fafc;
+            color: var(--text-dark);
+            font-weight: bold;
+            padding: 15px 12px;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        td {
+            padding: 15px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .role-badge {
+            background: #f0f7ff;
+            color: var(--secondary);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid #bae6fd;
+            display: inline-block;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+            user-select: none;
+            margin-top: -8px;
+        }
+
+        @media screen and (max-width: 768px) {
+
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block !important;
+                width: 100%;
+            }
+
+            thead tr {
+                display: none !important;
+            }
+
+            .desktop-only {
+                display: none !important;
+            }
+
+            .mobile-only {
+                display: block !important;
+            }
+
+            .floating-card {
+                padding: 20px;
+            }
+
+            tr {
+                background: #ffffff;
+                border-radius: 20px;
+                margin-bottom: 20px;
+                padding: 20px;
+                border: 1px solid rgba(44, 62, 80, 0.1);
+                box-shadow: 0 12px 35px rgba(44, 62, 80, 0.08);
+            }
+
+            td {
+                border: none !important;
+                padding: 0 !important;
+            }
+
+            .staff-card-header {
+                font-size: 18px;
+                font-weight: 800;
+                color: var(--text-dark);
+                margin-bottom: 15px;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 12px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .reset-form {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 15px;
+                background: #f8fafc;
+                padding: 15px;
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+            }
+
+            .reset-form .input-style {
+                margin-bottom: 0;
+                flex: 2;
+            }
+
+            .reset-form .btn-blue {
+                flex: 1;
+                padding: 12px 0;
+                border-radius: 10px;
+            }
+
+            .staff-actions {
+                display: flex;
+                gap: 10px;
+            }
+
+            .staff-actions form {
+                flex: 1;
+                margin: 0;
+            }
+
+            .staff-actions button {
+                width: 100%;
+                padding: 12px 0;
+                font-size: 14px;
+                border-radius: 10px;
+            }
+        }
+
+        @media screen and (min-width: 769px) {
+            .mobile-only {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div
+        style="background: var(--sidebar-bg); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+        <div style="font-weight: bold; font-size: 18px;">
+            <a href="dashboard.html" style="color: white; text-decoration: none;">← Back to Dashboard</a>
+        </div>
+        <a href="#" id="logoutBtn"
+            style="background: #ef4444; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">🚪
+            Logout</a>
+    </div>
+    <div class="main-wrapper">
+        <div id="subscriptionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
+            <div style="font-size:26px;">⏰</div>
+            <div>
+                <strong style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
+                <span style="color:#9a3412; font-size:13px; font-weight:600;">
+                    Your plan expires in <u id="subDaysLeft" style="font-weight:800; font-size:14px;"></u> (on <span id="subExpiryDate"></span>). Please contact Super Admin to renew your subscription.
+                </span>
+            </div>
+        </div>
+        <div id="msgContainer" style="display:none; border-radius:16px; padding:14px 18px; margin-bottom:20px; font-weight:700; font-size:13px;">
+        </div>
+
+        <div class="floating-card" style="background: #f8fafc; border-color: #e2e8f0; position: relative; z-index: 100;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin: 0; color: var(--text-dark); font-size: 18px;">Create New Staff Account</h3>
+                <span id="staffLimitBadge" style="background:#e0e7ff; color:#3730a3; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:700;">
+                    Staff Limit: Loading...
+                </span>
+            </div>
+        
+            <form id="createStaffForm" style="position: relative; z-index: 101;">
+                <input type="text" id="staffUsername" name="username" placeholder="Staff Username" required class="input-style"
+                    style="position: relative; z-index: 102; pointer-events: auto;" autocomplete="username">
+        
+                <div class="input-group">
+                    <input type="password" id="staffPassword" name="password" placeholder="Staff Password" required class="input-style"
+                        style="margin-bottom: 10px; position: relative; z-index: 102; pointer-events: auto; width:100%;" autocomplete="new-password">
+                    <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                </div>
+
+                <div class="input-group">
+                    <input type="password" id="staffConfirmPassword" placeholder="Retype Staff Password" required class="input-style"
+                        style="margin-bottom: 20px; position: relative; z-index: 102; pointer-events: auto; width:100%;" autocomplete="new-password">
+                    <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+                </div>
+        
+                <button type="submit" class="btn-primary" style="position: relative; z-index: 102;">Create Account</button>
+            </form>
+        </div>
+
+        <div class="floating-card" style="padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 20px; position: relative;">
+            <table style="margin-top: 0;">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Reset Password</th>
+                        <th style="text-align: right; padding-right: 20px;">Delete</th>
+                    </tr>
+                </thead>
+                <tbody id="staffTableBody">
+                    <!-- Loaded dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>window.API_BASE = 'http://localhost:3000';</script>
+    <script src="js/api.js"></script>
+    <script src="js/staff.js"></script>
+</body>
+
+</html>

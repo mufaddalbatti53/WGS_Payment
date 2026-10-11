@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/images/WGS.png" type="image/png">
+    <link rel="apple-touch-icon" href="/images/WGS.png">
+    <link rel="manifest" href="/manifest.json">
+    <title>Recover Password — WGS Payment Tracker</title>
+    <meta name="description" content="Recover your WGS Payment Tracker account password securely using 2-step OTP email verification.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Recover Password — WGS Payment Tracker">
+    <meta property="og:description" content="Recover your WGS Payment Tracker account password securely using 2-step OTP verification.">
+    <meta property="og:image" content="https://payment.webgraphicsstudio.in/images/dashboard-demo.jpg">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary: #1558cc;
+            --primary-dark: #0f2d52;
+            --shadow-btn: 0 6px 15px rgba(21, 88, 204, 0.3);
+        }
+        .box {
+            max-width: 420px;
+            border: 1px solid rgba(21, 88, 204, 0.1);
+        }
+        h2 { margin-bottom: 8px; color: #0f2d52; }
+        .subtitle { color: #4a7fa8; font-size: 13px; margin-bottom: 25px; line-height: 1.5; }
+        input {
+            margin: 8px 0 15px 0;
+            color: #0f2d52;
+        }
+        input:focus {
+            box-shadow: 0 0 0 3px rgba(21, 88, 204, 0.15);
+        }
+        .input-group {
+            position: relative; display: flex; align-items: center; margin: 0;
+        }
+        .toggle-password {
+            position: absolute; right: 15px; cursor: pointer; font-size: 18px; color: #4a7fa8; user-select: none; margin-top: -3px; top: auto; transform: none;
+        }
+        .otp-input {
+            font-size: 28px; letter-spacing: 12px; text-align: center; font-weight: 800; padding: 18px;
+        }
+        button { margin-top: 10px; }
+        button:hover { box-shadow: 0 8px 20px rgba(21, 88, 204, 0.4); }
+        .back-link {
+            display: inline-block; margin-top: 20px; font-size: 13px; color: #4a7fa8; text-decoration: none; font-weight: 600; transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--primary-dark); }
+        .step { display: none; }
+        .step.active { display: block; }
+        .email-hint {
+            background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; margin-bottom: 15px; font-size: 13px; color: #1e40af;
+        }
+        .resend-link {
+            font-size: 12px; color: #4a7fa8; margin-top: 12px; display: block;
+        }
+        .resend-link a {
+            color: var(--primary); text-decoration: none; font-weight: 700; cursor: pointer;
+        }
+        .resend-link a:hover { text-decoration: underline; }
+        .spinner {
+            display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .step-indicator {
+            display: flex; justify-content: center; gap: 8px; margin-bottom: 20px;
+        }
+        .step-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: var(--primary); width: 30px; border-radius: 5px;
+        }
+        .alert {
+            font-size: 13px; font-weight: bold; padding: 12px; border-radius: 10px; margin-bottom: 20px;
+        }
+        .alert-error { color: #ef4444; background: #fee2e2; }
+        .alert-success { color: #16a34a; background: #dcfce7; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>🔑 Reset Password</h2>
+
+        <div class="step-indicator">
+            <div class="step-dot active" id="dot1"></div>
+            <div class="step-dot" id="dot2"></div>
+        </div>
+
+        <div id="alertBox" class="alert" style="display: none;"></div>
+
+        <!-- STEP 1: Enter Username & Request OTP -->
+        <div id="step1" class="step active">
+            <p class="subtitle">Enter your username and we'll send a verification code to your registered email.</p>
+
+            <input type="text" id="usernameInput" placeholder="Enter your Username" required autocomplete="username">
+
+            <button type="button" id="sendOtpBtn" onclick="requestOtp()">
+                Send Verification Code 📧
+            </button>
+        </div>
+
+        <!-- STEP 2: Enter OTP & New Password -->
+        <div id="step2" class="step">
+            <div class="email-hint" id="emailHint"></div>
+
+            <input type="text" id="otpInput" class="otp-input" placeholder="------" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+
+            <div class="input-group">
+                <input type="password" id="newPassword" placeholder="New Password (min 6 chars)" autocomplete="new-password">
+                <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+            </div>
+            <div class="input-group">
+                <input type="password" id="confirmPassword" placeholder="Retype New Password" autocomplete="new-password">
+                <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
+            </div>
+
+            <button type="button" id="resetBtn" onclick="resetPassword()">
+                Reset Password 🔒
+            </button>
+
+            <span class="resend-link">
+                Didn't receive the code? <a onclick="requestOtp()">Resend OTP</a>
+            </span>
+        </div>
+
+        <a href="login.html" class="back-link">&larr; Back to Login</a>
+    </div>
+
+    <script>
+        window.API_BASE = 'http://localhost:3000';
+    </script>
+    <script src="js/api.js"></script>
+    <script>
+        let savedUsername = '';
+
+        function showAlert(message, type) {
+            const box = document.getElementById('alertBox');
+            box.className = 'alert alert-' + type;
+            box.innerText = (type === 'error' ? '⚠️ ' : '✅ ') + message;
+            box.style.display = 'block';
+        }
+
+        function hideAlert() {
+            document.getElementById('alertBox').style.display = 'none';
+        }
+
+        function togglePassword(icon) {
+            const input = icon.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                icon.innerText = '👁️';
+            }
+        }
+
+        async function requestOtp() {
+            hideAlert();
+            const username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                showAlert('Please enter your username.', 'error');
+                return;
+            }
+
+            savedUsername = username;
+            const btn = document.getElementById('sendOtpBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+            try {
+                const response = await apiJson('/api/forgot-password/request-otp', {
+                    method: 'POST',
+                    body: JSON.stringify({ username })
+                });
+
+                if (response.success) {
+                    // Move to Step 2
+                    document.getElementById('step1').classList.remove('active');
+                    document.getElementById('step2').classList.add('active');
+                    document.getElementById('dot1').classList.remove('active');
+                    document.getElementById('dot2').classList.add('active');
+                    document.getElementById('emailHint').innerHTML = '📧 OTP sent to <strong>' + response.maskedEmail + '</strong>. Check your inbox (and spam folder).';
+                    showAlert('Verification code sent successfully!', 'success');
+                    document.getElementById('otpInput').focus();
+                } else {
+                    showAlert(response.error, 'error');
+                }
+            } catch (err) {
+                showAlert('Network error. Please check your connection.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Send Verification Code 📧';
+            }
+        }
+
+        async function resetPassword() {
+            hideAlert();
+            const otp = document.getElementById('otpInput').value.trim();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!otp || otp.length !== 6) {
+                showAlert('Please enter the 6-digit OTP from your email.', 'error');
+                return;
+            }
+            if (!newPassword) {
+                showAlert('Please enter a new password.', 'error');
+                return;
+            }
+            if (newPassword.length < 6) {
+                showAlert('Password must be at least 6 characters.', 'error');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showAlert('Passwords do not match. Please retype carefully.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('resetBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Resetting...';
+
+            try {
+                const response = await apiJson('/api/forgot-password/reset', {
+                    method: 'POST',
+                    body: JSON.stringify({ username: savedUsername, otp, newPassword })
+                });
+
+                if (response.success) {
+                    showAlert('Password reset successful! Redirecting to login...', 'success');
+                    btn.innerHTML = '✅ Done!';
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } else {
+                    showAlert(response.error, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Reset Password 🔒';
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Reset Password 🔒';
+            }
+        }
+
+        // Allow Enter key to submit on each step
+        document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') requestOtp();
+        });
+        document.getElementById('otpInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') document.getElementById('newPassword').focus();
+        });
+        document.getElementById('confirmPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') resetPassword();
+        });
+    </script>
+</body>
+</html>
