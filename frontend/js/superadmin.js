@@ -459,6 +459,49 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
     document.getElementById('limitsModal').style.display = 'flex';
 }
 
+window.applyPlanPresetToModal = function(planId) {
+    const cfg = currentPlanConfigState || DEFAULT_SUPERADMIN_PLAN_CONFIG;
+    const plans = (cfg && cfg.plans) || DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
+    const plan = plans.find(p => p.id === planId) || plans[0];
+    if (!plan) return;
+
+    const planNameInput = document.getElementById('modalPlanName');
+    if (planNameInput) planNameInput.value = plan.name || 'Basic Plan';
+
+    document.getElementById('modalMaxCustomers').value = plan.maxCustomersLimit ?? 250;
+    document.getElementById('modalMaxStaff').value = plan.maxStaffLimit ?? 2;
+    document.getElementById('modalDailyMessages').value = plan.dailyMessageLimit ?? 50;
+
+    const fa = plan.featureAccess || {};
+    const gdriveChk = document.getElementById('modalAllowGDrive');
+    const excelChk = document.getElementById('modalAllowExcel');
+    const pdfChk = document.getElementById('modalAllowPdf');
+    if (gdriveChk) gdriveChk.checked = fa.allowGoogleDriveBackup !== false;
+    if (excelChk) excelChk.checked = fa.allowExcelImport !== false;
+    if (pdfChk) pdfChk.checked = fa.allowPdfExport !== false;
+
+    const expEl = document.getElementById('modalPlanExpiry');
+    if (expEl && !expEl.value) {
+        const d = new Date();
+        d.setMonth(d.getMonth() + (Number(plan.durationMonths) || 12));
+        expEl.value = d.toISOString().split('T')[0];
+    }
+};
+
+window.extendModalExpiryOneYear = function() {
+    const expEl = document.getElementById('modalPlanExpiry');
+    if (!expEl) return;
+    let base = new Date();
+    if (expEl.value) {
+        const parsed = new Date(expEl.value);
+        if (!isNaN(parsed.getTime()) && parsed > base) {
+            base = parsed;
+        }
+    }
+    base.setMonth(base.getMonth() + 12);
+    expEl.value = base.toISOString().split('T')[0];
+};
+
 function buildPlanBadgeHtml(u) {
     const planLabel = u.planName || 'Standard';
     const addons = Array.isArray(u.activeAddons) && u.activeAddons.length

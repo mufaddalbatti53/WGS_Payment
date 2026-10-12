@@ -157,7 +157,7 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid User ID provided.' });
         }
 
-        const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status, planName, featureAccess } = req.body;
+        const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status, planName, planId, featureAccess } = req.body;
 
         const updateData = {
             maxStaffLimit: Math.max(0, parseInt(maxStaffLimit) || 0),
@@ -166,7 +166,19 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
         };
 
         if (planName !== undefined) {
-            updateData.planName = String(planName).trim() || 'Custom / Standard';
+            const cleanPlanName = String(planName).trim() || 'Custom / Standard';
+            updateData.planName = cleanPlanName;
+            if (planId) {
+                updateData.planId = String(planId).trim();
+            } else if (/custom/i.test(cleanPlanName)) {
+                updateData.planId = 'customized';
+            } else if (/\bpro\b/i.test(cleanPlanName)) {
+                updateData.planId = 'pro';
+            } else if (/basic/i.test(cleanPlanName)) {
+                updateData.planId = 'basic';
+            }
+        } else if (planId) {
+            updateData.planId = String(planId).trim();
         }
 
         if (featureAccess && typeof featureAccess === 'object') {
@@ -180,9 +192,14 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
         if (status && ['approved', 'pending', 'rejected', 'suspended'].includes(status)) {
             updateData.status = status;
             if (status === 'approved') {
-                const existing = await User.findById(req.params.id).select('approvedAt').lean();
+                const existing = await User.findById(req.params.id).select('approvedAt planExpiryDate planDurationMonths').lean();
                 if (existing && !existing.approvedAt) {
                     updateData.approvedAt = new Date();
+                }
+                if (existing && !existing.planExpiryDate && !planExpiryDate && existing.planDurationMonths > 0) {
+                    const exp = new Date();
+                    exp.setMonth(exp.getMonth() + Number(existing.planDurationMonths || 12));
+                    updateData.planExpiryDate = exp;
                 }
             }
             await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: status });
@@ -190,7 +207,7 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
 
         if (planExpiryDate) {
             updateData.planExpiryDate = new Date(planExpiryDate);
-        } else if (planExpiryDate === '') {
+        } else if (planExpiryDate === '' && !updateData.planExpiryDate) {
             updateData.planExpiryDate = null;
         }
 

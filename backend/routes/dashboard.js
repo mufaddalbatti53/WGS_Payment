@@ -97,7 +97,12 @@ router.get('/', async (req, res) => {
         // Build Subscription Details & Renewal Quotes (With Add-ons vs Without Add-ons)
         let subscriptionDetails = null;
         if (adminUser && adminUser._id && planConfig) {
-            const activeAddons = Array.isArray(adminUser.activeAddons) ? adminUser.activeAddons : [];
+            const rawAddons = Array.isArray(adminUser.activeAddons) ? adminUser.activeAddons : [];
+            const activeAddons = rawAddons.map(a => ({
+                ...a,
+                name: a.name || a.title || a.id || 'Add-on',
+                title: a.title || a.name || a.id || 'Add-on'
+            }));
             const calcQuote = subscriptionsRouter.calculateSubscriptionQuote;
             const resolveParams = subscriptionsRouter.resolveAdminRenewalParams;
 
@@ -105,7 +110,7 @@ router.get('/', async (req, res) => {
             let renewWithoutAddonsQuote = null;
             try {
                 const paramsWith = resolveParams(adminUser, planConfig, { renewalMode: 'with_addons' });
-                renewWithAddonsQuote = calcQuote(planConfig, paramsWith.planId, paramsWith.customConfig, paramsWith.addonIds);
+                renewWithAddonsQuote = calcQuote(planConfig, paramsWith.planId, paramsWith.customConfig, paramsWith.addonIds, paramsWith.fallbackUserAddons);
 
                 const paramsWithout = resolveParams(adminUser, planConfig, { renewalMode: 'without_addons' });
                 renewWithoutAddonsQuote = calcQuote(planConfig, paramsWithout.planId, paramsWithout.customConfig, []);

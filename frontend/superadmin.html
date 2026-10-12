@@ -1291,6 +1291,12 @@
                 <div class="form-group">
                     <label>💎 Active Subscription Plan Name</label>
                     <input type="text" id="modalPlanName" name="planName" placeholder="e.g. Basic Plan, Pro Plan, Customized Plan">
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+                        <button type="button" onclick="applyPlanPresetToModal('basic')" style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;">🌱 Apply Basic Plan</button>
+                        <button type="button" onclick="applyPlanPresetToModal('pro')" style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; border:1px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; cursor:pointer;">🚀 Apply Pro Plan</button>
+                        <button type="button" onclick="applyPlanPresetToModal('customized')" style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; cursor:pointer;">🎛️ Apply Customized Plan</button>
+                        <button type="button" onclick="extendModalExpiryOneYear()" style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; border:1px solid #fde68a; background:#fffbeb; color:#b45309; cursor:pointer;">📅 +1 Year Expiry</button>
+                    </div>
                 </div>
                 <div class="pm-row-2">
                     <div class="form-group">
@@ -1345,8 +1351,8 @@
     </div>
 
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=6"></script>
-    <script src="js/superadmin.js?v=6"></script>
+    <script src="js/api.js?v=7"></script>
+    <script src="js/superadmin.js?v=7"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1670,6 +1676,43 @@
                     } finally {
                         if (btn) { btn.disabled = false; btn.textContent = '💾 Save All Plans, Add-ons & Razorpay Settings'; }
                     }
+                };
+            }
+
+            if (typeof window.applyPlanPresetToModal !== 'function') {
+                window.applyPlanPresetToModal = function(planId) {
+                    var plans = FALLBACK_PLAN_CONFIG.plans || [];
+                    var plan = plans.find(function(p) { return p.id === planId; }) || plans[0];
+                    if (!plan) return;
+                    var pn = document.getElementById('modalPlanName');
+                    if (pn) pn.value = plan.name;
+                    var mc = document.getElementById('modalMaxCustomers');
+                    if (mc) mc.value = plan.maxCustomersLimit;
+                    var ms = document.getElementById('modalMaxStaff');
+                    if (ms) ms.value = plan.maxStaffLimit;
+                    var dm = document.getElementById('modalDailyMessages');
+                    if (dm) dm.value = plan.dailyMessageLimit;
+                    var fa = plan.featureAccess || {};
+                    var g = document.getElementById('modalAllowGDrive');
+                    var x = document.getElementById('modalAllowExcel');
+                    var p = document.getElementById('modalAllowPdf');
+                    if (g) g.checked = fa.allowGoogleDriveBackup !== false;
+                    if (x) x.checked = fa.allowExcelImport !== false;
+                    if (p) p.checked = fa.allowPdfExport !== false;
+                };
+            }
+
+            if (typeof window.extendModalExpiryOneYear !== 'function') {
+                window.extendModalExpiryOneYear = function() {
+                    var expEl = document.getElementById('modalPlanExpiry');
+                    if (!expEl) return;
+                    var base = new Date();
+                    if (expEl.value) {
+                        var parsed = new Date(expEl.value);
+                        if (!isNaN(parsed.getTime()) && parsed > base) base = parsed;
+                    }
+                    base.setMonth(base.getMonth() + 12);
+                    expEl.value = base.toISOString().split('T')[0];
                 };
             }
 

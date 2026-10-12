@@ -10,9 +10,16 @@ function escapeRegExp(str) {
     return (str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function calculateSubscriptionQuote(config, planId, customConfig = {}, addonIds = []) {
+function calculateSubscriptionQuote(config, planId, customConfig = {}, addonIds = [], fallbackUserAddons = []) {
     const plans = config.plans || [];
-    const plan = plans.find(p => p.id === planId) || plans[0];
+    const targetKey = String(planId || 'basic').trim().toLowerCase();
+    let plan = plans.find(p => String(p.id).toLowerCase() === targetKey || String(p.name).toLowerCase() === targetKey);
+    if (!plan) {
+        if (/custom/i.test(targetKey)) plan = plans.find(p => p.isCustom || p.id === 'customized');
+        else if (/\bpro\b/i.test(targetKey)) plan = plans.find(p => p.id === 'pro');
+        else if (/basic/i.test(targetKey)) plan = plans.find(p => p.id === 'basic');
+    }
+    if (!plan) plan = plans[0];
     if (!plan) {
         throw new Error('Selected subscription plan not found.');
     }
@@ -52,16 +59,22 @@ function calculateSubscriptionQuote(config, planId, customConfig = {}, addonIds 
     const selectedAddons = [];
     let addonsTotal = 0;
     const validAddonIds = Array.isArray(addonIds) ? addonIds : [];
+    const fallbackList = Array.isArray(fallbackUserAddons) ? fallbackUserAddons : [];
 
     for (const addonId of validAddonIds) {
-        const addon = (config.addons || []).find(a => a.id === addonId && a.isActive !== false);
+        let addon = (config.addons || []).find(a => a.id === addonId && a.isActive !== false);
+        if (!addon) {
+            addon = fallbackList.find(a => a && (a.id === addonId || a.name === addonId));
+        }
         if (!addon) continue;
         const addonPrice = Number(addon.price) || 0;
         const addonVal = Number(addon.value) || 0;
+        const addonName = addon.name || addon.title || addon.id;
         addonsTotal += addonPrice;
         selectedAddons.push({
             id: addon.id,
-            name: addon.name,
+            name: addonName,
+            title: addonName,
             type: addon.type,
             value: addonVal,
             price: addonPrice
@@ -80,12 +93,20 @@ function calculateSubscriptionQuote(config, planId, customConfig = {}, addonIds 
         planId: plan.id,
         planName: plan.name,
         planPrice,
+        baseAmount: planPrice,
         addonsTotal,
+        addonsAmount: addonsTotal,
         totalAmount,
         finalPartiesLimit,
         finalStaffLimit,
         finalMessagesLimit,
         finalDurationMonths,
+        limits: {
+            partyLimit: finalPartiesLimit,
+            staffLimit: finalStaffLimit,
+            dailyMessageLimit: finalMessagesLimit,
+            durationMonths: finalDurationMonths
+        },
         selectedAddons,
         featureAccess
     };
@@ -221,13 +242,13 @@ router.post('/verify-payment', async (req, res) => {
         } = req.body;
 
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-            return res.status(400).json({ success: false, message: 'Missing payment verification details.' });
+            return res.status(400).json({ success: false, message: 'Missing payment verification details.', error: 'Missing payment verification details.' });
         }
 
         const config = await PlanConfig.getOrCreateSingleton();
         const keySecret = (config.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
         if (!keySecret) {
-            return res.status(400).json({ success: false, message: 'Razorpay secret not configured.' });
+            return res.status(400).json({ success: false, message: 'Razorpay secret not configured.', error: 'Razorpay secret not configured.' });
         }
 
         const expectedSignature = crypto
@@ -236,19 +257,37 @@ router.post('/verify-payment', async (req, res) => {
             .digest('hex');
 
         if (expectedSignature !== razorpay_signature) {
-            return res.status(400).json({ success: false, message: 'Payment signature verification failed.' });
+            return res.status(400).json({ success: false, message: 'Payment signature verification failed.', error: 'Payment signature verification failed.' });
         }
 
         const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds);
-        const cleanUsername = (registrationData.username || '').toString().trim();
-        const cleanCompany = (registrationData.companyName || '').toString().trim();
-        const cleanEmail = (registrationData.email || '').toString().trim().toLowerCase();
-        const cleanPhone = (registrationData.contactNo || '').toString().trim();
+        const reg = registrationData || {};
+        const cleanUsername = (reg.username || '').toString().trim();
+        const cleanCompany = (reg.companyName || '').toString().trim();
+        const cleanEmail = (reg.email || '').toString().trim().toLowerCase();
+        const cleanPhone = (reg.contactNo || '').toString().trim();
 
         const now = new Date();
         let user = await User.findOne({
             username: new RegExp('^\\s*' + escapeRegExp(cleanUsername) + '\\s*$', 'i')
         }).select('+password');
+
+        if (user) {
+            if (user.role !== 'admin') {
+                return res.status(400).json({ success: false, message: 'Cannot apply subscription to a non-admin account.', error: 'Cannot apply subscription to a non-admin account.' });
+            }
+            const isSameLoggedInSession = req.session && String(req.session.userId) === String(user._id);
+            if (!isSameLoggedInSession && reg.password) {
+                const isMatch = await bcrypt.compare(reg.password, user.password);
+                if (!isMatch) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Existing username password mismatch.',
+                        error: 'Existing username password mismatch.'
+                    });
+                }
+            }
+        }
 
         // Calculate new expiry date
         let baseDate = now;
@@ -259,7 +298,7 @@ router.post('/verify-payment', async (req, res) => {
         expiryDate.setMonth(expiryDate.getMonth() + quote.finalDurationMonths);
 
         if (!user) {
-            const hashedPassword = await bcrypt.hash(registrationData.password, 12);
+            const hashedPassword = await bcrypt.hash(reg.password, 12);
             user = await User.create({
                 username: cleanUsername,
                 password: hashedPassword,
@@ -310,6 +349,9 @@ router.post('/verify-payment', async (req, res) => {
             user.lastOrderId = razorpay_order_id;
             user.lastAmountPaid = quote.totalAmount;
             await user.save();
+
+            // Re-activate all staff accounts under this Admin in case they were suspended
+            await User.updateMany({ role: 'staff', adminId: user._id }, { status: 'approved' });
         }
 
         await ActivityLog.create({
@@ -342,7 +384,7 @@ router.post('/verify-payment', async (req, res) => {
         });
     } catch (err) {
         console.error('Error verifying subscription payment:', err);
-        res.status(500).json({ success: false, message: 'Server error verifying payment: ' + err.message });
+        res.status(500).json({ success: false, message: 'Server error verifying payment: ' + err.message, error: 'Server error verifying payment: ' + err.message });
     }
 });
 
@@ -351,15 +393,15 @@ router.post('/submit-request', async (req, res) => {
     try {
         const { planId, customConfig, addonIds, registrationData } = req.body;
         if (!registrationData || !registrationData.username || !registrationData.password) {
-            return res.status(400).json({ success: false, message: 'Please enter a username and password for your Admin account.' });
+            return res.status(400).json({ success: false, message: 'Please enter a username and password for your Admin account.', error: 'Please enter a username and password for your Admin account.' });
         }
 
         const cleanUsername = registrationData.username.toString().trim();
         if (cleanUsername.length < 3) {
-            return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.' });
+            return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.', error: 'Username must be at least 3 characters.' });
         }
         if (registrationData.password.toString().length < 6) {
-            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.', error: 'Password must be at least 6 characters.' });
         }
 
         const existingUser = await User.findOne({
@@ -369,7 +411,8 @@ router.post('/submit-request', async (req, res) => {
         if (existingUser) {
             return res.status(400).json({
                 success: false,
-                message: 'Username already exists. Please choose a different username or sign in.'
+                message: 'Username already exists. Please choose a different username or sign in.',
+                error: 'Username already exists. Please choose a different username or sign in.'
             });
         }
 
@@ -417,7 +460,7 @@ router.post('/submit-request', async (req, res) => {
         });
     } catch (err) {
         console.error('Error submitting subscription request:', err);
-        res.status(500).json({ success: false, message: err.message || 'Server error submitting request.' });
+        res.status(500).json({ success: false, message: err.message || 'Server error submitting request.', error: err.message || 'Server error submitting request.' });
     }
 });
 
@@ -433,7 +476,25 @@ async function resolveRenewalAdminUser(req) {
 // Helper to build customConfig & addonIds for an Admin's renewal mode ('with_addons' vs 'without_addons')
 function resolveAdminRenewalParams(user, config, body = {}) {
     const renewalMode = body.renewalMode === 'without_addons' ? 'without_addons' : 'with_addons';
-    const planId = body.planId || user.planId || 'basic';
+    let planId = body.planId || user.planId || '';
+
+    // If SuperAdmin changed user.planName, ensure planId matches user.planName
+    if (!body.planId && user.planName) {
+        const pn = String(user.planName).trim();
+        const matchedPlan = (config.plans || []).find(
+            p => String(p.id).toLowerCase() === pn.toLowerCase() || String(p.name).toLowerCase() === pn.toLowerCase()
+        );
+        if (matchedPlan) {
+            planId = matchedPlan.id;
+        } else if (/custom/i.test(pn)) {
+            planId = 'customized';
+        } else if (/\bpro\b/i.test(pn)) {
+            planId = 'pro';
+        } else if (/basic/i.test(pn)) {
+            planId = 'basic';
+        }
+    }
+    if (!planId) planId = 'basic';
 
     // Reconstruct base customConfig if the user is on a Customized plan
     const activeAddons = Array.isArray(user.activeAddons) ? user.activeAddons : [];
@@ -453,13 +514,13 @@ function resolveAdminRenewalParams(user, config, body = {}) {
         if (Array.isArray(body.addonIds)) {
             addonIds = body.addonIds;
         } else {
-            addonIds = activeAddons.map(a => a.id).filter(Boolean);
+            addonIds = activeAddons.map(a => a.id || a.name).filter(Boolean);
         }
     } else {
         addonIds = [];
     }
 
-    return { renewalMode, planId, customConfig, addonIds };
+    return { renewalMode, planId, customConfig, addonIds, fallbackUserAddons: activeAddons };
 }
 
 // POST /api/subscriptions/create-renewal-order (Authenticated Admin Dashboard Renewal)
@@ -467,21 +528,24 @@ router.post('/create-renewal-order', async (req, res) => {
     try {
         const user = await resolveRenewalAdminUser(req);
         if (!user) {
-            return res.status(401).json({ success: false, message: 'Please log in as an Admin to renew your subscription.' });
+            const msg = 'Please log in as an Admin to renew your subscription.';
+            return res.status(401).json({ success: false, message: msg, error: msg });
         }
 
         const config = await PlanConfig.getOrCreateSingleton();
-        const { renewalMode, planId, customConfig, addonIds } = resolveAdminRenewalParams(user, config, req.body);
-        const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds);
+        const { renewalMode, planId, customConfig, addonIds, fallbackUserAddons } = resolveAdminRenewalParams(user, config, req.body);
+        const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
 
         const keyId = (config.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '').trim();
         const keySecret = (config.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
 
         if (!keyId || !keySecret) {
+            const msg = 'Razorpay API keys have not been configured in Super Admin settings yet. Please contact Super Admin on WhatsApp to complete renewal.';
             return res.status(400).json({
                 success: false,
                 code: 'RAZORPAY_NOT_CONFIGURED',
-                message: 'Razorpay API keys have not been configured in Super Admin settings yet. Please contact Super Admin on WhatsApp to complete renewal.',
+                message: msg,
+                error: msg,
                 whatsappSalesNumber: config.whatsappSalesNumber || '917021056404',
                 quote
             });
@@ -513,11 +577,21 @@ router.post('/create-renewal-order', async (req, res) => {
         const rzpData = await rzpRes.json();
         if (!rzpRes.ok || !rzpData.id) {
             console.error('Razorpay renewal order error:', rzpData);
+            const msg = (rzpData.error && rzpData.error.description) || 'Failed to create Razorpay renewal order.';
             return res.status(400).json({
                 success: false,
-                message: (rzpData.error && rzpData.error.description) || 'Failed to create Razorpay renewal order.'
+                message: msg,
+                error: msg
             });
         }
+
+        const prefillData = {
+            name: user.companyName || user.username,
+            companyName: user.companyName || user.username,
+            email: user.companyEmail || user.email || '',
+            contact: user.contactNo || user.phone || '',
+            phone: user.contactNo || user.phone || ''
+        };
 
         res.json({
             success: true,
@@ -527,15 +601,13 @@ router.post('/create-renewal-order', async (req, res) => {
             keyId,
             quote,
             renewalMode,
-            prefill: {
-                name: user.companyName || user.username,
-                email: user.companyEmail || user.email || '',
-                contact: user.contactNo || user.phone || ''
-            }
+            prefill: prefillData,
+            adminInfo: prefillData
         });
     } catch (err) {
         console.error('Error creating renewal order:', err);
-        res.status(500).json({ success: false, message: err.message || 'Server error creating renewal order.' });
+        const msg = err.message || 'Server error creating renewal order.';
+        res.status(500).json({ success: false, message: msg, error: msg });
     }
 });
 
@@ -544,7 +616,8 @@ router.post('/verify-renewal', async (req, res) => {
     try {
         const user = await resolveRenewalAdminUser(req);
         if (!user) {
-            return res.status(401).json({ success: false, message: 'Please log in as an Admin to verify renewal.' });
+            const msg = 'Please log in as an Admin to verify renewal.';
+            return res.status(401).json({ success: false, message: msg, error: msg });
         }
 
         const {
@@ -554,13 +627,16 @@ router.post('/verify-renewal', async (req, res) => {
         } = req.body;
 
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-            return res.status(400).json({ success: false, message: 'Missing payment verification details.' });
+            const msg = 'Missing payment verification details.';
+            return res.status(400).json({ success: false, message: msg, error: msg });
         }
 
         const config = await PlanConfig.getOrCreateSingleton();
+        const keyId = (config.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '').trim();
         const keySecret = (config.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
         if (!keySecret) {
-            return res.status(400).json({ success: false, message: 'Razorpay secret not configured.' });
+            const msg = 'Razorpay secret not configured.';
+            return res.status(400).json({ success: false, message: msg, error: msg });
         }
 
         const expectedSignature = crypto
@@ -569,11 +645,29 @@ router.post('/verify-renewal', async (req, res) => {
             .digest('hex');
 
         if (expectedSignature !== razorpay_signature) {
-            return res.status(400).json({ success: false, message: 'Payment signature verification failed.' });
+            const msg = 'Payment signature verification failed.';
+            return res.status(400).json({ success: false, message: msg, error: msg });
         }
 
-        const { renewalMode, planId, customConfig, addonIds } = resolveAdminRenewalParams(user, config, req.body);
-        const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds);
+        // Ensure renewalMode is accurately resolved even if the client omitted it in the request body
+        const effectiveBody = { ...req.body };
+        if (!effectiveBody.renewalMode && keyId && keySecret) {
+            try {
+                const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+                const ordRes = await fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpay_order_id)}`, {
+                    headers: { 'Authorization': `Basic ${authHeader}` }
+                });
+                const ordData = await ordRes.json();
+                if (ordData && ordData.notes && ordData.notes.renewalMode) {
+                    effectiveBody.renewalMode = ordData.notes.renewalMode;
+                }
+            } catch (ordErr) {
+                console.warn('Could not fetch order notes for renewalMode fallback:', ordErr.message);
+            }
+        }
+
+        const { renewalMode, planId, customConfig, addonIds, fallbackUserAddons } = resolveAdminRenewalParams(user, config, effectiveBody);
+        const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
 
         const now = new Date();
         let baseDate = now;
@@ -599,6 +693,9 @@ router.post('/verify-renewal', async (req, res) => {
         user.lastAmountPaid = quote.totalAmount;
         await user.save();
 
+        // Also re-approve any staff accounts under this Admin
+        await User.updateMany({ role: 'staff', adminId: user._id }, { status: 'approved' });
+
         await ActivityLog.create({
             adminId: user._id,
             actorName: user.username,
@@ -614,7 +711,8 @@ router.post('/verify-renewal', async (req, res) => {
         });
     } catch (err) {
         console.error('Error verifying renewal:', err);
-        res.status(500).json({ success: false, message: 'Server error verifying renewal: ' + err.message });
+        const msg = 'Server error verifying renewal: ' + err.message;
+        res.status(500).json({ success: false, message: msg, error: msg });
     }
 });
 

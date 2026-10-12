@@ -2054,6 +2054,10 @@
 
                 // --- GOOGLE DRIVE INTEGRATION ---
                 function triggerDriveBackup() {
+                    if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowGoogleDriveBackup === false) {
+                        alert("☁️ Google Drive Cloud Backup is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on.");
+                        return;
+                    }
                     alert("Backing up to Google Drive in the background...");
                     apiFetch('/api/backup/drive-backup', { method: 'POST' })
                         .then(response => {
@@ -2072,6 +2076,10 @@
                 }
 
                 function triggerDriveRestore() {
+                    if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowGoogleDriveBackup === false) {
+                        alert("☁️ Google Drive Cloud Restore is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on.");
+                        return;
+                    }
                     if (confirm("⚠️ WARNING: This will overwrite your current parties with your latest cloud backup. Proceed?")) {
                         showToast("⏳ Downloading backup from Google Drive...");
                         apiFetch('/api/backup/drive-restore', { method: 'POST' })
@@ -2110,6 +2118,10 @@
 
                 // --- PROFESSIONAL TALLY-STYLE PDF EXPORT ---
                 function downloadPDF() {
+                    if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowPdfExport === false) {
+                        alert("📄 PDF Export is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin.");
+                        return;
+                    }
                     showToast("⏳ Generating professional PDF...");
                     const element = document.createElement('div');
                     element.style.padding = "20px";
@@ -2336,8 +2348,8 @@
             </script>
             
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=6"></script>
-    <script src="js/dashboard.js?v=6"></script>
+    <script src="js/api.js?v=7"></script>
+    <script src="js/dashboard.js?v=7"></script>
     <script>
         // Self-contained fallback & bridge so Subscription & Renew works even if js/dashboard.js is cached
         (function() {
@@ -2462,7 +2474,7 @@
                             body: JSON.stringify({ renewalMode: renewalMode })
                         });
                         if (!orderRes || !orderRes.success) {
-                            if (errEl) { errEl.innerText = '⚠️ ' + ((orderRes && orderRes.error) || 'Could not create order.'); errEl.style.display = 'block'; }
+                            if (errEl) { errEl.innerText = '⚠️ ' + ((orderRes && (orderRes.message || orderRes.error)) || 'Could not create order.'); errEl.style.display = 'block'; }
                             if (payBtn) { payBtn.disabled = false; payBtn.innerText = origText; }
                             return;
                         }
@@ -2477,14 +2489,19 @@
                             handler: async function(response) {
                                 var verifyRes = await apiJson('/api/subscriptions/verify-renewal', {
                                     method: 'POST',
-                                    body: JSON.stringify(response)
+                                    body: JSON.stringify({
+                                        razorpay_order_id: response.razorpay_order_id,
+                                        razorpay_payment_id: response.razorpay_payment_id,
+                                        razorpay_signature: response.razorpay_signature,
+                                        renewalMode: renewalMode
+                                    })
                                 });
                                 if (verifyRes && verifyRes.success) {
                                     window.closeRenewalModal();
                                     alert('🎉 ' + (verifyRes.message || 'Yearly Subscription Renewed!'));
                                     window.location.reload();
                                 } else if (errEl) {
-                                    errEl.innerText = '❌ ' + ((verifyRes && verifyRes.error) || 'Verification failed.');
+                                    errEl.innerText = '❌ ' + ((verifyRes && (verifyRes.message || verifyRes.error)) || 'Verification failed.');
                                     errEl.style.display = 'block';
                                 }
                             }

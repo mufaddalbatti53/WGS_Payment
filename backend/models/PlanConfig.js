@@ -211,9 +211,9 @@ planConfigSchema.statics.getOrCreateSingleton = async function () {
             config.plans = DEFAULT_PLANS;
             modified = true;
         } else {
-            // Migrate any old 1-month/3-month default plans to Yearly (12 months)
+            // Migrate legacy 1-month default plans to Yearly (12 months)
             config.plans.forEach(p => {
-                if (!p.durationMonths || p.durationMonths < 12) {
+                if (!p.durationMonths || (p.durationMonths === 1 && [499, 999, 1299, 1999].includes(Number(p.price)))) {
                     p.durationMonths = 12;
                     p.billingLabel = '/ year';
                     modified = true;

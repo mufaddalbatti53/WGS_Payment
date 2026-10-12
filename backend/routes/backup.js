@@ -24,10 +24,17 @@ function getOAuth2Client(tokens) {
 
 router.get('/google', requireAdmin, async (req, res) => {
     try {
+        const adminId = String(req.session.adminId || req.session.userId);
+        const adminUser = await User.findById(adminId).select('featureAccess').lean();
+        if (adminUser && adminUser.featureAccess && adminUser.featureAccess.allowGoogleDriveBackup === false) {
+            return res.status(403).json({
+                success: false,
+                message: "Google Drive Cloud Backup is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on."
+            });
+        }
         const client = getOAuth2Client();
         const secret = process.env.SESSION_SECRET || 'local-development-only-session-secret';
         const nonce = crypto.randomBytes(16).toString('hex');
-        const adminId = String(req.session.adminId || req.session.userId);
         const sig = crypto.createHmac('sha256', secret).update(`${adminId}:${nonce}`).digest('hex');
         const state = `${adminId}.${nonce}.${sig}`;
 
@@ -184,6 +191,12 @@ router.post('/drive-restore', requireLogin, async (req, res) => {
     }
     try {
         const adminUser = await User.findById(req.session.adminId).select('+googleDriveToken').lean();
+        if (adminUser && adminUser.featureAccess && adminUser.featureAccess.allowGoogleDriveBackup === false) {
+            return res.status(403).json({
+                success: false,
+                message: "Google Drive Cloud Restore is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on."
+            });
+        }
         if (!adminUser || !adminUser.googleDriveToken) {
             return res.status(400).json({ success: false, message: "Google Drive not linked." });
         }

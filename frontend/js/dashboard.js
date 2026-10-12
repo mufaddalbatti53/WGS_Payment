@@ -791,7 +791,7 @@ window.populateSubscriptionUI = function(sub, role) {
         const activeAddons = Array.isArray(sub.activeAddons) ? sub.activeAddons : [];
         if (activeAddons.length > 0) {
             addonsListEl.innerHTML = activeAddons.map(a =>
-                `<span style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; font-weight:700; font-size:11px; padding:3px 8px; border-radius:8px;">✨ ${escapeHtml(a.title || a.addonId)}</span>`
+                `<span style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; font-weight:700; font-size:11px; padding:3px 8px; border-radius:8px;">✨ ${escapeHtml(a.name || a.title || a.id || a.addonId || 'Add-on')}</span>`
             ).join('');
         } else {
             addonsListEl.innerHTML = `<span style="font-size:12px; color:#94a3b8;">No active add-ons on current cycle</span>`;
@@ -802,11 +802,12 @@ window.populateSubscriptionUI = function(sub, role) {
     const featListEl = document.getElementById('subPopupFeaturesList');
     if (featListEl) {
         const fa = sub.featureAccess || {};
+        const gdriveAllowed = fa.allowGoogleDriveBackup !== undefined ? fa.allowGoogleDriveBackup !== false : (fa.allowGoogleDrive !== false);
         const badges = [
             { label: '💬 WhatsApp', on: fa.allowWhatsApp !== false },
             { label: '📱 SMS', on: fa.allowSms !== false },
             { label: '📧 Email', on: fa.allowEmail !== false },
-            { label: '☁️ Cloud Backup', on: fa.allowGoogleDrive !== false },
+            { label: '☁️ Cloud Backup', on: gdriveAllowed },
             { label: '📥 Excel Import', on: fa.allowExcelImport !== false },
             { label: '📄 PDF Reports', on: fa.allowPdfExport !== false }
         ];
@@ -885,28 +886,36 @@ function populateRenewalModalContent(sub) {
     const withListEl = document.getElementById('renewWithAddonsList');
     const withBadgeEl = document.getElementById('renewWithAddonsBadge');
 
+    const withBaseAmt = Number(withQuote.baseAmount ?? withQuote.planPrice ?? 0);
+    const withAddonsAmt = Number(withQuote.addonsAmount ?? withQuote.addonsTotal ?? 0);
+    const withLimits = withQuote.limits || {
+        partyLimit: withQuote.finalPartiesLimit ?? 250,
+        staffLimit: withQuote.finalStaffLimit ?? 2,
+        dailyMessageLimit: withQuote.finalMessagesLimit ?? 50
+    };
+
     if (withTotalEl) withTotalEl.innerText = '₹' + Number(withQuote.totalAmount || 0).toLocaleString('en-IN');
     if (withBreakEl) {
         if (activeAddons.length > 0) {
-            withBreakEl.innerText = `Base ₹${Number(withQuote.baseAmount || 0).toLocaleString('en-IN')} + Add-ons ₹${Number(withQuote.addonsAmount || 0).toLocaleString('en-IN')}`;
+            withBreakEl.innerText = `Base ₹${withBaseAmt.toLocaleString('en-IN')} + Add-ons ₹${withAddonsAmt.toLocaleString('en-IN')}`;
         } else {
-            withBreakEl.innerText = `Base Plan ₹${Number(withQuote.baseAmount || 0).toLocaleString('en-IN')} (0 Active Add-ons)`;
+            withBreakEl.innerText = `Base Plan ₹${withBaseAmt.toLocaleString('en-IN')} (0 Active Add-ons)`;
         }
     }
     if (withBadgeEl) {
         withBadgeEl.innerText = activeAddons.length > 0 ? `✅ Keep ${activeAddons.length} Active Add-on(s)` : '✅ Current Plan Configuration';
     }
-    if (withQuotasEl && withQuote.limits) {
+    if (withQuotasEl && withLimits) {
         withQuotasEl.innerHTML = `
-            <div>🏢 Up to <strong>${withQuote.limits.partyLimit}</strong> Parties</div>
-            <div>👤 Up to <strong>${withQuote.limits.staffLimit}</strong> Staff Accounts</div>
-            <div>💬 Up to <strong>${withQuote.limits.dailyMessageLimit}</strong> Msgs / Day</div>
+            <div>🏢 Up to <strong>${withLimits.partyLimit}</strong> Parties</div>
+            <div>👤 Up to <strong>${withLimits.staffLimit}</strong> Staff Accounts</div>
+            <div>💬 Up to <strong>${withLimits.dailyMessageLimit}</strong> Msgs / Day</div>
         `;
     }
     if (withListEl) {
         if (activeAddons.length > 0) {
             withListEl.innerHTML = activeAddons.map(a =>
-                `<span style="background:#dcfce7; color:#166534; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">+ ${escapeHtml(a.title || a.addonId)}</span>`
+                `<span style="background:#dcfce7; color:#166534; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">+ ${escapeHtml(a.name || a.title || a.id || a.addonId || 'Add-on')}</span>`
             ).join('');
         } else {
             withListEl.innerHTML = `<a href="index.html#pricing" style="font-size:11px; color:#16a34a; font-weight:700; text-decoration:underline;">+ Click here if you want to add new Add-on Boosters</a>`;
@@ -918,15 +927,22 @@ function populateRenewalModalContent(sub) {
     const withoutBreakEl = document.getElementById('renewWithoutAddonsBreakdown');
     const withoutQuotasEl = document.getElementById('renewWithoutAddonsQuotas');
 
+    const withoutBaseAmt = Number(withoutQuote.baseAmount ?? withoutQuote.planPrice ?? 0);
+    const withoutLimits = withoutQuote.limits || {
+        partyLimit: withoutQuote.finalPartiesLimit ?? 250,
+        staffLimit: withoutQuote.finalStaffLimit ?? 2,
+        dailyMessageLimit: withoutQuote.finalMessagesLimit ?? 50
+    };
+
     if (withoutTotalEl) withoutTotalEl.innerText = '₹' + Number(withoutQuote.totalAmount || 0).toLocaleString('en-IN');
     if (withoutBreakEl) {
-        withoutBreakEl.innerText = `Base Yearly Plan ₹${Number(withoutQuote.baseAmount || 0).toLocaleString('en-IN')} (₹0 Add-ons)`;
+        withoutBreakEl.innerText = `Base Yearly Plan ₹${withoutBaseAmt.toLocaleString('en-IN')} (₹0 Add-ons)`;
     }
-    if (withoutQuotasEl && withoutQuote.limits) {
+    if (withoutQuotasEl && withoutLimits) {
         withoutQuotasEl.innerHTML = `
-            <div>🏢 Up to <strong>${withoutQuote.limits.partyLimit}</strong> Parties</div>
-            <div>👤 Up to <strong>${withoutQuote.limits.staffLimit}</strong> Staff Accounts</div>
-            <div>💬 Up to <strong>${withoutQuote.limits.dailyMessageLimit}</strong> Msgs / Day</div>
+            <div>🏢 Up to <strong>${withoutLimits.partyLimit}</strong> Parties</div>
+            <div>👤 Up to <strong>${withoutLimits.staffLimit}</strong> Staff Accounts</div>
+            <div>💬 Up to <strong>${withoutLimits.dailyMessageLimit}</strong> Msgs / Day</div>
         `;
     }
 
@@ -1015,7 +1031,7 @@ window.startDashboardRazorpayRenewal = async function() {
 
         if (!orderRes || !orderRes.success) {
             if (errEl) {
-                errEl.innerText = '⚠️ ' + (orderRes && orderRes.error ? orderRes.error : 'Could not initiate Razorpay order.');
+                errEl.innerText = '⚠️ ' + ((orderRes && (orderRes.message || orderRes.error)) || 'Could not initiate Razorpay order.');
                 errEl.style.display = 'block';
             }
             if (payBtn) { payBtn.disabled = false; payBtn.innerText = origText; }
@@ -1031,6 +1047,7 @@ window.startDashboardRazorpayRenewal = async function() {
             return;
         }
 
+        const prefillInfo = orderRes.prefill || orderRes.adminInfo || {};
         const options = {
             key: orderRes.keyId,
             amount: orderRes.amount,
@@ -1039,9 +1056,9 @@ window.startDashboardRazorpayRenewal = async function() {
             description: `${orderRes.quote.planName} — Yearly Renewal (${renewalMode === 'without_addons' ? 'Without Add-ons' : 'With Add-ons'})`,
             order_id: orderRes.orderId,
             prefill: {
-                name: (orderRes.adminInfo && orderRes.adminInfo.companyName) || '',
-                email: (orderRes.adminInfo && orderRes.adminInfo.email) || '',
-                contact: (orderRes.adminInfo && orderRes.adminInfo.phone) || ''
+                name: prefillInfo.name || prefillInfo.companyName || '',
+                email: prefillInfo.email || '',
+                contact: prefillInfo.contact || prefillInfo.phone || ''
             },
             theme: { color: '#27ae60' },
             handler: async function(response) {
@@ -1055,7 +1072,8 @@ window.startDashboardRazorpayRenewal = async function() {
                         body: JSON.stringify({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature
+                            razorpay_signature: response.razorpay_signature,
+                            renewalMode: renewalMode
                         })
                     });
 
@@ -1069,7 +1087,7 @@ window.startDashboardRazorpayRenewal = async function() {
                         await loadDashboard();
                     } else {
                         if (errEl) {
-                            errEl.innerText = '❌ ' + ((verifyRes && verifyRes.error) || 'Payment verification failed.');
+                            errEl.innerText = '❌ ' + ((verifyRes && (verifyRes.message || verifyRes.error)) || 'Payment verification failed.');
                             errEl.style.display = 'block';
                         }
                     }

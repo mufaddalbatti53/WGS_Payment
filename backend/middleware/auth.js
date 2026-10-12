@@ -24,8 +24,23 @@ const requireLogin = async (req, res, next) => {
             return res.status(401).json({ success: false, message: "❌ Your access has been revoked. Please contact support." });
         }
         if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
-            req.session.destroy();
-            return res.status(401).json({ success: false, message: "⌛ Your subscription plan has expired. Please contact Super Admin." });
+            const isDashboardLoad = req.session.role === 'admin' && req.method === 'GET' && (req.baseUrl === '/api/dashboard' || req.originalUrl.startsWith('/api/dashboard'));
+            if (!isDashboardLoad) {
+                if (req.session.role === 'staff') {
+                    req.session.destroy();
+                    return res.status(401).json({
+                        success: false,
+                        error: "⌛ Your company's subscription plan has expired. Please ask your Admin to renew.",
+                        message: "⌛ Your company's subscription plan has expired. Please ask your Admin to renew."
+                    });
+                }
+                return res.status(403).json({
+                    success: false,
+                    code: 'PLAN_EXPIRED',
+                    error: "⌛ Your yearly subscription plan has expired. Please click 'Renew Plan' in the top-right Subscription menu on your dashboard to extend your plan.",
+                    message: "⌛ Your yearly subscription plan has expired. Please click 'Renew Plan' in the top-right Subscription menu on your dashboard to extend your plan."
+                });
+            }
         }
     } catch (e) {
         console.error("Auth status check error:", e);
