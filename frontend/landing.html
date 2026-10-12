@@ -1930,6 +1930,9 @@
               });
               const verifyData = await verifyRes.json();
               if (verifyRes.ok && verifyData.success) {
+                if (verifyData.token) {
+                  try { localStorage.setItem('wgs_auth_token', verifyData.token); } catch (e) {}
+                }
                 showCheckoutAlert('🎉 ' + verifyData.message + ' Redirecting to your dashboard...', true);
                 setTimeout(() => {
                   window.location.href = verifyData.redirect || 'dashboard.html?from=login';

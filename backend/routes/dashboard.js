@@ -4,7 +4,7 @@ const Customer = require('../models/Customer');
 const User = require('../models/User');
 const PlanConfig = require('../models/PlanConfig');
 const subscriptionsRouter = require('./subscriptions');
-const { isPlanExpiredDate } = require('../middleware/auth');
+const { isPlanExpiredDate, destroySessionSafe } = require('../middleware/auth');
 const {
     checkAndSendExpiryNotificationsForAdmin,
     runExpiryEmailScan,
@@ -57,29 +57,29 @@ router.get('/', async (req, res) => {
 
         if (adminUser && adminUser._id) {
             if (adminUser.status === 'suspended') {
-                req.session.destroy();
+                destroySessionSafe(req, res);
                 return res.status(403).json({ success: false, message: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin." });
             }
             if (adminUser.status === 'rejected') {
-                req.session.destroy();
+                destroySessionSafe(req, res);
                 return res.status(403).json({ success: false, message: "❌ Your access has been revoked. Please contact support." });
             }
             if (req.session.role === 'staff') {
                 const thisStaff = staffMembers.find(s => String(s._id) === String(req.session.userId));
                 if (!thisStaff || thisStaff.status === 'suspended' || thisStaff.status === 'rejected') {
-                    req.session.destroy();
+                    destroySessionSafe(req, res);
                     return res.status(403).json({ success: false, message: "⏸️ Your staff account is currently inactive. Please contact your Admin." });
                 }
                 if (isPlanExpiredDate(adminUser.planExpiryDate)) {
-                    req.session.destroy();
+                    destroySessionSafe(req, res);
                     return res.status(403).json({ success: false, message: "⌛ Your company's subscription plan has expired. Staff login and access are disabled until your Admin renews the plan." });
                 }
                 if (thisStaff.isQuotaLocked || adminUser.requiresStaffSelection) {
-                    req.session.destroy();
+                    destroySessionSafe(req, res);
                     return res.status(403).json({ success: false, message: `🔒 Your staff account is paused because your company's plan allows up to ${adminUser.maxStaffLimit ?? 5} active staff.` });
                 }
             } else if (req.session.role !== 'admin' && isPlanExpiredDate(adminUser.planExpiryDate)) {
-                req.session.destroy();
+                destroySessionSafe(req, res);
                 return res.status(403).json({ success: false, message: "⌛ Your organization's subscription plan has expired. Please ask your Admin to renew." });
             }
 

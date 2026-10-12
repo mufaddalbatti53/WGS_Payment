@@ -4,12 +4,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setupForms();
 });
 
-async function loadDashboard() {
+async function loadDashboard(retryCount = 0) {
     try {
         const data = await apiJson('/api/dashboard');
         populateDashboard(data);
     } catch (err) {
         console.error('Error loading dashboard:', err);
+        if (retryCount < 2 && err && !String(err.message || '').includes('Session expired')) {
+            setTimeout(() => loadDashboard(retryCount + 1), 800);
+        }
     }
 }
 
@@ -18,10 +21,11 @@ function populateDashboard(data) {
         window.location.href = data.redirect;
         return;
     }
-    if (!data.success) {
-        console.error("Dashboard error:", data.message);
+    if (!data || !data.success) {
+        console.error("Dashboard error:", data && data.message);
         return;
     }
+    window._dashboardLoaded = true;
     
     const role = data.role || 'customer';
     window.currentUserRole = role;

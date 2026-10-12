@@ -111,6 +111,12 @@
             gap: 8px;
         }
 
+        .sidebar-nav .admin-only {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .nav-item {
             display: flex;
             align-items: center;
@@ -361,11 +367,11 @@
             }
 
             .section-view {
-                display: none;
+                display: none !important;
             }
 
             .section-view.active {
-                display: block;
+                display: block !important;
             }
         }
 
@@ -1763,45 +1769,95 @@
             </div>
     
             <script>
-                var isMobile = window.innerWidth <= 850;
+                function isMobileViewport() {
+                    return window.innerWidth <= 850;
+                }
+                var isMobile = isMobileViewport();
                 var activeFilter = { bucket: 'all', actionOnly: false };
                 var mobileHistory = [];
 
+                function normalizeTabId(tabId) {
+                    if (tabId === 'parties' || tabId === 'data' || tabId === 'aging') return tabId;
+                    return 'aging';
+                }
+
+                function syncActiveNavAndSection(tabId) {
+                    var cleanTab = normalizeTabId(tabId);
+                    document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (el) {
+                        el.classList.remove('active');
+                    });
+                    var nav = document.getElementById('nav-' + cleanTab);
+                    if (nav) nav.classList.add('active');
+
+                    document.querySelectorAll('.section-view').forEach(function (el) {
+                        el.classList.remove('active');
+                    });
+                    var view = document.getElementById('view' + cleanTab.charAt(0).toUpperCase() + cleanTab.slice(1));
+                    if (view) view.classList.add('active');
+                    return view;
+                }
+
                 // --- NAVIGATION LOGIC WITH MEMORY ---
                 function switchTab(tabId) {
-                    if (isMobile) { openMobileSection(tabId); return; }
-                    localStorage.setItem('activeWgsTab', tabId);
-                    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                    var nav = document.getElementById('nav-' + tabId); if (nav) nav.classList.add('active');
-                    document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-                    var view = document.getElementById('view' + tabId.charAt(0).toUpperCase() + tabId.slice(1)); if (view) view.classList.add('active');
+                    var cleanTab = normalizeTabId(tabId);
+                    isMobile = isMobileViewport();
+                    syncActiveNavAndSection(cleanTab);
+                    if (isMobile) {
+                        openMobileSection(cleanTab);
+                        return;
+                    }
+                    localStorage.setItem('activeWgsTab', cleanTab);
+                    var backBtn = document.getElementById('backBtn');
+                    if (backBtn) backBtn.style.display = 'none';
+                    document.querySelectorAll('.section-view').forEach(function (el) {
+                        el.style.display = '';
+                    });
+                    var view = document.getElementById('view' + cleanTab.charAt(0).toUpperCase() + cleanTab.slice(1));
+                    if (view) {
+                        view.classList.add('active');
+                        view.style.display = 'block';
+                    }
                 }
 
                 function renderMobileSection(sectionId, fromSection) {
-                    localStorage.setItem('activeWgsTab', sectionId);
+                    var cleanTab = normalizeTabId(sectionId);
+                    localStorage.setItem('activeWgsTab', cleanTab);
+                    syncActiveNavAndSection(cleanTab);
                     var launcher = document.getElementById('homeLauncher');
                     if (launcher) launcher.style.display = 'none';
-                    document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
-                    var view = document.getElementById('view' + sectionId.charAt(0).toUpperCase() + sectionId.slice(1));
-                    if (view) view.style.display = 'block';
+                    document.querySelectorAll('.section-view').forEach(function (el) {
+                        el.style.display = 'none';
+                    });
+                    var view = document.getElementById('view' + cleanTab.charAt(0).toUpperCase() + cleanTab.slice(1));
+                    if (view) {
+                        view.classList.add('active');
+                        view.style.display = 'block';
+                    }
 
                     var backBtn = document.getElementById('backBtn');
                     if (backBtn) {
                         backBtn.style.display = 'block';
-                        if (sectionId === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
-                        else if (sectionId === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
-                        else if (sectionId === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
-                        else if (sectionId === 'data') backBtn.innerHTML = '← Home  |  🗄️ Data Management';
+                        if (cleanTab === 'aging') backBtn.innerHTML = '← Home  |  📊 Aging Buckets';
+                        else if (cleanTab === 'parties' && fromSection === 'aging') backBtn.innerHTML = '← Back to Aging Buckets';
+                        else if (cleanTab === 'parties') backBtn.innerHTML = '← Home  |  🏢 Parties';
+                        else if (cleanTab === 'data') backBtn.innerHTML = '← Home  |  🗄️ Data Management';
                         else backBtn.innerHTML = '← Back';
                     }
                     window.scrollTo(0, 0);
                 }
 
                 function showMobileHome() {
+                    isMobile = isMobileViewport();
+                    if (!isMobile) {
+                        switchTab(localStorage.getItem('activeWgsTab') || 'aging');
+                        return;
+                    }
                     localStorage.removeItem('activeWgsTab');
                     var launcher = document.getElementById('homeLauncher');
                     if (launcher) launcher.style.display = 'block';
-                    document.querySelectorAll('.section-view').forEach(el => el.style.display = 'none');
+                    document.querySelectorAll('.section-view').forEach(function (el) {
+                        el.style.display = 'none';
+                    });
                     var backBtn = document.getElementById('backBtn');
                     if (backBtn) backBtn.style.display = 'none';
                     if (typeof clearFilter === 'function') clearFilter();
@@ -1809,18 +1865,41 @@
                 }
 
                 function openMobileSection(sectionId, fromSection) {
-                    if (!isMobile) return;
-                    try { history.pushState({ wgsSection: sectionId, wgsFrom: fromSection || null }, '', location.pathname); } catch (e) {}
-                    renderMobileSection(sectionId, fromSection);
+                    isMobile = isMobileViewport();
+                    var cleanTab = normalizeTabId(sectionId);
+                    if (!isMobile) {
+                        switchTab(cleanTab);
+                        return;
+                    }
+                    try { history.pushState({ wgsSection: cleanTab, wgsFrom: fromSection || null }, '', location.pathname); } catch (e) {}
+                    renderMobileSection(cleanTab, fromSection);
                 }
 
                 function mobileBack() { history.back(); }
 
                 window.addEventListener('popstate', function (e) {
+                    isMobile = isMobileViewport();
                     if (!isMobile) return;
                     var st = e.state;
                     if (st && st.wgsSection) renderMobileSection(st.wgsSection, st.wgsFrom);
                     else showMobileHome();
+                });
+
+                window.addEventListener('resize', function () {
+                    var nowMobile = isMobileViewport();
+                    if (nowMobile !== isMobile) {
+                        isMobile = nowMobile;
+                        if (!nowMobile) {
+                            switchTab(localStorage.getItem('activeWgsTab') || 'aging');
+                        } else {
+                            var saved = localStorage.getItem('activeWgsTab');
+                            if (saved && (saved === 'aging' || saved === 'parties' || saved === 'data')) {
+                                renderMobileSection(saved);
+                            } else {
+                                showMobileHome();
+                            }
+                        }
+                    }
                 });
 
                 // --- MODAL TRIGGERS ---
@@ -1851,7 +1930,7 @@
                         document.getElementById('filterActiveText').innerHTML = '📅 ' + label + ' &nbsp;|&nbsp; <strong>' + count + ' parties</strong> &nbsp;|&nbsp; ' + amtStr;
                         hdr.style.display = 'flex';
                     }
-                    if (isMobile) openMobileSection('parties', 'aging'); else switchTab('parties');
+                    if (isMobileViewport()) openMobileSection('parties', 'aging'); else switchTab('parties');
                     runFilters();
                 }
 
@@ -1864,7 +1943,7 @@
                         document.getElementById('filterActiveText').innerHTML = '⚠️ Action Required Parties';
                         hdr.style.display = 'flex';
                     }
-                    if (isMobile) openMobileSection('parties', 'aging'); else switchTab('parties');
+                    if (isMobileViewport()) openMobileSection('parties', 'aging'); else switchTab('parties');
                     runFilters();
                 }
 
@@ -2344,10 +2423,15 @@
                 }
 
                 // --- PAGE LOAD INITIALIZATION ---
-                window.onload = function () {
+                function initializeDashboardNavigation() {
+                    if (window._wgsNavInitialized) return;
+                    window._wgsNavInitialized = true;
+
+                    isMobile = isMobileViewport();
                     var params = new URLSearchParams(window.location.search);
 
                     if (params.get('driveConnected') === 'true') {
+                        localStorage.setItem('activeWgsTab', 'data');
                         alert("✅ Google Drive linked successfully! You can now click 'Backup Now'.");
                         window.history.replaceState({}, document.title, location.pathname);
                     }
@@ -2363,10 +2447,17 @@
                         window.history.replaceState({}, document.title, location.pathname);
                     }
 
+                    var fromLogin = params.get('from') === 'login';
                     var savedTab = localStorage.getItem('activeWgsTab') || 'aging';
+
                     if (!isMobile) {
+                        if (fromLogin) {
+                            savedTab = 'aging';
+                            localStorage.setItem('activeWgsTab', 'aging');
+                            window.history.replaceState({}, document.title, location.pathname);
+                        }
                         switchTab(savedTab);
-                    } else if (params.get('from') === 'login') {
+                    } else if (fromLogin) {
                         localStorage.removeItem('activeWgsTab');
                         window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
                         showMobileHome();
@@ -2383,7 +2474,11 @@
                         window.history.replaceState({ wgsSection: null }, document.title, location.pathname);
                         showMobileHome();
                     }
-                };
+                }
+
+                initializeDashboardNavigation();
+                document.addEventListener('DOMContentLoaded', initializeDashboardNavigation);
+                window.addEventListener('load', initializeDashboardNavigation);
 
                 // --- PASSWORD TOGGLE & ADMIN CHANGE PASSWORD ---
                 function togglePassword(icon) {
@@ -2438,8 +2533,8 @@
             </script>
             
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=9"></script>
-    <script src="js/dashboard.js?v=9"></script>
+    <script src="js/api.js?v=10"></script>
+    <script src="js/dashboard.js?v=10"></script>
     <script>
         // Self-contained fallback & bridge so Subscription & Renew works even if js/dashboard.js is cached
         (function() {
@@ -2613,6 +2708,9 @@
                 try {
                     if (typeof apiJson !== 'function') return;
                     var data = await apiJson('/api/dashboard');
+                    if (data && data.success && !window._dashboardLoaded && typeof window.populateDashboard === 'function') {
+                        window.populateDashboard(data);
+                    }
                     if (data && data.subscriptionDetails) {
                         if (typeof window.populateSubscriptionUI === 'function') {
                             window.populateSubscriptionUI(data.subscriptionDetails, data.role || 'admin');
@@ -2643,7 +2741,7 @@
                                 mBadge.innerText = window.currentSubscriptionDetails.planName;
                             }
                         }
-                    }, 4500);
+                    }, 3500);
                 }
             });
         })();

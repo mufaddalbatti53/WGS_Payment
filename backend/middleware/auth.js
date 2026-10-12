@@ -1,5 +1,90 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const ActivityLog = require('../models/Activity');
+
+function getAuthSecret() {
+    return process.env.SESSION_SECRET || 'local-development-only-session-secret';
+}
+
+function createAuthToken(sessionData) {
+    if (!sessionData || !sessionData.userId) return '';
+    const payload = {
+        userId: String(sessionData.userId),
+        role: sessionData.role || 'admin',
+        username: sessionData.username || '',
+        adminId: sessionData.adminId ? String(sessionData.adminId) : String(sessionData.userId),
+        userPhone: sessionData.userPhone || '',
+        exp: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
+    };
+    const dataB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    const sigB64 = crypto.createHmac('sha256', getAuthSecret()).update(dataB64).digest('base64url');
+    return `${dataB64}.${sigB64}`;
+}
+
+function verifyAuthToken(token) {
+    try {
+        if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+        const [dataB64, sigB64] = token.trim().split('.');
+        if (!dataB64 || !sigB64) return null;
+        const expectedSig = crypto.createHmac('sha256', getAuthSecret()).update(dataB64).digest('base64url');
+        const bufA = Buffer.from(sigB64);
+        const bufB = Buffer.from(expectedSig);
+        if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) return null;
+        const payload = JSON.parse(Buffer.from(dataB64, 'base64url').toString('utf8'));
+        if (!payload || !payload.userId || !payload.exp || Date.now() > payload.exp) return null;
+        return payload;
+    } catch (e) {
+        return null;
+    }
+}
+
+function saveSessionAsync(req) {
+    return new Promise((resolve) => {
+        if (!req.session || typeof req.session.save !== 'function') return resolve();
+        req.session.save(() => resolve());
+    });
+}
+
+function destroySessionSafe(req, res) {
+    if (res && typeof res.setHeader === 'function') {
+        res.setHeader('X-Clear-Auth-Token', '1');
+    }
+    if (req && req.session && typeof req.session.destroy === 'function') {
+        req.session.destroy(() => {});
+    }
+}
+
+function hydrateSessionFromTokenMiddleware(req, res, next) {
+    try {
+        if (!req.session || !req.session.userId) {
+            let rawToken = '';
+            const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+            if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+                rawToken = authHeader.slice(7).trim();
+            } else if (req.headers['x-auth-token']) {
+                rawToken = String(req.headers['x-auth-token']).trim();
+            }
+            if (rawToken) {
+                const payload = verifyAuthToken(rawToken);
+                if (payload) {
+                    if (!req.session) req.session = {};
+                    req.session.userId = payload.userId;
+                    req.session.role = payload.role;
+                    req.session.username = payload.username;
+                    req.session.adminId = payload.adminId || payload.userId;
+                    if (payload.userPhone) req.session.userPhone = payload.userPhone;
+                }
+            }
+        }
+        if (req.session && req.session.userId) {
+            const freshToken = createAuthToken(req.session);
+            if (freshToken) {
+                res.setHeader('X-Auth-Token', freshToken);
+            }
+        }
+    } catch (e) {}
+    next();
+}
 
 function isPlanExpiredDate(planExpiryDate) {
     if (!planExpiryDate) return false;
@@ -20,22 +105,23 @@ const requireLogin = async (req, res, next) => {
     try {
         const adminId = req.session.adminId || req.session.userId;
         const [adminUser, staffUser] = await Promise.all([
-            User.findById(adminId).select('status planExpiryDate role requiresStaffSelection maxStaffLimit').lean(),
+            adminId ? User.findById(adminId).select('status planExpiryDate role requiresStaffSelection maxStaffLimit').lean() : Promise.resolve(null),
             req.session.role === 'staff'
                 ? User.findById(req.session.userId).select('status isQuotaLocked').lean()
                 : Promise.resolve(null)
         ]);
 
         if (!adminUser) {
-            req.session.destroy();
+            if (req.session.role === 'customer') return next();
+            destroySessionSafe(req, res);
             return res.status(401).json({ success: false, message: "Account not found. Please log in again." });
         }
         if (adminUser.status === 'suspended') {
-            req.session.destroy();
+            destroySessionSafe(req, res);
             return res.status(401).json({ success: false, message: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin." });
         }
         if (adminUser.status === 'rejected') {
-            req.session.destroy();
+            destroySessionSafe(req, res);
             return res.status(401).json({ success: false, message: "❌ Your access has been revoked. Please contact support." });
         }
 
@@ -43,7 +129,7 @@ const requireLogin = async (req, res, next) => {
 
         if (req.session.role === 'staff') {
             if (!staffUser || staffUser.status === 'suspended' || staffUser.status === 'rejected') {
-                req.session.destroy();
+                destroySessionSafe(req, res);
                 return res.status(401).json({
                     success: false,
                     error: "⏸️ Your staff account is currently inactive. Please contact your Admin.",
@@ -51,7 +137,7 @@ const requireLogin = async (req, res, next) => {
                 });
             }
             if (expired) {
-                req.session.destroy();
+                destroySessionSafe(req, res);
                 return res.status(401).json({
                     success: false,
                     error: "⌛ Your company's subscription plan has expired. Staff login and access are disabled until your Admin renews the plan or adds an add-on.",
@@ -59,7 +145,7 @@ const requireLogin = async (req, res, next) => {
                 });
             }
             if (staffUser.isQuotaLocked || adminUser.requiresStaffSelection) {
-                req.session.destroy();
+                destroySessionSafe(req, res);
                 return res.status(401).json({
                     success: false,
                     error: `🔒 Your staff account is paused because your company's plan allows up to ${adminUser.maxStaffLimit ?? 5} active staff. Please ask your Admin to select your account or upgrade their Staff quota.`,
@@ -152,5 +238,11 @@ module.exports = {
     requireAdmin,
     requireSuperAdmin,
     logActivity,
-    isPlanExpiredDate
+    isPlanExpiredDate,
+    createAuthToken,
+    verifyAuthToken,
+    saveSessionAsync,
+    destroySessionSafe,
+    hydrateSessionFromTokenMiddleware
 };
+

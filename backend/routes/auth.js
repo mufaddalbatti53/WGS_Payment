@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
-const { requireLogin, logActivity, isPlanExpiredDate } = require('../middleware/auth');
+const { requireLogin, logActivity, isPlanExpiredDate, createAuthToken, saveSessionAsync, destroySessionSafe } = require('../middleware/auth');
 const { notifyRegistrationOrRequest, checkAndSendExpiryNotificationsForAdmin } = require('../utils/emailService');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
@@ -51,7 +51,10 @@ router.post('/login', loginLimiter, async (req, res) => {
             req.session.userId = customer._id;
             req.session.role = 'customer';
             req.session.adminId = customer.adminId;
-            return res.json({ success: true, user: { role: 'customer', userId: customer._id, adminId: customer.adminId } });
+            await saveSessionAsync(req);
+            const token = createAuthToken(req.session);
+            res.setHeader('X-Auth-Token', token);
+            return res.json({ success: true, token, user: { role: 'customer', userId: customer._id, adminId: customer.adminId } });
         }
 
         const rawUsername = (req.body.username || '').toString();
@@ -107,12 +110,17 @@ router.post('/login', loginLimiter, async (req, res) => {
             req.session.username = user.username;
             req.session.adminId = user.role === 'admin' ? user._id : (user.role === 'superadmin' ? user._id : user.adminId);
 
+            await saveSessionAsync(req);
+            const token = createAuthToken(req.session);
+            res.setHeader('X-Auth-Token', token);
+
             if (user.role === 'admin') {
                 checkAndSendExpiryNotificationsForAdmin(user).catch(() => {});
             }
 
             return res.json({ 
-                success: true, 
+                success: true,
+                token,
                 user: { 
                     username: user.username, 
                     role: user.role, 
@@ -165,14 +173,10 @@ router.post('/register', async (req, res) => {
 });
 
 const handleLogout = (req, res) => {
-    if (req.session) {
-        req.session.destroy(() => {
-            res.clearCookie('connect.sid');
-            res.json({ success: true });
-        });
-    } else {
+    destroySessionSafe(req, res, () => {
+        res.clearCookie('connect.sid');
         res.json({ success: true });
-    }
+    });
 };
 router.post('/logout', handleLogout);
 router.post('/api/logout', handleLogout);

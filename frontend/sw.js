@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wgs-payment-v8';
+const CACHE_NAME = 'wgs-payment-v10';
 const ASSETS_TO_CACHE = [
     '/',
     '/login.html',

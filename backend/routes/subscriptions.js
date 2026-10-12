@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const PlanConfig = require('../models/PlanConfig');
 const User = require('../models/User');
 const ActivityLog = require('../models/Activity');
+const { createAuthToken, saveSessionAsync } = require('../middleware/auth');
 const {
     syncStaffQuotaForAdmin,
     notifyPlanPurchased,
@@ -380,16 +381,20 @@ router.post('/verify-payment', async (req, res) => {
         await notifyPlanPurchased(user, quote, razorpay_payment_id, staffQuotaStatus);
 
         // Automatically log the Admin in
+        let token = '';
         if (req.session) {
             req.session.userId = user._id;
             req.session.adminId = user._id;
             req.session.role = 'admin';
             req.session.username = user.username;
-            await new Promise(resolve => req.session.save(resolve));
+            await saveSessionAsync(req);
+            token = createAuthToken(req.session);
+            res.setHeader('X-Auth-Token', token);
         }
 
         res.json({
             success: true,
+            token,
             message: 'Payment verified and Admin account activated!',
             redirect: 'dashboard.html?from=login',
             staffQuotaStatus,

@@ -28,6 +28,7 @@ const cors = require('cors');
 const User = require('./models/User');
 const Customer = require('./models/Customer');
 const ActivityLog = require('./models/Activity');
+const { hydrateSessionFromTokenMiddleware } = require('./middleware/auth');
 
 const app = express();
 
@@ -57,7 +58,7 @@ app.use(cors({
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
-    exposedHeaders: ['Content-Disposition']
+    exposedHeaders: ['Content-Disposition', 'X-Auth-Token', 'X-Clear-Auth-Token']
 }));
 
 let databaseReady = false;
@@ -166,6 +167,8 @@ app.use(session({
         secure: isProductionOrVercel
     }
 }));
+
+app.use(hydrateSessionFromTokenMiddleware);
 
 async function shiftAgingBuckets() {
     try {
