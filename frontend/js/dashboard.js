@@ -691,8 +691,10 @@ window.populateSubscriptionUI = function(sub, role) {
     const btn = document.getElementById('topRightSubBtn');
     const planText = document.getElementById('topRightSubPlanText');
     const daysBadge = document.getElementById('topRightSubDaysBadge');
+    const mobileBadge = document.getElementById('mobileHeaderSubBadge');
 
     if (planText) planText.innerText = sub.planName || 'Yearly Plan';
+    if (mobileBadge) mobileBadge.innerText = sub.planName || 'Yearly Plan';
 
     if (btn) {
         btn.classList.remove('near-expiry', 'expired');

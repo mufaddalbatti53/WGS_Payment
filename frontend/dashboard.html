@@ -895,10 +895,10 @@
 <body>
 
     <!-- TOP-RIGHT SUBSCRIPTION DETAILS PILL & POPUP (Admin Only) -->
-    <div id="topRightSubContainer" class="top-right-sub-container admin-only" style="display:none;">
+    <div id="topRightSubContainer" class="top-right-sub-container admin-only">
         <button type="button" id="topRightSubBtn" class="top-right-sub-btn" onclick="toggleTopRightSubPopup(event)">
             <span style="font-size:16px;">💎</span>
-            <span id="topRightSubPlanText" style="font-size:13px; font-weight:800; color:#1e293b;">Yearly Plan</span>
+            <span id="topRightSubPlanText" style="font-size:13px; font-weight:800; color:#1e293b;">Subscription Plan</span>
             <span id="topRightSubDaysBadge" style="font-size:11px; font-weight:800; padding:3px 9px; border-radius:20px; background:#dcfce7; color:#166534;">Active</span>
             <span style="font-size:10px; color:#64748b;">▼</span>
         </button>
@@ -1001,13 +1001,13 @@
                 </div>
                 <a class="nav-item non-customer-only" href="activity.html">📜 Activity Log</a>
                 <div class="admin-only">
-                    <a class="nav-item"
-                        onclick="document.getElementById('settingsModal').style.display='block'">⚙️ Profile
+                    <a class="nav-item" href="javascript:void(0)"
+                        onclick="document.getElementById('settingsModal').style.display='block'; return false;">⚙️ Profile
                         Settings</a>
-                    <a class="nav-item"
-                        onclick="document.getElementById('changePasswordModal').style.display='block'">🔑 Change Password</a>
-                    <a class="nav-item"
-                        onclick="openRenewalModal()">💎 Subscription & Renew</a>
+                    <a class="nav-item" href="javascript:void(0)"
+                        onclick="document.getElementById('changePasswordModal').style.display='block'; return false;">🔑 Change Password</a>
+                    <a class="nav-item" href="javascript:void(0)"
+                        onclick="openRenewalModal(); return false;">💎 Subscription & Renew</a>
                 </div>
                 <div style="flex:1;"></div>
                 <a class="nav-item" href="javascript:void(0)" onclick="handleLogout()"
@@ -1049,16 +1049,21 @@
 
                 <div class="non-customer-only">
                     <div class="home-launcher" id="homeLauncher">
-                        <div class="home-header-card">
-                            <div class="home-avatar">
-                                <span id="avatarInitial">A</span>
+                        <div class="home-header-card" style="position:relative; flex-wrap:wrap; justify-content:space-between;">
+                            <div style="display:flex; align-items:center; gap:16px;">
+                                <div class="home-avatar">
+                                    <span id="avatarInitial">A</span>
+                                </div>
+                                <div>
+                                    <h2 style="margin:0; font-size:22px; font-weight:800;">Hello, <span id="headerGreetingRole">Admin</span></h2>
+                                    <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">
+                                        <span id="headerCompanyName">WGS Payment Manager</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h2 style="margin:0; font-size:22px; font-weight:800;">Hello, <span id="headerGreetingRole">Admin</span></h2>
-                                <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">
-                                    <span id="headerCompanyName">WGS Payment Manager</span>
-                                </p>
-                            </div>
+                            <button type="button" class="admin-only" onclick="toggleTopRightSubPopup(event)" style="background:rgba(255,255,255,0.2); border:1.5px solid rgba(255,255,255,0.45); color:white; border-radius:20px; padding:7px 13px; font-size:12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                                💎 <span id="mobileHeaderSubBadge">Plan Info</span>
+                            </button>
                         </div>
                         <div class="launcher-grid">
                             <a class="launcher-tile" onclick="openMobileSection('aging'); return false;">
@@ -1095,6 +1100,11 @@
                                 <div class="launcher-icon" style="background: #fef9c3;">🔑</div>
                                 <strong style="font-size:16px;">Password</strong>
                                 <span style="font-size:12px; color:var(--text-muted);">Change Login</span>
+                            </a>
+                            <a class="launcher-tile admin-only" href="javascript:void(0)" onclick="openRenewalModal(); return false;">
+                                <div class="launcher-icon" style="background: #dcfce7;">💎</div>
+                                <strong style="font-size:16px;">Subscription</strong>
+                                <span style="font-size:12px; color:var(--text-muted);">Plan & Renew</span>
                             </a>
                             <a class="launcher-tile" href="javascript:void(0)" onclick="handleLogout(); return false;"
                                 style="grid-column: span 2; align-items:center; flex-direction:row; background: #fee2e2; border-color: #fca5a5;">
@@ -2326,9 +2336,202 @@
             </script>
             
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=5"></script>
-    <script src="js/dashboard.js?v=5"></script>
-</body>
+    <script src="js/api.js?v=6"></script>
+    <script src="js/dashboard.js?v=6"></script>
+    <script>
+        // Self-contained fallback & bridge so Subscription & Renew works even if js/dashboard.js is cached
+        (function() {
+            function safeEsc(str) {
+                if (!str) return '';
+                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
 
-    
-            </html>
+            if (typeof window.toggleTopRightSubPopup !== 'function') {
+                window.toggleTopRightSubPopup = function(e) {
+                    if (e) e.stopPropagation();
+                    var popup = document.getElementById('topRightSubPopup');
+                    if (popup) popup.classList.toggle('open');
+                    if (!window.currentSubscriptionDetails) ensureSubDetailsLoaded();
+                };
+            }
+
+            if (typeof window.closeTopRightSubPopup !== 'function') {
+                window.closeTopRightSubPopup = function() {
+                    var popup = document.getElementById('topRightSubPopup');
+                    if (popup) popup.classList.remove('open');
+                };
+            }
+
+            if (typeof window.openRenewalModal !== 'function') {
+                window.openRenewalModal = function(defaultMode) {
+                    if (typeof window.closeTopRightSubPopup === 'function') window.closeTopRightSubPopup();
+                    var modal = document.getElementById('renewalPopupModal');
+                    var errEl = document.getElementById('renewalModalError');
+                    if (errEl) errEl.style.display = 'none';
+                    if (modal) modal.style.display = 'block';
+                    if (!window.currentSubscriptionDetails) {
+                        ensureSubDetailsLoaded(defaultMode);
+                    } else if (typeof window.selectRenewalMode === 'function') {
+                        window.selectRenewalMode(defaultMode || (window.currentSubscriptionDetails.hasAddons ? 'with_addons' : 'without_addons'));
+                    }
+                };
+            }
+
+            if (typeof window.closeRenewalModal !== 'function') {
+                window.closeRenewalModal = function() {
+                    var modal = document.getElementById('renewalPopupModal');
+                    if (modal) modal.style.display = 'none';
+                };
+            }
+
+            if (typeof window.selectRenewalMode !== 'function') {
+                window.selectRenewalMode = function(mode) {
+                    window.selectedRenewalMode = mode === 'without_addons' ? 'without_addons' : 'with_addons';
+                    var cardWith = document.getElementById('renewCardWithAddons');
+                    var cardWithout = document.getElementById('renewCardWithoutAddons');
+                    var radioWith = document.getElementById('radioRenewWithAddons');
+                    var radioWithout = document.getElementById('radioRenewWithoutAddons');
+                    var payBtn = document.getElementById('payRenewalRazorpayBtn');
+
+                    if (cardWith) cardWith.classList.toggle('selected', window.selectedRenewalMode === 'with_addons');
+                    if (cardWithout) cardWithout.classList.toggle('selected', window.selectedRenewalMode === 'without_addons');
+                    if (radioWith) radioWith.checked = (window.selectedRenewalMode === 'with_addons');
+                    if (radioWithout) radioWithout.checked = (window.selectedRenewalMode === 'without_addons');
+
+                    var sub = window.currentSubscriptionDetails;
+                    if (payBtn && sub) {
+                        var quote = window.selectedRenewalMode === 'without_addons'
+                            ? (sub.renewWithoutAddonsQuote || {})
+                            : (sub.renewWithAddonsQuote || {});
+                        var amt = Number(quote.totalAmount || 0).toLocaleString('en-IN');
+                        var label = window.selectedRenewalMode === 'without_addons' ? 'WITHOUT Add-ons' : 'WITH Add-ons';
+                        payBtn.innerText = '💳 Pay ₹' + amt + ' & Renew ' + label + ' (1 Year)';
+                    }
+                };
+            }
+
+            if (typeof window.populateSubscriptionUI !== 'function') {
+                window.populateSubscriptionUI = function(sub, role) {
+                    var container = document.getElementById('topRightSubContainer');
+                    if (!container) return;
+                    if (role && role !== 'admin') {
+                        container.style.display = 'none';
+                        return;
+                    }
+                    if (!sub) return;
+                    window.currentSubscriptionDetails = sub;
+                    container.style.display = 'block';
+
+                    var setEl = function(id, txt) { var el = document.getElementById(id); if (el) el.innerText = txt; };
+                    setEl('topRightSubPlanText', sub.planName || 'Yearly Plan');
+                    setEl('mobileHeaderSubBadge', sub.planName || 'Yearly Plan');
+                    setEl('subPopupPlanName', sub.planName || 'Basic Plan (Yearly)');
+                    setEl('subPopupCycleBadge', '📅 Yearly Plan (' + (sub.planDurationMonths || 12) + ' Months)');
+                    setEl('subPopupExpiryDate', sub.expiryFormatted || 'No Expiry Set');
+                    setEl('subPopupDaysLeftText', sub.daysLeft !== null && sub.daysLeft !== undefined ? (sub.isExpired ? 'Expired ' + Math.abs(sub.daysLeft) + 'd ago' : sub.daysLeft + ' day(s) left') : 'Active');
+
+                    var q = sub.quotas || {};
+                    setEl('subPopupQuotaParties', (q.partiesUsed || 0) + ' / ' + (q.partiesLimit || 0));
+                    setEl('subPopupQuotaStaff', (q.staffUsed || 0) + ' / ' + (q.staffLimit || 0));
+                    setEl('subPopupQuotaMsgs', (q.messagesUsed || 0) + ' / ' + (q.messagesLimit || 0));
+
+                    var withQuote = sub.renewWithAddonsQuote || {};
+                    var withoutQuote = sub.renewWithoutAddonsQuote || {};
+                    setEl('subPopupPriceWithAddons', '₹' + Number(withQuote.totalAmount || 0).toLocaleString('en-IN') + ' / Yr');
+                    setEl('subPopupPriceWithoutAddons', '₹' + Number(withoutQuote.totalAmount || 0).toLocaleString('en-IN') + ' / Yr');
+                    setEl('renewWithAddonsTotal', '₹' + Number(withQuote.totalAmount || 0).toLocaleString('en-IN'));
+                    setEl('renewWithoutAddonsTotal', '₹' + Number(withoutQuote.totalAmount || 0).toLocaleString('en-IN'));
+
+                    if (typeof window.selectRenewalMode === 'function') {
+                        window.selectRenewalMode(sub.hasAddons ? 'with_addons' : 'without_addons');
+                    }
+                };
+            }
+
+            if (typeof window.startDashboardRazorpayRenewal !== 'function') {
+                window.startDashboardRazorpayRenewal = async function() {
+                    var payBtn = document.getElementById('payRenewalRazorpayBtn');
+                    var errEl = document.getElementById('renewalModalError');
+                    if (errEl) errEl.style.display = 'none';
+                    var renewalMode = window.selectedRenewalMode || 'with_addons';
+                    var origText = payBtn ? payBtn.innerText : '💳 Pay & Renew Yearly Subscription';
+                    if (payBtn) { payBtn.disabled = true; payBtn.innerText = '⏳ Creating Razorpay Renewal Order...'; }
+                    try {
+                        var orderRes = await apiJson('/api/subscriptions/create-renewal-order', {
+                            method: 'POST',
+                            body: JSON.stringify({ renewalMode: renewalMode })
+                        });
+                        if (!orderRes || !orderRes.success) {
+                            if (errEl) { errEl.innerText = '⚠️ ' + ((orderRes && orderRes.error) || 'Could not create order.'); errEl.style.display = 'block'; }
+                            if (payBtn) { payBtn.disabled = false; payBtn.innerText = origText; }
+                            return;
+                        }
+                        var rzp = new window.Razorpay({
+                            key: orderRes.keyId,
+                            amount: orderRes.amount,
+                            currency: orderRes.currency || 'INR',
+                            name: 'WGS Payment Tracker',
+                            description: orderRes.quote.planName + ' — Yearly Renewal',
+                            order_id: orderRes.orderId,
+                            theme: { color: '#27ae60' },
+                            handler: async function(response) {
+                                var verifyRes = await apiJson('/api/subscriptions/verify-renewal', {
+                                    method: 'POST',
+                                    body: JSON.stringify(response)
+                                });
+                                if (verifyRes && verifyRes.success) {
+                                    window.closeRenewalModal();
+                                    alert('🎉 ' + (verifyRes.message || 'Yearly Subscription Renewed!'));
+                                    window.location.reload();
+                                } else if (errEl) {
+                                    errEl.innerText = '❌ ' + ((verifyRes && verifyRes.error) || 'Verification failed.');
+                                    errEl.style.display = 'block';
+                                }
+                            }
+                        });
+                        rzp.open();
+                    } catch (err) {
+                        if (errEl) { errEl.innerText = '❌ ' + err.message; errEl.style.display = 'block'; }
+                    } finally {
+                        if (payBtn) { payBtn.disabled = false; payBtn.innerText = origText; }
+                    }
+                };
+            }
+
+            async function ensureSubDetailsLoaded(preferredMode) {
+                try {
+                    if (typeof apiJson !== 'function') return;
+                    var data = await apiJson('/api/dashboard');
+                    if (data && data.subscriptionDetails) {
+                        if (typeof window.populateSubscriptionUI === 'function') {
+                            window.populateSubscriptionUI(data.subscriptionDetails, data.role || 'admin');
+                        }
+                        var mBadge = document.getElementById('mobileHeaderSubBadge');
+                        if (mBadge && data.subscriptionDetails.planName) {
+                            mBadge.innerText = data.subscriptionDetails.planName;
+                        }
+                        if (preferredMode && typeof window.selectRenewalMode === 'function') {
+                            window.selectRenewalMode(preferredMode);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Fallback sub details load error:', e);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    if (!window.currentSubscriptionDetails) {
+                        ensureSubDetailsLoaded();
+                    } else {
+                        var mBadge = document.getElementById('mobileHeaderSubBadge');
+                        if (mBadge && window.currentSubscriptionDetails.planName) {
+                            mBadge.innerText = window.currentSubscriptionDetails.planName;
+                        }
+                    }
+                }, 800);
+            });
+        })();
+    </script>
+</body>
+</html>
