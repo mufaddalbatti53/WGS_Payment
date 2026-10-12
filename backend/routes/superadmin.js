@@ -16,6 +16,26 @@ function escapeRegExp(string) {
     return (string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function findMatchedPlan(planConfigObj, planId, planName) {
+    const plans = Array.isArray(planConfigObj?.plans) ? planConfigObj.plans : [];
+    if (!plans.length) return null;
+    const cleanId = String(planId || '').trim().toLowerCase();
+    const cleanName = String(planName || '').trim().toLowerCase();
+
+    if (cleanId) {
+        const byId = plans.find(p => String(p.id || '').trim().toLowerCase() === cleanId);
+        if (byId) return byId;
+    }
+    if (cleanName) {
+        const byExactName = plans.find(p => String(p.name || '').trim().toLowerCase() === cleanName);
+        if (byExactName) return byExactName;
+        if (cleanName.includes('custom')) return plans.find(p => p.id === 'customized' || p.isCustom) || null;
+        if (/\bpro\b/.test(cleanName)) return plans.find(p => p.id === 'pro') || null;
+        if (cleanName.includes('basic')) return plans.find(p => p.id === 'basic') || null;
+    }
+    return null;
+}
+
 router.get('/dashboard', requireSuperAdmin, async (req, res) => {
     try {
         runExpiryEmailScan().catch(() => {});
@@ -26,6 +46,8 @@ router.get('/dashboard', requireSuperAdmin, async (req, res) => {
             Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }]),
             PlanConfig.getOrCreateSingleton()
         ]);
+
+        const configObj = planConfigDoc ? planConfigDoc.toObject() : { plans: [], addons: [] };
 
         const staffByAdmin = {};
         staffUsers.forEach(s => {
@@ -47,16 +69,28 @@ router.get('/dashboard', requireSuperAdmin, async (req, res) => {
         const enrichedAdmins = adminUsers.map(u => {
             const idStr = u._id.toString();
             const myStaffList = staffByAdmin[idStr] || [];
+            const matchedPlan = findMatchedPlan(configObj, u.planId, u.planName);
+            const resolvedPlanId = u.planId || (matchedPlan ? matchedPlan.id : 'basic');
+            const resolvedPlanName = u.planName || (matchedPlan ? matchedPlan.name : 'Basic Plan');
+            const resolvedDurationMonths = u.planDurationMonths || (matchedPlan ? matchedPlan.durationMonths : 12) || 12;
+            const resolvedPlanPrice = (u.lastAmountPaid && u.lastAmountPaid > 0)
+                ? u.lastAmountPaid
+                : (matchedPlan ? Number(matchedPlan.price || 0) : 0);
+
             return {
                 ...u,
                 staffList: myStaffList,
                 staffCount: myStaffList.length,
                 partyCount: partyMap[idStr] || 0,
-                maxStaffLimit: u.maxStaffLimit ?? 5,
-                maxCustomersLimit: u.maxCustomersLimit ?? 500,
-                dailyMessageLimit: u.dailyMessageLimit ?? 100,
+                maxStaffLimit: u.maxStaffLimit ?? (matchedPlan ? matchedPlan.maxStaffLimit : 5),
+                maxCustomersLimit: u.maxCustomersLimit ?? (matchedPlan ? matchedPlan.maxCustomersLimit : 500),
+                dailyMessageLimit: u.dailyMessageLimit ?? (matchedPlan ? matchedPlan.dailyMessageLimit : 100),
                 dailyMessageCount: u.dailyMessageCount || 0,
-                planName: u.planName || 'Custom / Standard',
+                planId: resolvedPlanId,
+                planName: resolvedPlanName,
+                planDurationMonths: resolvedDurationMonths,
+                planPrice: resolvedPlanPrice,
+                livePlanPrice: matchedPlan ? Number(matchedPlan.price || 0) : resolvedPlanPrice,
                 featureAccess: {
                     allowGoogleDriveBackup: u.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(u.featureAccess.allowGoogleDriveBackup) : true,
                     allowExcelImport: u.featureAccess?.allowExcelImport !== undefined ? Boolean(u.featureAccess.allowExcelImport) : true,
@@ -77,7 +111,7 @@ router.get('/dashboard', requireSuperAdmin, async (req, res) => {
             approvedUsers,
             suspendedUsers,
             rejectedUsers,
-            planConfig: planConfigDoc ? planConfigDoc.toObject() : null
+            planConfig: configObj
         });
     } catch (err) {
         res.status(500).json({ success: false, message: "Error loading Super Admin dashboard: " + err.message });
@@ -152,6 +186,32 @@ router.post('/subscription-settings', requireSuperAdmin, async (req, res) => {
             PlanConfig.setCachedSingleton(config);
         }
 
+        // Also sync any unpaid pending admins on standard Basic/Pro plans so their pending defaults reflect the updated plan values
+        for (const plan of (config.plans || [])) {
+            if (!plan.isCustom && (plan.id === 'basic' || plan.id === 'pro')) {
+                await User.updateMany(
+                    {
+                        role: 'admin',
+                        status: 'pending',
+                        planId: plan.id,
+                        $or: [{ lastPaymentId: { $exists: false } }, { lastPaymentId: null }, { lastPaymentId: '' }],
+                        'activeAddons.0': { $exists: false }
+                    },
+                    {
+                        $set: {
+                            planName: plan.name,
+                            maxCustomersLimit: plan.maxCustomersLimit,
+                            maxStaffLimit: plan.maxStaffLimit,
+                            dailyMessageLimit: plan.dailyMessageLimit,
+                            planDurationMonths: plan.durationMonths || 12,
+                            lastAmountPaid: plan.price,
+                            featureAccess: plan.featureAccess
+                        }
+                    }
+                );
+            }
+        }
+
         res.json({
             success: true,
             message: 'Subscription plans, add-ons, and Razorpay settings saved successfully!',
@@ -169,7 +229,21 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid User ID provided.' });
         }
 
-        const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status, planName, planId, featureAccess } = req.body;
+        const {
+            maxStaffLimit,
+            maxCustomersLimit,
+            dailyMessageLimit,
+            planExpiryDate,
+            status,
+            planName,
+            planId,
+            planDurationMonths,
+            planPrice,
+            featureAccess
+        } = req.body;
+
+        const planConfigDoc = await PlanConfig.getOrCreateSingleton();
+        const matchedPlan = findMatchedPlan(planConfigDoc ? planConfigDoc.toObject() : null, planId, planName);
 
         const updateData = {
             maxStaffLimit: Math.max(0, parseInt(maxStaffLimit) || 0),
@@ -178,10 +252,12 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
         };
 
         if (planName !== undefined) {
-            const cleanPlanName = String(planName).trim() || 'Custom / Standard';
+            const cleanPlanName = String(planName).trim() || (matchedPlan ? matchedPlan.name : 'Custom / Standard');
             updateData.planName = cleanPlanName;
             if (planId) {
                 updateData.planId = String(planId).trim();
+            } else if (matchedPlan) {
+                updateData.planId = matchedPlan.id;
             } else if (/custom/i.test(cleanPlanName)) {
                 updateData.planId = 'customized';
             } else if (/\bpro\b/i.test(cleanPlanName)) {
@@ -191,6 +267,19 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
             }
         } else if (planId) {
             updateData.planId = String(planId).trim();
+            if (matchedPlan) updateData.planName = matchedPlan.name;
+        }
+
+        const resolvedMonths = Math.max(1, parseInt(planDurationMonths) || (matchedPlan ? matchedPlan.durationMonths : 12) || 12);
+        updateData.planDurationMonths = resolvedMonths;
+
+        if (planPrice !== undefined && planPrice !== null && planPrice !== '') {
+            updateData.lastAmountPaid = Math.max(0, Number(planPrice) || 0);
+        } else if (matchedPlan && matchedPlan.price > 0) {
+            const existingForPrice = await User.findById(req.params.id).select('lastAmountPaid planId').lean();
+            if (!existingForPrice || !existingForPrice.lastAmountPaid || existingForPrice.planId !== updateData.planId) {
+                updateData.lastAmountPaid = Number(matchedPlan.price);
+            }
         }
 
         if (featureAccess && typeof featureAccess === 'object') {
@@ -201,18 +290,12 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
             };
         }
 
+        const existingUser = await User.findById(req.params.id).select('approvedAt planExpiryDate planDurationMonths').lean();
+
         if (status && ['approved', 'pending', 'rejected', 'suspended'].includes(status)) {
             updateData.status = status;
-            if (status === 'approved') {
-                const existing = await User.findById(req.params.id).select('approvedAt planExpiryDate planDurationMonths').lean();
-                if (existing && !existing.approvedAt) {
-                    updateData.approvedAt = new Date();
-                }
-                if (existing && !existing.planExpiryDate && !planExpiryDate && existing.planDurationMonths > 0) {
-                    const exp = new Date();
-                    exp.setMonth(exp.getMonth() + Number(existing.planDurationMonths || 12));
-                    updateData.planExpiryDate = exp;
-                }
+            if (status === 'approved' && existingUser && !existingUser.approvedAt) {
+                updateData.approvedAt = new Date();
             }
             await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: status });
         }
@@ -222,8 +305,14 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
             updateData.lastPreExpiryEmailSentAt = null;
             updateData.lastPreExpiryDaysNotified = null;
             updateData.lastPostExpiryEmailSentAt = null;
-        } else if (planExpiryDate === '' && !updateData.planExpiryDate) {
-            updateData.planExpiryDate = null;
+        } else {
+            // Automatically set expiry date based on plan validity if none was provided
+            const exp = new Date();
+            exp.setMonth(exp.getMonth() + resolvedMonths);
+            updateData.planExpiryDate = exp;
+            updateData.lastPreExpiryEmailSentAt = null;
+            updateData.lastPreExpiryDaysNotified = null;
+            updateData.lastPostExpiryEmailSentAt = null;
         }
 
         const targetUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -297,6 +386,9 @@ router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
         const existingUser = await User.findById(req.params.id);
+        const planConfigDoc = await PlanConfig.getOrCreateSingleton();
+        const matchedPlan = findMatchedPlan(planConfigDoc ? planConfigDoc.toObject() : null, existingUser?.planId, existingUser?.planName);
+
         const now = new Date();
         const updateObj = {
             status: 'approved',
@@ -305,11 +397,29 @@ router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
             lastPreExpiryDaysNotified: null,
             lastPostExpiryEmailSentAt: null
         };
-        if (existingUser && !existingUser.planExpiryDate && existingUser.planDurationMonths > 0) {
+
+        // If this is a manual approval (no Razorpay payment ID and no custom add-ons) and matches a standard plan (Basic/Pro),
+        // ensure the latest configured plan values from Super Admin are applied on approval
+        if (existingUser && !existingUser.lastPaymentId && (!existingUser.activeAddons || existingUser.activeAddons.length === 0) && matchedPlan && !matchedPlan.isCustom) {
+            updateObj.planId = matchedPlan.id;
+            updateObj.planName = matchedPlan.name;
+            updateObj.maxCustomersLimit = matchedPlan.maxCustomersLimit;
+            updateObj.maxStaffLimit = matchedPlan.maxStaffLimit;
+            updateObj.dailyMessageLimit = matchedPlan.dailyMessageLimit;
+            updateObj.planDurationMonths = matchedPlan.durationMonths || 12;
+            updateObj.lastAmountPaid = matchedPlan.price;
+            if (matchedPlan.featureAccess) {
+                updateObj.featureAccess = matchedPlan.featureAccess;
+            }
+        }
+
+        const durationMonths = Number(updateObj.planDurationMonths || existingUser?.planDurationMonths || matchedPlan?.durationMonths || 12);
+        if (!existingUser || !existingUser.planExpiryDate || new Date(existingUser.planExpiryDate) <= now) {
             const expiry = new Date(now);
-            expiry.setMonth(expiry.getMonth() + Number(existingUser.planDurationMonths));
+            expiry.setMonth(expiry.getMonth() + durationMonths);
             updateObj.planExpiryDate = expiry;
         }
+
         const approvedUser = await User.findByIdAndUpdate(req.params.id, updateObj, { new: true });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
         if (approvedUser) {

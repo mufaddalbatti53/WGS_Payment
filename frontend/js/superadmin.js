@@ -48,7 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
         limitsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('modalAdminId').value;
+            const planId = (document.getElementById('modalSelectedPlanId')?.value || '').trim();
             const planName = (document.getElementById('modalPlanName')?.value || '').trim();
+            const planPrice = document.getElementById('modalPlanPrice')?.value;
+            const planDurationMonths = document.getElementById('modalPlanDurationMonths')?.value || 12;
             const maxStaffLimit = document.getElementById('modalMaxStaff').value;
             const maxCustomersLimit = document.getElementById('modalMaxCustomers').value;
             const dailyMessageLimit = document.getElementById('modalDailyMessages').value;
@@ -64,7 +67,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await apiJson(`/api/superadmin/update-limits/${id}`, {
                     method: 'POST',
                     body: JSON.stringify({
-                        planName, maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status, featureAccess
+                        planId,
+                        planName,
+                        planPrice,
+                        planDurationMonths,
+                        maxStaffLimit,
+                        maxCustomersLimit,
+                        dailyMessageLimit,
+                        planExpiryDate,
+                        status,
+                        featureAccess
                     })
                 });
                 if (res && !res.success) {
@@ -82,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Immediately render default plans & add-ons so the editor is never empty
     if (!currentPlanConfigState) {
         currentPlanConfigState = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+        window.currentPlanConfigState = currentPlanConfigState;
         renderPlansEditor(currentPlanConfigState);
     }
 });
@@ -236,11 +249,66 @@ const DEFAULT_SUPERADMIN_PLAN_CONFIG = {
 
 let currentPlanConfigState = null;
 
+window.getLivePlansList = function() {
+    const planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
+    if (planCards.length > 0) {
+        return planCards.map((card, idx) => {
+            const planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
+            return {
+                id: planId,
+                name: card.querySelector('.plan-name-inp')?.value || 'Plan',
+                badge: card.querySelector('.plan-badge-inp')?.value || '',
+                tagline: card.querySelector('.plan-tagline-inp')?.value || '',
+                price: Number(card.querySelector('.plan-price-inp')?.value || 0),
+                durationMonths: Number(card.querySelector('.plan-duration-inp')?.value || 12),
+                maxCustomersLimit: Number(card.querySelector('.plan-parties-inp')?.value || 0),
+                maxStaffLimit: Number(card.querySelector('.plan-staff-inp')?.value || 0),
+                dailyMessageLimit: Number(card.querySelector('.plan-msgs-inp')?.value || 0),
+                isPopular: Boolean(card.querySelector('.plan-popular-chk')?.checked),
+                isCustom: planId === 'customized',
+                featureAccess: {
+                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive')?.checked),
+                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel')?.checked),
+                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf')?.checked)
+                }
+            };
+        });
+    }
+    const cfg = currentPlanConfigState || window.currentPlanConfigState || DEFAULT_SUPERADMIN_PLAN_CONFIG;
+    return (cfg && Array.isArray(cfg.plans) && cfg.plans.length > 0) ? cfg.plans : DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
+};
+
+function findLivePlan(planId, planName) {
+    const plans = window.getLivePlansList();
+    const cleanId = String(planId || '').trim().toLowerCase();
+    const cleanName = String(planName || '').trim().toLowerCase();
+    if (cleanId) {
+        const byId = plans.find(p => String(p.id || '').trim().toLowerCase() === cleanId);
+        if (byId) return byId;
+    }
+    if (cleanName) {
+        const byName = plans.find(p => String(p.name || '').trim().toLowerCase() === cleanName);
+        if (byName) return byName;
+        if (cleanName.includes('custom')) return plans.find(p => p.id === 'customized' || p.isCustom) || null;
+        if (/\bpro\b/.test(cleanName)) return plans.find(p => p.id === 'pro') || null;
+        if (cleanName.includes('basic')) return plans.find(p => p.id === 'basic') || null;
+    }
+    return null;
+}
+
 async function loadDashboard() {
     try {
         const data = await apiJson('/api/superadmin/dashboard');
         if (data && data.success === false) {
             throw new Error(data.message || 'Super Admin access required');
+        }
+
+        if (data.planConfig && Array.isArray(data.planConfig.plans) && data.planConfig.plans.length > 0) {
+            currentPlanConfigState = data.planConfig;
+            window.currentPlanConfigState = currentPlanConfigState;
+            renderPlansEditor(currentPlanConfigState);
+        } else {
+            await loadSubscriptionConfigFallback();
         }
         
         const pendingUsers = data.pendingUsers || [];
@@ -267,13 +335,6 @@ async function loadDashboard() {
         renderSuspended(suspendedUsers);
         renderRejected(rejectedUsers);
 
-        if (data.planConfig && Array.isArray(data.planConfig.plans) && data.planConfig.plans.length > 0) {
-            currentPlanConfigState = data.planConfig;
-            renderPlansEditor(currentPlanConfigState);
-        } else {
-            await loadSubscriptionConfigFallback();
-        }
-
     } catch (error) {
         console.error('Error loading dashboard:', error);
         if (error.message.includes('Session expired') || error.message.includes('Super Admin access required') || error.message.includes('401') || error.message.includes('403')) {
@@ -289,12 +350,14 @@ async function loadSubscriptionConfigFallback() {
         const res = await apiJson('/api/superadmin/subscription-settings');
         if (res && res.success && res.planConfig && Array.isArray(res.planConfig.plans) && res.planConfig.plans.length > 0) {
             currentPlanConfigState = res.planConfig;
+            window.currentPlanConfigState = currentPlanConfigState;
             renderPlansEditor(currentPlanConfigState);
             return;
         }
     } catch (e) {}
     if (!currentPlanConfigState) {
         currentPlanConfigState = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+        window.currentPlanConfigState = currentPlanConfigState;
     }
     renderPlansEditor(currentPlanConfigState);
 }
@@ -307,6 +370,7 @@ window.resetDefaultPlansAndAddons = function() {
     merged.whatsappSalesNumber = document.getElementById('whatsappSalesInput')?.value || '917021056404';
     merged.superadminEmail = document.getElementById('superadminEmailInput')?.value || '';
     currentPlanConfigState = merged;
+    window.currentPlanConfigState = merged;
     renderPlansEditor(currentPlanConfigState);
 };
 
@@ -388,19 +452,137 @@ function closeLimitsModal() {
     document.getElementById('limitsModal').style.display = 'none';
 }
 
-function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, planExpiry, status, rawStaff, planName, rawFeatureAccess) {
+function computeAutoExpiryDateString(durationMonths) {
+    const months = Math.max(1, parseInt(durationMonths) || 12);
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return d.toISOString().split('T')[0];
+}
+
+function renderModalPlanPresetButtons(selectedPlanId) {
+    const bar = document.getElementById('modalPlanPresetBar');
+    if (!bar) return;
+    const plans = window.getLivePlansList();
+    bar.innerHTML = plans.map((plan, idx) => {
+        const pId = plan.id || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
+        const isSelected = String(selectedPlanId || '').toLowerCase() === String(pId).toLowerCase();
+        const isCustom = Boolean(plan.isCustom || pId === 'customized');
+        const icon = isCustom ? '🎛️' : (pId === 'pro' ? '🚀' : '🌱');
+        const activeBorder = isSelected ? '#1d4ed8' : (isCustom ? '#86efac' : (pId === 'pro' ? '#93c5fd' : '#cbd5e1'));
+        const activeBg = isSelected ? 'linear-gradient(135deg, #dbeafe, #eff6ff)' : (isCustom ? '#f0fdf4' : (pId === 'pro' ? '#eff6ff' : '#f8fafc'));
+        const activeShadow = isSelected ? '0 0 0 2px rgba(37,99,235,0.22)' : 'none';
+        const priceFmt = Number(plan.price || 0).toLocaleString('en-IN');
+        const dur = Number(plan.durationMonths || 12);
+
+        return `
+            <button type="button" onclick="applyPlanPresetToModal('${escapeJsStr(pId)}')"
+                style="text-align:left; padding:9px 11px; border-radius:10px; border:2px solid ${activeBorder}; background:${activeBg}; box-shadow:${activeShadow}; cursor:pointer; transition:all 0.15s;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:12px; font-weight:800; color:#0f172a;">
+                    <span>${icon} ${plan.name || 'Plan'}</span>
+                    ${isSelected ? '<span style="background:#1d4ed8; color:#fff; font-size:9px; padding:1px 6px; border-radius:99px;">SELECTED</span>' : ''}
+                </div>
+                <div style="font-size:11.5px; font-weight:800; color:#1d4ed8; margin-top:3px;">
+                    ₹${priceFmt} <span style="font-weight:600; color:#64748b; font-size:10.5px;">/ ${dur} Mo</span>
+                </div>
+                <div style="font-size:10px; color:#475569; margin-top:3px; line-height:1.35;">
+                    👥 <strong>${plan.maxStaffLimit ?? 0}</strong> Staff · 📊 <strong>${plan.maxCustomersLimit ?? 0}</strong> Parties · 💬 <strong>${plan.dailyMessageLimit ?? 0}</strong> Msgs
+                </div>
+            </button>
+        `;
+    }).join('');
+}
+
+function updateModalSelectedPlanSummary(planName, price, durationMonths, maxStaff, maxParties, dailyMsgs, expiryDateStr) {
+    const box = document.getElementById('modalSelectedPlanSummary');
+    if (!box) return;
+    const priceNum = Number(price || 0);
+    const expDisplay = expiryDateStr ? formatDate(expiryDateStr) : 'Auto on Save';
+    box.style.display = 'block';
+    box.innerHTML = `
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px;">
+            <div>
+                <strong style="font-size:12.5px; color:#1e3a8a;">💎 Active Selection: ${planName || 'Standard Plan'}</strong>
+                ${priceNum > 0 ? `<span style="margin-left:6px; background:#1d4ed8; color:#fff; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800;">₹${priceNum.toLocaleString('en-IN')} / ${durationMonths || 12} Mo</span>` : ''}
+            </div>
+            <span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800;">
+                📅 Valid Till: ${expDisplay}
+            </span>
+        </div>
+        <div style="margin-top:5px; font-size:11px; color:#334155; font-weight:600;">
+            Quotas Applied: 👥 <strong>${maxStaff}</strong> Staff &nbsp;·&nbsp; 📊 <strong>${maxParties}</strong> Parties &nbsp;·&nbsp; 💬 <strong>${dailyMsgs}</strong> Daily Reminders
+        </div>
+    `;
+}
+
+window.recalcModalExpiryFromDuration = function(monthsVal) {
+    const months = Math.max(1, parseInt(monthsVal) || 12);
+    const expEl = document.getElementById('modalPlanExpiry');
+    if (expEl) {
+        expEl.value = computeAutoExpiryDateString(months);
+    }
+    updateModalSelectedPlanSummary(
+        document.getElementById('modalPlanName')?.value,
+        document.getElementById('modalPlanPrice')?.value,
+        months,
+        document.getElementById('modalMaxStaff')?.value,
+        document.getElementById('modalMaxCustomers')?.value,
+        document.getElementById('modalDailyMessages')?.value,
+        expEl ? expEl.value : ''
+    );
+};
+
+function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, planExpiry, status, rawStaff, planName, rawFeatureAccess, planId, planPrice, planDurationMonths) {
     document.getElementById('modalAdminId').value = id;
     document.getElementById('limitAdminName').innerText = username;
+
+    const cleanPlanName = (planName && planName !== 'undefined' && planName !== 'null') ? planName : 'Basic Plan';
+    const cleanPlanId = (planId && planId !== 'undefined' && planId !== 'null') ? planId : '';
+    const liveMatchedPlan = findLivePlan(cleanPlanId, cleanPlanName);
+    const resolvedPlanId = cleanPlanId || (liveMatchedPlan ? liveMatchedPlan.id : 'basic');
+
+    // If the admin is still pending approval and matches a standard plan (Basic/Pro), pre-fill from the latest live plan config
+    const isPendingUnapproved = (status === 'pending' || status === 'rejected');
+    const useLiveStandardDefaults = isPendingUnapproved && liveMatchedPlan && !liveMatchedPlan.isCustom;
+
+    const effectivePlanName = useLiveStandardDefaults ? liveMatchedPlan.name : cleanPlanName;
+    const effectiveStaff = useLiveStandardDefaults
+        ? liveMatchedPlan.maxStaffLimit
+        : ((maxStaff !== undefined && maxStaff !== null && maxStaff !== 'undefined' && maxStaff !== 'null') ? maxStaff : (liveMatchedPlan ? liveMatchedPlan.maxStaffLimit : 5));
+    const effectiveParties = useLiveStandardDefaults
+        ? liveMatchedPlan.maxCustomersLimit
+        : ((maxParties !== undefined && maxParties !== null && maxParties !== 'undefined' && maxParties !== 'null') ? maxParties : (liveMatchedPlan ? liveMatchedPlan.maxCustomersLimit : 500));
+    const effectiveMsgs = useLiveStandardDefaults
+        ? liveMatchedPlan.dailyMessageLimit
+        : ((dailyMsgs !== undefined && dailyMsgs !== null && dailyMsgs !== 'undefined' && dailyMsgs !== 'null') ? dailyMsgs : (liveMatchedPlan ? liveMatchedPlan.dailyMessageLimit : 100));
+    const effectiveDuration = useLiveStandardDefaults
+        ? (liveMatchedPlan.durationMonths || 12)
+        : ((planDurationMonths && planDurationMonths !== 'undefined' && planDurationMonths !== 'null') ? Number(planDurationMonths) : (liveMatchedPlan ? (liveMatchedPlan.durationMonths || 12) : 12));
+    const effectivePrice = useLiveStandardDefaults
+        ? (liveMatchedPlan.price || 0)
+        : ((planPrice && planPrice !== 'undefined' && planPrice !== 'null' && Number(planPrice) > 0) ? Number(planPrice) : (liveMatchedPlan ? (liveMatchedPlan.price || 0) : 0));
+
+    const selectedPlanIdEl = document.getElementById('modalSelectedPlanId');
+    if (selectedPlanIdEl) selectedPlanIdEl.value = resolvedPlanId;
+
     const planNameInput = document.getElementById('modalPlanName');
-    if (planNameInput) planNameInput.value = (planName && planName !== 'undefined' && planName !== 'null') ? planName : 'Custom / Standard';
-    document.getElementById('modalMaxStaff').value = (maxStaff !== undefined && maxStaff !== null && maxStaff !== 'undefined' && maxStaff !== 'null') ? maxStaff : 5;
-    document.getElementById('modalMaxCustomers').value = (maxParties !== undefined && maxParties !== null && maxParties !== 'undefined' && maxParties !== 'null') ? maxParties : 500;
-    document.getElementById('modalDailyMessages').value = (dailyMsgs !== undefined && dailyMsgs !== null && dailyMsgs !== 'undefined' && dailyMsgs !== 'null') ? dailyMsgs : 100;
+    if (planNameInput) planNameInput.value = effectivePlanName;
+
+    const planPriceInput = document.getElementById('modalPlanPrice');
+    if (planPriceInput) planPriceInput.value = effectivePrice;
+
+    const planDurationInput = document.getElementById('modalPlanDurationMonths');
+    if (planDurationInput) planDurationInput.value = effectiveDuration;
+
+    document.getElementById('modalMaxStaff').value = effectiveStaff;
+    document.getElementById('modalMaxCustomers').value = effectiveParties;
+    document.getElementById('modalDailyMessages').value = effectiveMsgs;
     document.getElementById('modalStatus').value = status || 'approved';
 
     let fa = { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true };
     try {
-        if (typeof rawFeatureAccess === 'string' && rawFeatureAccess !== 'undefined' && rawFeatureAccess !== 'null') {
+        if (useLiveStandardDefaults && liveMatchedPlan.featureAccess) {
+            fa = liveMatchedPlan.featureAccess;
+        } else if (typeof rawFeatureAccess === 'string' && rawFeatureAccess !== 'undefined' && rawFeatureAccess !== 'null') {
             fa = JSON.parse(decodeURIComponent(rawFeatureAccess));
         } else if (rawFeatureAccess && typeof rawFeatureAccess === 'object') {
             fa = rawFeatureAccess;
@@ -414,16 +596,21 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
     if (excelChk) excelChk.checked = fa.allowExcelImport !== false;
     if (pdfChk) pdfChk.checked = fa.allowPdfExport !== false;
     
+    const expEl = document.getElementById('modalPlanExpiry');
     if (planExpiry && planExpiry !== 'null' && planExpiry !== 'undefined') {
         const d = new Date(planExpiry);
         if (!isNaN(d.getTime())) {
-            document.getElementById('modalPlanExpiry').value = d.toISOString().split('T')[0];
+            expEl.value = d.toISOString().split('T')[0];
         } else {
-            document.getElementById('modalPlanExpiry').value = '';
+            expEl.value = computeAutoExpiryDateString(effectiveDuration);
         }
     } else {
-        document.getElementById('modalPlanExpiry').value = '';
+        // Automatically populate expiry date based on plan validity months if none is set yet
+        expEl.value = computeAutoExpiryDateString(effectiveDuration);
     }
+
+    renderModalPlanPresetButtons(resolvedPlanId);
+    updateModalSelectedPlanSummary(effectivePlanName, effectivePrice, effectiveDuration, effectiveStaff, effectiveParties, effectiveMsgs, expEl.value);
 
     let staffList = [];
     try {
@@ -465,13 +652,22 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
 }
 
 window.applyPlanPresetToModal = function(planId) {
-    const cfg = currentPlanConfigState || DEFAULT_SUPERADMIN_PLAN_CONFIG;
-    const plans = (cfg && cfg.plans) || DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
-    const plan = plans.find(p => p.id === planId) || plans[0];
+    const plans = window.getLivePlansList();
+    const plan = plans.find(p => String(p.id || '').toLowerCase() === String(planId || '').toLowerCase()) || plans[0];
     if (!plan) return;
+
+    const selectedPlanIdEl = document.getElementById('modalSelectedPlanId');
+    if (selectedPlanIdEl) selectedPlanIdEl.value = plan.id || planId;
 
     const planNameInput = document.getElementById('modalPlanName');
     if (planNameInput) planNameInput.value = plan.name || 'Basic Plan';
+
+    const planPriceInput = document.getElementById('modalPlanPrice');
+    if (planPriceInput) planPriceInput.value = Number(plan.price ?? 0);
+
+    const durationMonths = Math.max(1, Number(plan.durationMonths) || 12);
+    const planDurationInput = document.getElementById('modalPlanDurationMonths');
+    if (planDurationInput) planDurationInput.value = durationMonths;
 
     document.getElementById('modalMaxCustomers').value = plan.maxCustomersLimit ?? 250;
     document.getElementById('modalMaxStaff').value = plan.maxStaffLimit ?? 2;
@@ -485,12 +681,29 @@ window.applyPlanPresetToModal = function(planId) {
     if (excelChk) excelChk.checked = fa.allowExcelImport !== false;
     if (pdfChk) pdfChk.checked = fa.allowPdfExport !== false;
 
+    // Always auto-calculate and set the Plan Expiry Date when any plan is selected
     const expEl = document.getElementById('modalPlanExpiry');
-    if (expEl && !expEl.value) {
-        const d = new Date();
-        d.setMonth(d.getMonth() + (Number(plan.durationMonths) || 12));
-        expEl.value = d.toISOString().split('T')[0];
+    const autoExpiryStr = computeAutoExpiryDateString(durationMonths);
+    if (expEl) {
+        expEl.value = autoExpiryStr;
     }
+
+    // If account was pending or rejected, automatically set status to approved when assigning a plan
+    const statusEl = document.getElementById('modalStatus');
+    if (statusEl && (statusEl.value === 'pending' || statusEl.value === 'rejected')) {
+        statusEl.value = 'approved';
+    }
+
+    renderModalPlanPresetButtons(plan.id || planId);
+    updateModalSelectedPlanSummary(
+        plan.name,
+        plan.price,
+        durationMonths,
+        plan.maxStaffLimit ?? 2,
+        plan.maxCustomersLimit ?? 250,
+        plan.dailyMessageLimit ?? 50,
+        autoExpiryStr
+    );
 };
 
 window.extendModalExpiryOneYear = function() {
@@ -505,29 +718,112 @@ window.extendModalExpiryOneYear = function() {
     }
     base.setMonth(base.getMonth() + 12);
     expEl.value = base.toISOString().split('T')[0];
+    updateModalSelectedPlanSummary(
+        document.getElementById('modalPlanName')?.value,
+        document.getElementById('modalPlanPrice')?.value,
+        document.getElementById('modalPlanDurationMonths')?.value,
+        document.getElementById('modalMaxStaff')?.value,
+        document.getElementById('modalMaxCustomers')?.value,
+        document.getElementById('modalDailyMessages')?.value,
+        expEl.value
+    );
 };
 
 function buildPlanBadgeHtml(u) {
-    const planLabel = u.planName || 'Standard';
-    const addons = Array.isArray(u.activeAddons) && u.activeAddons.length
-        ? `<div style="font-size:10.5px; color:#4f46e5; font-weight:700; margin-top:3px;">🧩 +${u.activeAddons.length} Add-on${u.activeAddons.length > 1 ? 's' : ''}: ${u.activeAddons.map(a => a.name).join(', ')}</div>`
+    const livePlan = findLivePlan(u.planId, u.planName);
+    const isPendingStandard = (u.status === 'pending' || u.status === 'rejected') && !u.lastPaymentId && (!u.activeAddons || !u.activeAddons.length) && livePlan && !livePlan.isCustom;
+
+    const planId = (u.planId || (livePlan && livePlan.id) || 'basic').toLowerCase();
+    const planLabel = isPendingStandard ? livePlan.name : (u.planName || (livePlan && livePlan.name) || 'Standard Plan');
+    const durationMonths = isPendingStandard ? (livePlan.durationMonths || 12) : (u.planDurationMonths || (livePlan && livePlan.durationMonths) || 12);
+    const displayPrice = isPendingStandard
+        ? Number(livePlan.price || 0)
+        : Number(u.lastAmountPaid > 0 ? u.lastAmountPaid : (u.planPrice || (livePlan && livePlan.price) || 0));
+
+    const maxStaff = isPendingStandard ? livePlan.maxStaffLimit : (u.maxStaffLimit ?? (livePlan ? livePlan.maxStaffLimit : 5));
+    const maxParties = isPendingStandard ? livePlan.maxCustomersLimit : (u.maxCustomersLimit ?? (livePlan ? livePlan.maxCustomersLimit : 500));
+    const maxMsgs = isPendingStandard ? livePlan.dailyMessageLimit : (u.dailyMessageLimit ?? (livePlan ? livePlan.dailyMessageLimit : 100));
+    const fa = (isPendingStandard && livePlan.featureAccess) ? livePlan.featureAccess : (u.featureAccess || {});
+
+    // Tier visual theme
+    let tierIcon = '🌱';
+    let cardBg = '#f8fafc';
+    let cardBorder = '#cbd5e1';
+    let badgeBg = '#e2e8f0';
+    let badgeColor = '#1e293b';
+    if (planId === 'pro' || /\bpro\b/i.test(planLabel)) {
+        tierIcon = '🚀';
+        cardBg = 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)';
+        cardBorder = '#93c5fd';
+        badgeBg = '#1d4ed8';
+        badgeColor = '#ffffff';
+    } else if (planId === 'customized' || /custom/i.test(planLabel)) {
+        tierIcon = '🎛️';
+        cardBg = 'linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%)';
+        cardBorder = '#86efac';
+        badgeBg = '#15803d';
+        badgeColor = '#ffffff';
+    } else {
+        tierIcon = '🌱';
+        cardBg = 'linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%)';
+        cardBorder = '#bae6fd';
+        badgeBg = '#0369a1';
+        badgeColor = '#ffffff';
+    }
+
+    // Price / payment pill
+    let pricePill = '';
+    if (u.lastPaymentId) {
+        pricePill = `<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800;">💳 Paid ₹${displayPrice.toLocaleString('en-IN')}</span>`;
+    } else if (displayPrice > 0) {
+        pricePill = `<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800;">💰 ₹${displayPrice.toLocaleString('en-IN')} / ${durationMonths}m</span>`;
+    }
+
+    // Expiry pill
+    let expiryPill = '';
+    if (u.planExpiryDate) {
+        const expDate = new Date(u.planExpiryDate);
+        const now = new Date();
+        const diffDays = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) {
+            expiryPill = `<span style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800;">🚨 Expired ${formatDate(u.planExpiryDate)}</span>`;
+        } else if (diffDays <= 10) {
+            expiryPill = `<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800;">⏳ Exp: ${formatDate(u.planExpiryDate)} (${diffDays}d left)</span>`;
+        } else {
+            expiryPill = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800;">📅 Valid till ${formatDate(u.planExpiryDate)} (${diffDays}d)</span>`;
+        }
+    } else if (u.status === 'pending') {
+        expiryPill = `<span style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:800;">📅 Auto-Expiry: +${durationMonths} Months on Approve</span>`;
+    }
+
+    const addonsHtml = Array.isArray(u.activeAddons) && u.activeAddons.length
+        ? `<div style="font-size:10px; color:#4f46e5; font-weight:700; margin-top:4px;">🧩 +${u.activeAddons.length} Add-on${u.activeAddons.length > 1 ? 's' : ''}: ${u.activeAddons.map(a => a.name).join(', ')}</div>`
         : '';
-    const payLine = u.lastPaymentId
-        ? `<div style="font-size:10.5px; color:#059669; font-weight:700; margin-top:2px;">💳 Paid ₹${Number(u.lastAmountPaid || 0).toLocaleString('en-IN')} (${u.lastPaymentId})</div>`
-        : (u.lastAmountPaid > 0 ? `<div style="font-size:10.5px; color:#d97706; font-weight:700; margin-top:2px;">🧾 Quoted: ₹${Number(u.lastAmountPaid).toLocaleString('en-IN')}</div>` : '');
-    const isExp = u.planExpiryDate && new Date(u.planExpiryDate) < new Date();
-    const expLine = isExp
-        ? `<div style="font-size:10.5px; color:#dc2626; font-weight:800; margin-top:2px;">🚨 Plan Expired (Read-Only & Staff Blocked)</div>`
-        : '';
+
     const staffSelLine = u.requiresStaffSelection
-        ? `<div style="font-size:10.5px; color:#b45309; font-weight:800; margin-top:2px;">⚠️ Awaiting Staff Quota Selection (${u.staffCount || 0}/${u.maxStaffLimit || 5})</div>`
+        ? `<div style="font-size:10px; color:#b45309; font-weight:800; margin-top:3px;">⚠️ Awaiting Staff Quota Selection (${u.staffCount || 0}/${maxStaff || 5})</div>`
         : '';
+
     return `
-        <div style="margin-top:4px;">
-            <span style="display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px; font-size:10.5px; font-weight:800;">💎 ${planLabel}</span>
-            ${addons}
-            ${payLine}
-            ${expLine}
+        <div style="margin-top:6px; background:${cardBg}; border:1.5px solid ${cardBorder}; border-radius:10px; padding:7px 9px; max-width:340px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
+                <span style="display:inline-block; background:${badgeBg}; color:${badgeColor}; padding:2px 8px; border-radius:6px; font-size:10.5px; font-weight:800; letter-spacing:0.2px;">${tierIcon} ${planLabel}</span>
+                ${pricePill}
+                ${expiryPill}
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; font-size:10.5px; color:#1e293b; font-weight:700;">
+                <span style="background:#ffffff; border:1px solid #e2e8f0; padding:1px 6px; border-radius:5px;">👥 Staff: ${maxStaff === 0 ? '∞' : maxStaff}</span>
+                <span style="background:#ffffff; border:1px solid #e2e8f0; padding:1px 6px; border-radius:5px;">📊 Parties: ${maxParties === 0 ? '∞' : maxParties}</span>
+                <span style="background:#ffffff; border:1px solid #e2e8f0; padding:1px 6px; border-radius:5px;">💬 Msgs: ${maxMsgs === 0 ? '∞' : maxMsgs}/d</span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; font-size:9.5px; color:#475569; font-weight:700;">
+                <span>☁️ Drive: ${fa.allowGoogleDriveBackup !== false ? '✅' : '🔒'}</span>
+                <span>·</span>
+                <span>📥 Excel: ${fa.allowExcelImport !== false ? '✅' : '🔒'}</span>
+                <span>·</span>
+                <span>📄 PDF: ${fa.allowPdfExport !== false ? '✅' : '🔒'}</span>
+            </div>
+            ${addonsHtml}
             ${staffSelLine}
         </div>
     `;
@@ -545,7 +841,7 @@ function renderPending(users) {
         <table>
             <thead>
                 <tr>
-                    <th>ADMIN USER</th>
+                    <th>ADMIN USER & PLAN DETAILS</th>
                     <th>CONTACT INFO</th>
                     <th>PASSWORD</th>
                     <th>REQUESTED DATE</th>
@@ -587,9 +883,6 @@ function renderPending(users) {
                 <td>
                     <div class="contact-info-block">
                         ${contactHtml.join('')}
-                        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
-                            Quotas: <strong>${u.maxCustomersLimit || 500}</strong> Parties · <strong>${u.maxStaffLimit || 5}</strong> Staff · <strong>${u.dailyMessageLimit || 100}</strong> Msgs
-                        </div>
                     </div>
                 </td>
                 <td>
@@ -606,7 +899,7 @@ function renderPending(users) {
                     <div class="action-btn-group">
                         <button type="button" class="btn-action-soft btn-action-approve" style="width:100%;" onclick="actionApprove('${u._id}')">Approve ✅</button>
                         <button type="button" class="btn-action-soft btn-action-manage" style="width:100%;"
-                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}')">⚙️ Edit Plan & Quotas</button>
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}', '${escapeJsStr(u.planId || '')}', '${u.planPrice || 0}', '${u.planDurationMonths || 12}')">⚙️ Assign Plan & Quotas</button>
                         <button type="button" class="btn-action-soft btn-action-revoke" style="width:100%;" onclick="actionReject('${u._id}', '${escapeJsStr(u.username)}', false)">Reject ❌</button>
                     </div>
                 </td>
@@ -628,7 +921,7 @@ function renderApproved(users) {
         <table>
             <thead>
                 <tr>
-                    <th>ADMIN USER</th>
+                    <th>ADMIN USER & PLAN DETAILS</th>
                     <th>CONTACT INFO</th>
                     <th>USAGE METRICS</th>
                     <th>PASSWORD</th>
@@ -721,9 +1014,10 @@ function renderApproved(users) {
                 </td>
                 <td>
                     <div style="font-size:12px; color:var(--text-dark);">
+                        <div style="font-weight:800; color:#1e3a8a; margin-bottom:3px;">💎 ${u.planName || 'Basic Plan'}</div>
                         <div><strong>Approved:</strong> ${formatDateLong(u.approvedAt)}</div>
-                        <div style="color:var(--text-muted); font-size:11px; margin-top:2px;">
-                            <strong>Expires:</strong> ${u.planExpiryDate ? formatDate(u.planExpiryDate) : '(Lifetime)'}
+                        <div style="color:${u.planExpiryDate && new Date(u.planExpiryDate) < new Date() ? '#dc2626' : '#059669'}; font-size:11.5px; font-weight:700; margin-top:3px;">
+                            <strong>📅 Expires:</strong> ${u.planExpiryDate ? formatDate(u.planExpiryDate) : '(Lifetime)'}
                         </div>
                     </div>
                 </td>
@@ -731,7 +1025,7 @@ function renderApproved(users) {
                     <div class="action-btn-group">
                         <button type="button" class="btn-action-soft btn-action-suspend" style="width:100%;" onclick="actionToggleSuspend('${u._id}', 'suspend', '${escapeJsStr(u.username)}')">⊗ Suspend</button>
                         <button type="button" class="btn-action-soft btn-action-manage"
-                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}')">⊕ Manage Plan & Access</button>
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}', '${escapeJsStr(u.planId || '')}', '${u.planPrice || 0}', '${u.planDurationMonths || 12}')">⊕ Manage Plan & Access</button>
                         <button type="button" class="btn-action-soft btn-action-revoke" style="width:100%;" onclick="actionReject('${u._id}', '${escapeJsStr(u.username)}', true)">⊘ Revoke</button>
                     </div>
                 </td>
@@ -753,7 +1047,7 @@ function renderSuspended(users) {
         <table>
             <thead>
                 <tr>
-                    <th>ADMIN USER</th>
+                    <th>ADMIN USER & PLAN DETAILS</th>
                     <th>CONTACT INFO</th>
                     <th>PRESERVED METRICS</th>
                     <th>PASSWORD</th>
@@ -801,8 +1095,8 @@ function renderSuspended(users) {
                 </td>
                 <td>
                     <div style="font-size:12px; color:var(--text-dark);">
-                        <div>👥 Staff: <strong>${u.staffCount || 0}</strong></div>
-                        <div>📊 Parties: <strong>${u.partyCount || 0}</strong></div>
+                        <div>👥 Staff: <strong>${u.staffCount || 0} / ${u.maxStaffLimit || 5}</strong></div>
+                        <div>📊 Parties: <strong>${u.partyCount || 0} / ${u.maxCustomersLimit || 500}</strong></div>
                     </div>
                 </td>
                 <td>
@@ -820,7 +1114,7 @@ function renderSuspended(users) {
                     <div class="action-btn-group">
                         <button type="button" class="btn-action-soft btn-action-approve" style="width:100%;" onclick="actionToggleSuspend('${u._id}', 'resume', '${escapeJsStr(u.username)}')">▶️ Resume Account</button>
                         <button type="button" class="btn-action-soft btn-action-manage"
-                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}')">⚙️ Plan & Access</button>
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}', '${escapeJsStr(u.planId || '')}', '${u.planPrice || 0}', '${u.planDurationMonths || 12}')">⚙️ Plan & Access</button>
                     </div>
                 </td>
             </tr>
@@ -841,7 +1135,7 @@ function renderRejected(users) {
         <table>
             <thead>
                 <tr>
-                    <th>USER</th>
+                    <th>USER & PLAN DETAILS</th>
                     <th>CONTACT INFO</th>
                     <th>PASSWORD</th>
                     <th>STATUS</th>
@@ -861,6 +1155,9 @@ function renderRejected(users) {
         if (dispEmail) contactHtml.push(`<div class="contact-item">✉️ ${dispEmail}</div>`);
         if (dispPhone) contactHtml.push(`<div class="contact-item">📞 ${dispPhone}</div>`);
 
+        const rawStaff = encodeURIComponent(JSON.stringify(u.staffList || []));
+        const rawFA = encodeURIComponent(JSON.stringify(u.featureAccess || {}));
+
         html += `
             <tr>
                 <td>
@@ -872,6 +1169,7 @@ function renderRejected(users) {
                             <div class="username-title">${u.username}</div>
                             ${u.companyName ? `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">${u.companyName}</div>` : ''}
                             <span class="status-badge-pill rejected">REJECTED</span>
+                            ${buildPlanBadgeHtml(u)}
                         </div>
                     </div>
                 </td>
@@ -889,7 +1187,11 @@ function renderRejected(users) {
                     <span class="status-badge-pill rejected">Rejected</span>
                 </td>
                 <td>
-                    <button type="button" class="btn-action-soft btn-action-approve" onclick="actionApprove('${u._id}')">Approve Now ✅</button>
+                    <div class="action-btn-group">
+                        <button type="button" class="btn-action-soft btn-action-approve" style="width:100%;" onclick="actionApprove('${u._id}')">Approve Now ✅</button>
+                        <button type="button" class="btn-action-soft btn-action-manage" style="width:100%;"
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}', '${escapeJsStr(u.planId || '')}', '${u.planPrice || 0}', '${u.planDurationMonths || 12}')">⚙️ Assign Plan & Approve</button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -1035,6 +1337,7 @@ function renderPlansEditor(config) {
     }
 
     renderAddonsEditorList(config.addons || []);
+    renderModalPlanPresetButtons(document.getElementById('modalSelectedPlanId')?.value || 'basic');
 }
 
 function renderAddonsEditorList(addons) {
@@ -1196,7 +1499,9 @@ async function saveSubscriptionSettings() {
 
         if (res && res.success) {
             currentPlanConfigState = res.planConfig;
+            window.currentPlanConfigState = currentPlanConfigState;
             renderPlansEditor(currentPlanConfigState);
+            await loadDashboard();
             if (alertBox) {
                 alertBox.innerHTML = `<div class="alert-msg success">✅ ${res.message}</div>`;
                 setTimeout(() => { if (alertBox) alertBox.innerHTML = ''; }, 5000);
