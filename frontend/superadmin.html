@@ -608,28 +608,42 @@
         .modal-card {
             background: white;
             border-radius: 20px;
-            padding: 28px;
+            padding: 26px 28px;
             width: 100%;
-            max-width: 480px;
-            max-height: 85vh;
+            max-width: min(580px, 94vw);
+            max-height: 88vh;
             overflow-y: auto;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             text-align: left;
             position: relative;
         }
 
         .modal-close {
             position: absolute;
-            top: 18px;
-            right: 20px;
-            background: none;
-            border: none;
-            font-size: 22px;
+            top: 16px;
+            right: 18px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
-            color: var(--text-muted);
+            color: var(--text-dark);
+            transition: all 0.15s;
+            z-index: 10;
         }
 
-        .modal-close:hover { color: var(--text-dark); }
+        .modal-close:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+            transform: scale(1.05);
+        }
 
         /* ── RESPONSIVE MOBILE VIEW (Matches Reference Image 2) ── */
         @media (max-width: 850px) {
@@ -973,34 +987,45 @@
         .access-checks-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-bottom: 12px;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 14px;
         }
         .access-checks-title {
             font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
             color: #475569;
+            letter-spacing: 0.5px;
             margin-bottom: 8px;
             display: block;
         }
         .access-check-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12.5px;
+            gap: 10px;
+            font-size: 13px;
             font-weight: 600;
             color: #1e293b;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid transparent;
             margin-bottom: 6px;
             cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .access-check-row:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
         }
         .access-check-row:last-child { margin-bottom: 0; }
         .access-check-row input[type="checkbox"] {
-            width: 15px;
-            height: 15px;
+            width: 17px;
+            height: 17px;
             accent-color: #2563eb;
             cursor: pointer;
+            flex-shrink: 0;
         }
         .addon-edit-row {
             display: grid;
@@ -1299,9 +1324,9 @@
                         <span style="font-size:11px; font-weight:700; color:#2563eb;">Click any plan to auto-fill live quotas & expiry date</span>
                     </label>
                     <div id="modalPlanPresetBar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:8px; margin-bottom:10px;">
-                        <button type="button" onclick="applyPlanPresetToModal('basic')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;">🌱 Apply Basic Plan</button>
-                        <button type="button" onclick="applyPlanPresetToModal('pro')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; cursor:pointer;">🚀 Apply Pro Plan</button>
-                        <button type="button" onclick="applyPlanPresetToModal('customized')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bbf7d0; background:#f0fdf4; color:#166534; cursor:pointer;">🎛️ Apply Customized Plan</button>
+                        <button type="button" data-plan-id="basic" onclick="applyPlanPresetToModal('basic')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;">🌱 Apply Basic Plan</button>
+                        <button type="button" data-plan-id="pro" onclick="applyPlanPresetToModal('pro')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; cursor:pointer;">🚀 Apply Pro Plan</button>
+                        <button type="button" data-plan-id="customized" onclick="applyPlanPresetToModal('customized')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bbf7d0; background:#f0fdf4; color:#166534; cursor:pointer;">🎛️ Apply Customized Plan</button>
                     </div>
                     <div id="modalSelectedPlanSummary" style="display:none; background:linear-gradient(135deg, #eff6ff, #f0fdf4); border:1px solid #93c5fd; border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:12px; color:#1e3a8a;"></div>
                     <input type="text" id="modalPlanName" name="planName" placeholder="e.g. Basic Plan, Pro Plan, Customized Plan">
@@ -1332,24 +1357,29 @@
                         <input type="number" id="modalDailyMessages" name="dailyMessageLimit" min="0" required>
                     </div>
                     <div class="form-group">
-                        <label style="display:flex; align-items:center; justify-content:space-between;">
-                            <span>📅 Plan Expiry Date</span>
-                            <button type="button" onclick="extendModalExpiryOneYear()" style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; border:1px solid #fde68a; background:#fffbeb; color:#b45309; cursor:pointer;">+1 Yr</button>
-                        </label>
-                        <input type="date" id="modalPlanExpiry" name="planExpiryDate" required>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                            <label for="modalPlanExpiry" style="margin-bottom:0; font-size:13px; font-weight:700; color:var(--text-dark);">📅 Plan Expiry Date</label>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button type="button" onclick="event.stopPropagation(); setModalExpiryMonths(6);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 6 months from today">6 Mo</button>
+                                <button type="button" onclick="event.stopPropagation(); setModalExpiryMonths(12);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 12 months from today">12 Mo</button>
+                                <button type="button" onclick="event.stopPropagation(); setModalExpiryMonths(24);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 24 months from today">24 Mo</button>
+                                <button type="button" onclick="event.stopPropagation(); extendModalExpiryOneYear();" style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; border:1px solid #fde68a; background:#fffbeb; color:#b45309; cursor:pointer;" title="Add 1 Year from current expiry">+1 Yr</button>
+                            </div>
+                        </div>
+                        <input type="date" id="modalPlanExpiry" name="planExpiryDate" required onclick="try{this.showPicker && this.showPicker();}catch(e){}" style="cursor:pointer;">
                     </div>
                 </div>
                 <div class="access-checks-box" style="margin-bottom:16px;">
                     <span class="access-checks-title">🔐 Feature Access Permissions</span>
-                    <label class="access-check-row">
+                    <label class="access-check-row" for="modalAllowGDrive">
                         <input type="checkbox" id="modalAllowGDrive" checked>
                         <span>☁️ Allow Google Drive Cloud Backup & Auto-Sync</span>
                     </label>
-                    <label class="access-check-row">
+                    <label class="access-check-row" for="modalAllowExcel">
                         <input type="checkbox" id="modalAllowExcel" checked>
                         <span>📥 Allow Excel Bulk Party Import</span>
                     </label>
-                    <label class="access-check-row">
+                    <label class="access-check-row" for="modalAllowPdf">
                         <input type="checkbox" id="modalAllowPdf" checked>
                         <span>📄 Allow Branded PDF Ledger Statement Export</span>
                     </label>
@@ -1372,8 +1402,8 @@
     </div>
 
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=11"></script>
-    <script src="js/superadmin.js?v=11"></script>
+    <script src="js/api.js?v=12"></script>
+    <script src="js/superadmin.js?v=12"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1500,6 +1530,38 @@
                         return window.currentPlanConfigState.plans;
                     }
                     return FALLBACK_PLAN_CONFIG.plans;
+                };
+            }
+
+            // Modal fallback helpers
+            if (typeof window.closeLimitsModal !== 'function') {
+                window.closeLimitsModal = function() {
+                    var m = document.getElementById('limitsModal');
+                    if (m) m.style.display = 'none';
+                };
+            }
+            if (typeof window.setModalExpiryMonths !== 'function') {
+                window.setModalExpiryMonths = function(monthsVal) {
+                    var months = Math.max(1, parseInt(monthsVal) || 12);
+                    var d = new Date();
+                    d.setMonth(d.getMonth() + months);
+                    var expEl = document.getElementById('modalPlanExpiry');
+                    if (expEl) expEl.value = d.toISOString().split('T')[0];
+                    var dur = document.getElementById('modalPlanDurationMonths');
+                    if (dur) dur.value = months;
+                };
+            }
+            if (typeof window.extendModalExpiryOneYear !== 'function') {
+                window.extendModalExpiryOneYear = function() {
+                    var expEl = document.getElementById('modalPlanExpiry');
+                    if (!expEl) return;
+                    var base = new Date();
+                    if (expEl.value) {
+                        var parsed = new Date(expEl.value);
+                        if (!isNaN(parsed.getTime()) && parsed > base) base = parsed;
+                    }
+                    base.setMonth(base.getMonth() + 12);
+                    expEl.value = base.toISOString().split('T')[0];
                 };
             }
 

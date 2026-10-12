@@ -332,6 +332,28 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
     }
 });
 
+router.post('/toggle-staff-quota/:staffId', requireSuperAdmin, async (req, res) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.staffId)) {
+            return res.status(400).json({ success: false, message: 'Invalid Staff ID.' });
+        }
+        const staff = await User.findById(req.params.staffId);
+        if (!staff || staff.role !== 'staff') {
+            return res.status(404).json({ success: false, message: 'Staff user not found.' });
+        }
+        staff.isQuotaLocked = !staff.isQuotaLocked;
+        await staff.save();
+        res.json({
+            success: true,
+            message: `Staff ${staff.username} access is now ${staff.isQuotaLocked ? 'Locked / Paused 🔒' : 'Active ✅'}.`,
+            isQuotaLocked: staff.isQuotaLocked,
+            staffId: staff._id
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to toggle staff quota: ' + err.message });
+    }
+});
+
 router.post('/change-credentials', requireSuperAdmin, async (req, res) => {
     try {
         const { newUsername, currentPassword, newPassword, confirmPassword } = req.body;

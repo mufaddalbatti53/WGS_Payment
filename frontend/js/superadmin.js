@@ -91,6 +91,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Modal overlay backdrop click to close
+    const limitsModalEl = document.getElementById('limitsModal');
+    if (limitsModalEl) {
+        limitsModalEl.addEventListener('click', (e) => {
+            if (e.target === limitsModalEl) {
+                closeLimitsModal();
+            }
+        });
+    }
+
+    // Delegated click listener for Plan Preset Buttons
+    const presetBarEl = document.getElementById('modalPlanPresetBar');
+    if (presetBarEl) {
+        presetBarEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-plan-id]');
+            if (btn) {
+                const planId = btn.getAttribute('data-plan-id');
+                if (planId && typeof window.applyPlanPresetToModal === 'function') {
+                    window.applyPlanPresetToModal(planId);
+                }
+            }
+        });
+    }
+
+    // Escape key closes modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('limitsModal');
+            if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                closeLimitsModal();
+            }
+        }
+    });
+
     // Immediately render default plans & add-ons so the editor is never empty
     if (!currentPlanConfigState) {
         currentPlanConfigState = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
@@ -449,8 +483,10 @@ function togglePassword(icon) {
 }
 
 function closeLimitsModal() {
-    document.getElementById('limitsModal').style.display = 'none';
+    const modal = document.getElementById('limitsModal');
+    if (modal) modal.style.display = 'none';
 }
+window.closeLimitsModal = closeLimitsModal;
 
 function computeAutoExpiryDateString(durationMonths) {
     const months = Math.max(1, parseInt(durationMonths) || 12);
@@ -475,22 +511,23 @@ function renderModalPlanPresetButtons(selectedPlanId) {
         const dur = Number(plan.durationMonths || 12);
 
         return `
-            <button type="button" onclick="applyPlanPresetToModal('${escapeJsStr(pId)}')"
+            <button type="button" data-plan-id="${escapeJsStr(pId)}" onclick="applyPlanPresetToModal('${escapeJsStr(pId)}')"
                 style="text-align:left; padding:9px 11px; border-radius:10px; border:2px solid ${activeBorder}; background:${activeBg}; box-shadow:${activeShadow}; cursor:pointer; transition:all 0.15s;">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:12px; font-weight:800; color:#0f172a;">
+                <div style="pointer-events:none; display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:12px; font-weight:800; color:#0f172a;">
                     <span>${icon} ${plan.name || 'Plan'}</span>
                     ${isSelected ? '<span style="background:#1d4ed8; color:#fff; font-size:9px; padding:1px 6px; border-radius:99px;">SELECTED</span>' : ''}
                 </div>
-                <div style="font-size:11.5px; font-weight:800; color:#1d4ed8; margin-top:3px;">
+                <div style="pointer-events:none; font-size:11.5px; font-weight:800; color:#1d4ed8; margin-top:3px;">
                     ₹${priceFmt} <span style="font-weight:600; color:#64748b; font-size:10.5px;">/ ${dur} Mo</span>
                 </div>
-                <div style="font-size:10px; color:#475569; margin-top:3px; line-height:1.35;">
+                <div style="pointer-events:none; font-size:10px; color:#475569; margin-top:3px; line-height:1.35;">
                     👥 <strong>${plan.maxStaffLimit ?? 0}</strong> Staff · 📊 <strong>${plan.maxCustomersLimit ?? 0}</strong> Parties · 💬 <strong>${plan.dailyMessageLimit ?? 0}</strong> Msgs
                 </div>
             </button>
         `;
     }).join('');
 }
+window.renderModalPlanPresetButtons = renderModalPlanPresetButtons;
 
 function updateModalSelectedPlanSummary(planName, price, durationMonths, maxStaff, maxParties, dailyMsgs, expiryDateStr) {
     const box = document.getElementById('modalSelectedPlanSummary');
@@ -529,6 +566,61 @@ window.recalcModalExpiryFromDuration = function(monthsVal) {
         document.getElementById('modalDailyMessages')?.value,
         expEl ? expEl.value : ''
     );
+};
+
+window.setModalExpiryMonths = function(monthsVal) {
+    const months = Math.max(1, parseInt(monthsVal) || 12);
+    const expEl = document.getElementById('modalPlanExpiry');
+    if (expEl) {
+        expEl.value = computeAutoExpiryDateString(months);
+    }
+    const durInput = document.getElementById('modalPlanDurationMonths');
+    if (durInput) durInput.value = months;
+    updateModalSelectedPlanSummary(
+        document.getElementById('modalPlanName')?.value,
+        document.getElementById('modalPlanPrice')?.value,
+        months,
+        document.getElementById('modalMaxStaff')?.value,
+        document.getElementById('modalMaxCustomers')?.value,
+        document.getElementById('modalDailyMessages')?.value,
+        expEl ? expEl.value : ''
+    );
+};
+
+window.toggleStaffQuotaAccess = async function(staffId, adminId, btnEl) {
+    if (!staffId) return;
+    const originalText = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '⏳ Updating...';
+    }
+    try {
+        const res = await apiJson(`/api/superadmin/toggle-staff-quota/${staffId}`, { method: 'POST' });
+        if (res && res.success) {
+            const isLocked = Boolean(res.isQuotaLocked);
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.style.background = isLocked ? '#fef3c7' : '#dcfce7';
+                btnEl.style.borderColor = isLocked ? '#f59e0b' : '#86efac';
+                btnEl.style.color = isLocked ? '#92400e' : '#166534';
+                btnEl.innerHTML = isLocked ? '🔒 Paused (Click to Activate)' : '✅ Active (Click to Pause)';
+                btnEl.title = isLocked ? 'Click to grant active quota access' : 'Click to pause/lock quota access';
+            }
+            loadDashboard();
+        } else {
+            alert('Error toggling staff access: ' + (res?.message || 'Unknown error'));
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = originalText;
+            }
+        }
+    } catch (err) {
+        alert('Failed to toggle staff access: ' + err.message);
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = originalText;
+        }
+    }
 };
 
 function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, planExpiry, status, rawStaff, planName, rawFeatureAccess, planId, planPrice, planDurationMonths) {
@@ -632,14 +724,19 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
             container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:12px; text-align:center;">No staff members created under this admin yet.</div>';
         } else {
             let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;">';
-            html += '<thead><tr style="background:#f1f5f9; color:var(--text-muted); font-size:11px; text-transform:uppercase;"><th style="padding:8px 12px; text-align:left;">Staff Member</th><th style="padding:8px 12px; text-align:left;">Access Status</th><th style="padding:8px 12px; text-align:center;">Role</th></tr></thead><tbody>';
+            html += '<thead><tr style="background:#f1f5f9; color:var(--text-muted); font-size:11px; text-transform:uppercase;"><th style="padding:8px 12px; text-align:left;">Staff Member</th><th style="padding:8px 12px; text-align:left;">Quota Access</th><th style="padding:8px 12px; text-align:center;">Role</th></tr></thead><tbody>';
             staffList.forEach(s => {
-                const accessBadge = s.isQuotaLocked
-                    ? '<span style="background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">🔒 Paused (Quota)</span>'
-                    : '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">✅ Active</span>';
+                const isLocked = Boolean(s.isQuotaLocked);
+                const toggleBtn = `
+                    <button type="button" onclick="toggleStaffQuotaAccess('${s._id}', '${id}', this)"
+                        style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:8px; border:1px solid ${isLocked ? '#f59e0b' : '#86efac'}; background:${isLocked ? '#fef3c7' : '#dcfce7'}; color:${isLocked ? '#92400e' : '#166534'}; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;"
+                        title="${isLocked ? 'Click to grant active quota access' : 'Click to pause/lock quota access'}">
+                        ${isLocked ? '🔒 Paused (Click to Activate)' : '✅ Active (Click to Pause)'}
+                    </button>
+                `;
                 html += '<tr style="border-top:1px solid #f1f5f9;">';
                 html += '<td style="padding:8px 12px; font-weight:700; color:var(--text-dark);">👤 ' + s.username + '</td>';
-                html += '<td style="padding:8px 12px;">' + accessBadge + '</td>';
+                html += '<td style="padding:8px 12px;">' + toggleBtn + '</td>';
                 html += '<td style="padding:8px 12px; text-align:center;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">STAFF</span></td>';
                 html += '</tr>';
             });
@@ -650,6 +747,7 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
 
     document.getElementById('limitsModal').style.display = 'flex';
 }
+window.openLimitsModalFromData = openLimitsModalFromData;
 
 window.applyPlanPresetToModal = function(planId) {
     const plans = window.getLivePlansList();
