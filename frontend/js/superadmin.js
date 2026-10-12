@@ -223,6 +223,10 @@ window.actionToggleSuspend = actionToggleSuspend;
 window.handleLogout = handleLogout;
 window.logout = handleLogout;
 window.toggleStaffQuotaAccess = toggleStaffQuotaAccess;
+window.openResetPasswordModal = openResetPasswordModal;
+window.closeResetPasswordModal = closeResetPasswordModal;
+window.confirmResetPasswordAction = confirmResetPasswordAction;
+window.submitModalAdminPasswordReset = submitModalAdminPasswordReset;
 
 function initSuperAdminApp() {
     // 1. Immediately render plans & add-ons with current/default state so editor is NEVER empty or stuck on "Checking..."
@@ -356,17 +360,44 @@ function initSuperAdminApp() {
         });
     }
 
-    // Escape key closes modal
-    if (!document.body?.dataset?.escBound) {
-        if (document.body) document.body.dataset.escBound = 'true';
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                const modal = document.getElementById('limitsModal');
-                if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
-                    closeLimitsModal();
-                }
+    // Modal backdrop and Enter key listeners for resetPasswordModal
+    const resetModalEl = document.getElementById('resetPasswordModal');
+    if (resetModalEl && !resetModalEl.dataset.bound) {
+        resetModalEl.dataset.bound = 'true';
+        resetModalEl.addEventListener('click', (e) => {
+            if (e.target === resetModalEl) {
+                closeResetPasswordModal();
             }
         });
+        const resetPwdInput = document.getElementById('resetNewPasswordInput');
+        if (resetPwdInput) {
+            resetPwdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmResetPasswordAction();
+                }
+            });
+        }
+    }
+
+    // Escape key closes modal
+    if (document.body) {
+        if (!document.body.dataset) document.body.dataset = {};
+        if (!document.body.dataset.escBound) {
+            document.body.dataset.escBound = 'true';
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const modal = document.getElementById('limitsModal');
+                    if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                        closeLimitsModal();
+                    }
+                    const rModal = document.getElementById('resetPasswordModal');
+                    if (rModal && rModal.style.display !== 'none' && rModal.style.display !== '') {
+                        closeResetPasswordModal();
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -766,6 +797,12 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
     renderModalPlanPresetButtons(resolvedPlanId);
     updateModalSelectedPlanSummary(effectivePlanName, effectivePrice, effectiveDuration, effectiveStaff, effectiveParties, effectiveMsgs, expEl.value);
 
+    // Clear any previous inline password inputs
+    const modalPwdInp = document.getElementById('modalAdminNewPassword');
+    if (modalPwdInp) modalPwdInp.value = '';
+    const modalPwdMsg = document.getElementById('modalAdminPwdMsg');
+    if (modalPwdMsg) modalPwdMsg.innerHTML = '';
+
     let staffList = [];
     try {
         if (typeof rawStaff === 'string' && rawStaff !== 'undefined' && rawStaff !== 'null') {
@@ -786,19 +823,27 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
             container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:12px; text-align:center;">No staff members created under this admin yet.</div>';
         } else {
             let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;">';
-            html += '<thead><tr style="background:#f1f5f9; color:var(--text-muted); font-size:11px; text-transform:uppercase;"><th style="padding:8px 12px; text-align:left;">Staff Member</th><th style="padding:8px 12px; text-align:left;">Quota Access</th><th style="padding:8px 12px; text-align:center;">Role</th></tr></thead><tbody>';
+            html += '<thead><tr style="background:#f1f5f9; color:var(--text-muted); font-size:11px; text-transform:uppercase;"><th style="padding:8px 12px; text-align:left;">Staff Member</th><th style="padding:8px 12px; text-align:left;">Quota Access</th><th style="padding:8px 12px; text-align:left;">Password</th><th style="padding:8px 12px; text-align:center;">Role</th></tr></thead><tbody>';
             staffList.forEach(s => {
                 const isLocked = Boolean(s.isQuotaLocked);
                 const toggleBtn = `
                     <button type="button" onclick="toggleStaffQuotaAccess('${s._id}', '${id}', this)"
                         style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:8px; border:1px solid ${isLocked ? '#f59e0b' : '#86efac'}; background:${isLocked ? '#fef3c7' : '#dcfce7'}; color:${isLocked ? '#92400e' : '#166534'}; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;"
                         title="${isLocked ? 'Click to grant active quota access' : 'Click to pause/lock quota access'}">
-                        ${isLocked ? '🔒 Paused (Click to Activate)' : '✅ Active (Click to Pause)'}
+                        ${isLocked ? '🔒 Paused' : '✅ Active'}
+                    </button>
+                `;
+                const resetStaffBtn = `
+                    <button type="button" onclick="openResetPasswordModal('${s._id}', '${escapeJsStr(s.username)}', 'staff')"
+                        style="font-size:11px; font-weight:700; padding:4px 9px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; color:#1e3a8a; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"
+                        title="Reset password for this staff member (no old password required)">
+                        🔑 Reset
                     </button>
                 `;
                 html += '<tr style="border-top:1px solid #f1f5f9;">';
                 html += '<td style="padding:8px 12px; font-weight:700; color:var(--text-dark);">👤 ' + s.username + '</td>';
                 html += '<td style="padding:8px 12px;">' + toggleBtn + '</td>';
+                html += '<td style="padding:8px 12px;">' + resetStaffBtn + '</td>';
                 html += '<td style="padding:8px 12px; text-align:center;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">STAFF</span></td>';
                 html += '</tr>';
             });
@@ -1049,7 +1094,11 @@ function renderPending(users) {
                 </td>
                 <td>
                     <div class="password-pill-container">
-                        <span class="pwd-mask-text">Managed securely</span>
+                        <button type="button" onclick="openResetPasswordModal('${u._id}', '${escapeJsStr(u.username)}', '${u.role || 'admin'}')"
+                            style="background:#f1f5f9; border:1px solid #cbd5e1; color:#1e3a8a; font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;"
+                            title="Reset password for this account without entering old password">
+                            🔑 Reset Pwd
+                        </button>
                     </div>
                 </td>
                 <td>
@@ -1173,7 +1222,11 @@ function renderApproved(users) {
                 </td>
                 <td>
                     <div class="password-pill-container">
-                        <span class="pwd-mask-text">Managed securely</span>
+                        <button type="button" onclick="openResetPasswordModal('${u._id}', '${escapeJsStr(u.username)}', '${u.role || 'admin'}')"
+                            style="background:#f1f5f9; border:1px solid #cbd5e1; color:#1e3a8a; font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;"
+                            title="Reset password for this account without entering old password">
+                            🔑 Reset Pwd
+                        </button>
                     </div>
                 </td>
                 <td>
@@ -1267,7 +1320,11 @@ function renderSuspended(users) {
                 </td>
                 <td>
                     <div class="password-pill-container">
-                        <span class="pwd-mask-text">Managed securely</span>
+                        <button type="button" onclick="openResetPasswordModal('${u._id}', '${escapeJsStr(u.username)}', '${u.role || 'admin'}')"
+                            style="background:#f1f5f9; border:1px solid #cbd5e1; color:#1e3a8a; font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;"
+                            title="Reset password for this account without entering old password">
+                            🔑 Reset Pwd
+                        </button>
                     </div>
                 </td>
                 <td>
@@ -1349,7 +1406,11 @@ function renderRejected(users) {
                 </td>
                 <td>
                     <div class="password-pill-container">
-                        <span class="pwd-mask-text">Managed securely</span>
+                        <button type="button" onclick="openResetPasswordModal('${u._id}', '${escapeJsStr(u.username)}', '${u.role || 'admin'}')"
+                            style="background:#f1f5f9; border:1px solid #cbd5e1; color:#1e3a8a; font-size:11px; font-weight:700; padding:4px 9px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;"
+                            title="Reset password for this account without entering old password">
+                            🔑 Reset Pwd
+                        </button>
                     </div>
                 </td>
                 <td>
@@ -1723,4 +1784,115 @@ window.addNewAddonRow = addNewAddonRow;
 window.resetDefaultPlansAndAddons = resetDefaultPlansAndAddons;
 window.saveSubscriptionSettings = saveSubscriptionSettings;
 window.DEFAULT_SUPERADMIN_PLAN_CONFIG = DEFAULT_SUPERADMIN_PLAN_CONFIG;
+
+// ── DIRECT USER & STAFF PASSWORD RESET (SUPER ADMIN POWER) ──
+function openResetPasswordModal(userId, username, role) {
+    const modal = document.getElementById('resetPasswordModal');
+    if (!modal) return;
+    const idInp = document.getElementById('resetTargetUserId');
+    if (idInp) idInp.value = userId || '';
+    const userEl = document.getElementById('resetTargetUsername');
+    if (userEl) userEl.innerText = username || 'user';
+    const roleEl = document.getElementById('resetTargetRole');
+    if (roleEl) roleEl.innerText = (role || 'ADMIN').toUpperCase();
+    const pwdInp = document.getElementById('resetNewPasswordInput');
+    if (pwdInp) pwdInp.value = '';
+    const msgEl = document.getElementById('resetModalMsg');
+    if (msgEl) msgEl.innerHTML = '';
+    modal.style.display = 'flex';
+    setTimeout(() => { if (pwdInp) pwdInp.focus(); }, 120);
+}
+window.openResetPasswordModal = openResetPasswordModal;
+
+function closeResetPasswordModal() {
+    const modal = document.getElementById('resetPasswordModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeResetPasswordModal = closeResetPasswordModal;
+
+async function confirmResetPasswordAction() {
+    const userId = document.getElementById('resetTargetUserId')?.value;
+    const pwdInp = document.getElementById('resetNewPasswordInput');
+    const newPassword = pwdInp ? pwdInp.value : '';
+    const msgEl = document.getElementById('resetModalMsg');
+    const btn = document.getElementById('btnConfirmResetPwd');
+
+    if (!userId) {
+        if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Target User ID is missing.</div>`;
+        return;
+    }
+    if (!newPassword || newPassword.trim().length < 6) {
+        if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ New password must be at least 6 characters long.</div>`;
+        if (pwdInp) pwdInp.focus();
+        return;
+    }
+
+    const origBtnText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Updating... ⏳';
+    }
+
+    try {
+        const res = await apiJson(`/api/superadmin/reset-user-password/${userId}`, {
+            method: 'POST',
+            body: JSON.stringify({ newPassword: newPassword.trim() })
+        });
+
+        if (res && res.success) {
+            if (msgEl) msgEl.innerHTML = `<div class="alert-msg success" style="padding:7px 10px; font-size:12px;">✅ ${res.message || 'Password reset successfully!'}</div>`;
+            if (pwdInp) pwdInp.value = '';
+            setTimeout(() => {
+                closeResetPasswordModal();
+            }, 1400);
+        } else {
+            if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ${(res && (res.message || res.error)) || 'Failed to reset password.'}</div>`;
+        }
+    } catch (err) {
+        if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ${err.message}</div>`;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = origBtnText;
+        }
+    }
+}
+window.confirmResetPasswordAction = confirmResetPasswordAction;
+
+async function submitModalAdminPasswordReset() {
+    const adminId = document.getElementById('modalAdminId')?.value;
+    const pwdInp = document.getElementById('modalAdminNewPassword');
+    const msgEl = document.getElementById('modalAdminPwdMsg');
+    const newPassword = pwdInp ? pwdInp.value : '';
+
+    if (!adminId) {
+        if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ Admin ID missing.</span>`;
+        return;
+    }
+    if (!newPassword || newPassword.trim().length < 6) {
+        if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 6 characters long.</span>`;
+        if (pwdInp) pwdInp.focus();
+        return;
+    }
+
+    if (msgEl) msgEl.innerHTML = `<span style="color:#2563eb; font-weight:700;">Updating password... ⏳</span>`;
+
+    try {
+        const res = await apiJson(`/api/superadmin/reset-user-password/${adminId}`, {
+            method: 'POST',
+            body: JSON.stringify({ newPassword: newPassword.trim() })
+        });
+
+        if (res && res.success) {
+            if (msgEl) msgEl.innerHTML = `<span style="color:#16a34a; font-weight:700;">✅ ${res.message || 'Password reset successfully!'}</span>`;
+            if (pwdInp) pwdInp.value = '';
+        } else {
+            if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ ${(res && (res.message || res.error)) || 'Failed to update.'}</span>`;
+        }
+    } catch (err) {
+        if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ ${err.message}</span>`;
+    }
+}
+window.submitModalAdminPasswordReset = submitModalAdminPasswordReset;
+
 

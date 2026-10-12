@@ -1273,9 +1273,9 @@
                         <input type="text" id="saUsername" name="newUsername" placeholder="Enter Super Admin Username" required autocomplete="username">
                     </div>
                     <div class="form-group">
-                        <label>Current Password</label>
+                        <label>Current Password <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(Optional for Super Admin)</span></label>
                         <div class="input-group">
-                            <input type="password" id="saCurrentPassword" name="currentPassword" placeholder="Enter current password" required style="margin:0; width:100%;" autocomplete="current-password">
+                            <input type="password" id="saCurrentPassword" name="currentPassword" placeholder="Enter current password (optional)" style="margin:0; width:100%;" autocomplete="current-password">
                             <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
                         </div>
                     </div>
@@ -1393,6 +1393,19 @@
                         <option value="rejected">Rejected 🚫</option>
                     </select>
                 </div>
+
+                <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-top:14px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:12.5px; font-weight:700; color:var(--text-dark);">🔑 Reset This Admin's Password</span>
+                        <span style="font-size:11px; color:#2563eb; font-weight:600;">No old password required</span>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="password" id="modalAdminNewPassword" placeholder="Enter new password (min 6 chars)" style="margin:0; flex:1; font-size:13px; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;" autocomplete="new-password">
+                        <button type="button" onclick="submitModalAdminPasswordReset()" style="padding:9px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;">Set Password 🔑</button>
+                    </div>
+                    <div id="modalAdminPwdMsg" style="margin-top:6px; font-size:11px;"></div>
+                </div>
+
                 <div style="display:flex; gap:12px; margin-top:20px;">
                     <button type="button" onclick="closeLimitsModal()" style="flex:1; padding:12px; background:#f1f5f9; color:var(--text-dark); border:1px solid var(--border); border-radius:10px; font-weight:700; cursor:pointer;">Cancel</button>
                     <button type="submit" style="flex:1; padding:12px; background:linear-gradient(135deg, #1558cc, #0f2d52); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; box-shadow:0 4px 12px rgba(15,45,82,0.2);">Save Changes 💾</button>
@@ -1401,9 +1414,44 @@
         </div>
     </div>
 
+    <!-- INSTANT PASSWORD RESET MODAL (SUPER ADMIN OVERRIDE - NO OLD PASSWORD NEEDED) -->
+    <div id="resetPasswordModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center; padding:16px;">
+        <div class="modal-card" style="background:#fff; border-radius:18px; max-width:440px; width:100%; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); position:relative; border:1px solid #e2e8f0;">
+            <button type="button" class="modal-close" onclick="closeResetPasswordModal()" style="position:absolute; top:16px; right:16px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:14px; font-weight:700;">✕</button>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                <div style="width:42px; height:42px; border-radius:12px; background:#dbeafe; display:flex; align-items:center; justify-content:center; font-size:20px;">🔑</div>
+                <div>
+                    <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Instant Password Reset</h3>
+                    <p style="margin:2px 0 0; font-size:12px; color:#64748b;">No old password required (Super Admin override)</p>
+                </div>
+            </div>
+            
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; margin-bottom:16px; font-size:12.5px;">
+                Target Account: <strong id="resetTargetUsername" style="color:#1e3a8a;">user</strong>
+                <span id="resetTargetRole" style="margin-left:6px; background:#e0e7ff; color:#3730a3; padding:1px 7px; border-radius:99px; font-size:10px; font-weight:800; text-transform:uppercase;">ADMIN</span>
+            </div>
+
+            <input type="hidden" id="resetTargetUserId">
+            <div id="resetModalMsg" style="margin-bottom:12px;"></div>
+
+            <div class="form-group" style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">New Password (min 6 characters)</label>
+                <div class="input-group" style="position:relative;">
+                    <input type="password" id="resetNewPasswordInput" placeholder="Enter new password" style="width:100%; padding:10px 38px 10px 12px; border:1.5px solid #cbd5e1; border-radius:9px; font-size:13.5px;" autocomplete="new-password">
+                    <span class="toggle-password" onclick="togglePassword(this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">👁️</span>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" onclick="closeResetPasswordModal()" style="padding:10px 16px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; color:#475569; cursor:pointer;">Cancel</button>
+                <button type="button" id="btnConfirmResetPwd" onclick="confirmResetPasswordAction()" style="padding:10px 20px; background:linear-gradient(135deg, #2563eb, #1d4ed8); border:none; border-radius:10px; font-size:13px; font-weight:800; color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">Set New Password 🔑</button>
+            </div>
+        </div>
+    </div>
+
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=15"></script>
-    <script src="js/superadmin.js?v=15"></script>
+    <script src="js/api.js?v=16"></script>
+    <script src="js/superadmin.js?v=16"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1538,6 +1586,107 @@
                 window.closeLimitsModal = function() {
                     var m = document.getElementById('limitsModal');
                     if (m) m.style.display = 'none';
+                };
+            }
+            if (typeof window.openResetPasswordModal !== 'function') {
+                window.openResetPasswordModal = function(userId, username, role) {
+                    var m = document.getElementById('resetPasswordModal');
+                    if (!m) return;
+                    var idInp = document.getElementById('resetTargetUserId');
+                    if (idInp) idInp.value = userId || '';
+                    var userEl = document.getElementById('resetTargetUsername');
+                    if (userEl) userEl.innerText = username || 'user';
+                    var roleEl = document.getElementById('resetTargetRole');
+                    if (roleEl) roleEl.innerText = (role || 'ADMIN').toUpperCase();
+                    var pwdInp = document.getElementById('resetNewPasswordInput');
+                    if (pwdInp) pwdInp.value = '';
+                    var msgEl = document.getElementById('resetModalMsg');
+                    if (msgEl) msgEl.innerHTML = '';
+                    m.style.display = 'flex';
+                };
+            }
+            if (typeof window.closeResetPasswordModal !== 'function') {
+                window.closeResetPasswordModal = function() {
+                    var m = document.getElementById('resetPasswordModal');
+                    if (m) m.style.display = 'none';
+                };
+            }
+            if (typeof window.confirmResetPasswordAction !== 'function') {
+                window.confirmResetPasswordAction = async function() {
+                    var userId = document.getElementById('resetTargetUserId') ? document.getElementById('resetTargetUserId').value : '';
+                    var pwdInp = document.getElementById('resetNewPasswordInput');
+                    var newPassword = pwdInp ? pwdInp.value : '';
+                    var msgEl = document.getElementById('resetModalMsg');
+                    var btn = document.getElementById('btnConfirmResetPwd');
+                    if (!userId) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Missing user ID.</div>';
+                        return;
+                    }
+                    if (!newPassword || newPassword.trim().length < 6) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Password must be at least 6 characters.</div>';
+                        if (pwdInp) pwdInp.focus();
+                        return;
+                    }
+                    if (btn) { btn.disabled = true; btn.textContent = 'Updating... ⏳'; }
+                    try {
+                        var res = await (typeof apiJson === 'function' ? apiJson('/api/superadmin/reset-user-password/' + userId, {
+                            method: 'POST',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }) : fetch((window.API_BASE || '') + '/api/superadmin/reset-user-password/' + userId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }).then(function(r){ return r.json(); }));
+                        if (res && res.success) {
+                            if (msgEl) msgEl.innerHTML = '<div class="alert-msg success" style="padding:7px 10px; font-size:12px;">✅ ' + (res.message || 'Password reset successfully!') + '</div>';
+                            if (pwdInp) pwdInp.value = '';
+                            setTimeout(function(){ window.closeResetPasswordModal(); }, 1400);
+                        } else {
+                            if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ' + ((res && res.message) || 'Failed to reset password.') + '</div>';
+                        }
+                    } catch(err) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ' + err.message + '</div>';
+                    } finally {
+                        if (btn) { btn.disabled = false; btn.textContent = 'Set New Password 🔑'; }
+                    }
+                };
+            }
+            if (typeof window.submitModalAdminPasswordReset !== 'function') {
+                window.submitModalAdminPasswordReset = async function() {
+                    var adminId = document.getElementById('modalAdminId') ? document.getElementById('modalAdminId').value : '';
+                    var pwdInp = document.getElementById('modalAdminNewPassword');
+                    var msgEl = document.getElementById('modalAdminPwdMsg');
+                    var newPassword = pwdInp ? pwdInp.value : '';
+                    if (!adminId) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Admin ID missing.</span>';
+                        return;
+                    }
+                    if (!newPassword || newPassword.trim().length < 6) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 6 characters long.</span>';
+                        if (pwdInp) pwdInp.focus();
+                        return;
+                    }
+                    if (msgEl) msgEl.innerHTML = '<span style="color:#2563eb; font-weight:700;">Updating password... ⏳</span>';
+                    try {
+                        var res = await (typeof apiJson === 'function' ? apiJson('/api/superadmin/reset-user-password/' + adminId, {
+                            method: 'POST',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }) : fetch((window.API_BASE || '') + '/api/superadmin/reset-user-password/' + adminId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }).then(function(r){ return r.json(); }));
+                        if (res && res.success) {
+                            if (msgEl) msgEl.innerHTML = '<span style="color:#16a34a; font-weight:700;">✅ ' + (res.message || 'Password reset successfully!') + '</span>';
+                            if (pwdInp) pwdInp.value = '';
+                        } else {
+                            if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ ' + ((res && res.message) || 'Failed to update.') + '</span>';
+                        }
+                    } catch(err) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ ' + err.message + '</span>';
+                    }
                 };
             }
             if (typeof window.setModalExpiryMonths !== 'function') {

@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
 const PlanConfig = require('../models/PlanConfig');
-const { requireSuperAdmin } = require('../middleware/auth');
+const { requireSuperAdmin, logActivity } = require('../middleware/auth');
 const {
     syncStaffQuotaForAdmin,
     notifySuperAdminAccountChange,
@@ -354,13 +354,51 @@ router.post('/toggle-staff-quota/:staffId', requireSuperAdmin, async (req, res) 
     }
 });
 
+// Reset password for ANY admin or staff user directly by Super Admin without requiring old password
+router.post('/reset-user-password/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid User ID.' });
+        }
+        if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 6) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+        }
+
+        const targetUser = await User.findById(id);
+        if (!targetUser) {
+            return res.status(404).json({ success: false, message: 'User account not found.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+        targetUser.password = hashedPassword;
+        await targetUser.save();
+
+        if (typeof logActivity === 'function') {
+            await logActivity(req, "SuperAdmin Password Reset", `Super Admin reset password for ${targetUser.role || 'user'}: ${targetUser.username}`);
+        }
+
+        res.json({
+            success: true,
+            message: `Password for ${targetUser.role ? targetUser.role.toUpperCase() : 'USER'} "${targetUser.username}" was reset successfully!`,
+            userId: targetUser._id,
+            username: targetUser.username,
+            role: targetUser.role
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to reset password: ' + err.message });
+    }
+});
+
 router.post('/change-credentials', requireSuperAdmin, async (req, res) => {
     try {
         const { newUsername, currentPassword, newPassword, confirmPassword } = req.body;
         const cleanUsername = (newUsername || '').trim();
 
-        if (!cleanUsername || !currentPassword || !newPassword) {
-            return res.status(400).json({ success: false, message: 'All fields are required.' });
+        if (!cleanUsername || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Username and new password are required.' });
         }
 
         if (confirmPassword !== undefined && newPassword !== confirmPassword) {
@@ -376,9 +414,12 @@ router.post('/change-credentials', requireSuperAdmin, async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super Admin account not found.' });
         }
 
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+        // If current password provided, verify it; otherwise SuperAdmin can update directly
+        if (currentPassword && String(currentPassword).trim()) {
+            const isMatch = await bcrypt.compare(currentPassword.trim(), user.password);
+            if (!isMatch) {
+                return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+            }
         }
 
         if (cleanUsername.toLowerCase() !== user.username.toLowerCase()) {
