@@ -333,6 +333,7 @@ const superadminRoutes = require('./routes/superadmin');
 const dashboardRoutes = require('./routes/dashboard');
 const settingsRoutes = require('./routes/settings');
 const backupRoutes = require('./routes/backup');
+const subscriptionsRoutes = require('./routes/subscriptions');
 
 app.use('/api', authRoutes);
 app.use('/api/customers', customersRoutes);
@@ -342,6 +343,7 @@ app.use('/api/superadmin', superadminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/auth', backupRoutes); // for /auth/google mapping
 
 const PORT = process.env.PORT || 3000;

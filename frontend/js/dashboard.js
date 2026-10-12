@@ -484,6 +484,10 @@ window.handleLogout = async function() {
 };
 
 window.linkGoogleDrive = async function() {
+    if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowGoogleDriveBackup === false) {
+        alert('☁️ Google Drive Cloud Backup is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on.');
+        return;
+    }
     try {
         const res = await apiJson('/api/backup/google');
         if (res.success && res.url) {
@@ -566,6 +570,11 @@ window.downloadJsonBackup = async function() {
 
 window.handleQuickImport = async function(fileInput) {
     if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+    if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowExcelImport === false) {
+        fileInput.value = '';
+        alert('📥 Bulk Excel Import is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin.');
+        return;
+    }
     if (typeof showToast === 'function') showToast('⏳ Importing Excel...');
     const fd = new FormData();
     fd.append('excelFile', fileInput.files[0]);
@@ -587,6 +596,9 @@ window.handleQuickImport = async function(fileInput) {
 
 window.handleImportSubmit = async function(e) {
     e.preventDefault();
+    if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowExcelImport === false) {
+        return alert('📥 Bulk Excel Import is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin.');
+    }
     const fileInput = document.getElementById('excelFileInput');
     if (!fileInput.files.length) return alert('Please choose an Excel file.');
     const btn = document.getElementById('importBtn');

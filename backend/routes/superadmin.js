@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
+const PlanConfig = require('../models/PlanConfig');
 const { requireSuperAdmin } = require('../middleware/auth');
 
 function escapeRegExp(string) {
@@ -12,10 +13,11 @@ function escapeRegExp(string) {
 
 router.get('/dashboard', requireSuperAdmin, async (req, res) => {
     try {
-        const [adminUsers, staffUsers, partyCounts] = await Promise.all([
+        const [adminUsers, staffUsers, partyCounts, planConfigDoc] = await Promise.all([
             User.find({ role: 'admin' }).sort({ _id: -1 }).lean(),
             User.find({ role: 'staff' }).sort({ _id: -1 }).lean(),
-            Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }])
+            Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }]),
+            PlanConfig.getOrCreateSingleton()
         ]);
 
         const staffByAdmin = {};
@@ -45,7 +47,13 @@ router.get('/dashboard', requireSuperAdmin, async (req, res) => {
                 maxStaffLimit: u.maxStaffLimit ?? 5,
                 maxCustomersLimit: u.maxCustomersLimit ?? 500,
                 dailyMessageLimit: u.dailyMessageLimit ?? 100,
-                dailyMessageCount: u.dailyMessageCount || 0
+                dailyMessageCount: u.dailyMessageCount || 0,
+                planName: u.planName || 'Custom / Standard',
+                featureAccess: {
+                    allowGoogleDriveBackup: u.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(u.featureAccess.allowGoogleDriveBackup) : true,
+                    allowExcelImport: u.featureAccess?.allowExcelImport !== undefined ? Boolean(u.featureAccess.allowExcelImport) : true,
+                    allowPdfExport: u.featureAccess?.allowPdfExport !== undefined ? Boolean(u.featureAccess.allowPdfExport) : true
+                }
             };
         });
 
@@ -60,10 +68,85 @@ router.get('/dashboard', requireSuperAdmin, async (req, res) => {
             pendingUsers,
             approvedUsers,
             suspendedUsers,
-            rejectedUsers
+            rejectedUsers,
+            planConfig: planConfigDoc ? planConfigDoc.toObject() : null
         });
     } catch (err) {
         res.status(500).json({ success: false, message: "Error loading Super Admin dashboard: " + err.message });
+    }
+});
+
+router.get('/subscription-settings', requireSuperAdmin, async (req, res) => {
+    try {
+        const config = await PlanConfig.getOrCreateSingleton();
+        res.json({ success: true, planConfig: config.toObject() });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to load subscription settings: ' + err.message });
+    }
+});
+
+router.post('/subscription-settings', requireSuperAdmin, async (req, res) => {
+    try {
+        const config = await PlanConfig.getOrCreateSingleton();
+        const { razorpayKeyId, razorpayKeySecret, whatsappSalesNumber, currency, plans, addons } = req.body;
+
+        if (razorpayKeyId !== undefined) config.razorpayKeyId = String(razorpayKeyId).trim();
+        if (razorpayKeySecret !== undefined) config.razorpayKeySecret = String(razorpayKeySecret).trim();
+        if (whatsappSalesNumber !== undefined) config.whatsappSalesNumber = String(whatsappSalesNumber).trim();
+        if (currency !== undefined) config.currency = String(currency).trim() || 'INR';
+
+        if (Array.isArray(plans) && plans.length > 0) {
+            config.plans = plans.map(p => ({
+                id: String(p.id || 'basic').trim(),
+                name: String(p.name || 'Plan').trim(),
+                tagline: String(p.tagline || '').trim(),
+                badge: String(p.badge || '').trim(),
+                price: Math.max(0, Number(p.price) || 0),
+                durationMonths: Math.max(1, parseInt(p.durationMonths) || 1),
+                maxCustomersLimit: Math.max(0, parseInt(p.maxCustomersLimit) || 0),
+                maxStaffLimit: Math.max(0, parseInt(p.maxStaffLimit) || 0),
+                dailyMessageLimit: Math.max(0, parseInt(p.dailyMessageLimit) || 0),
+                isPopular: Boolean(p.isPopular),
+                isCustom: Boolean(p.isCustom || p.id === 'customized'),
+                basePrice: Math.max(0, Number(p.basePrice) || 499),
+                pricePer100Parties: Math.max(0, Number(p.pricePer100Parties) || 120),
+                pricePerStaff: Math.max(0, Number(p.pricePerStaff) || 80),
+                pricePer50Messages: Math.max(0, Number(p.pricePer50Messages) || 60),
+                featureAccess: {
+                    allowGoogleDriveBackup: p.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(p.featureAccess.allowGoogleDriveBackup) : true,
+                    allowExcelImport: p.featureAccess?.allowExcelImport !== undefined ? Boolean(p.featureAccess.allowExcelImport) : true,
+                    allowPdfExport: p.featureAccess?.allowPdfExport !== undefined ? Boolean(p.featureAccess.allowPdfExport) : true
+                },
+                features: Array.isArray(p.features)
+                    ? p.features.map(f => String(f).trim()).filter(Boolean)
+                    : String(p.features || '').split('\n').map(f => f.trim()).filter(Boolean),
+                isActive: p.isActive !== false
+            }));
+        }
+
+        if (Array.isArray(addons)) {
+            config.addons = addons.map((a, idx) => ({
+                id: String(a.id || `addon_${Date.now()}_${idx}`).trim(),
+                name: String(a.name || 'Add-on').trim(),
+                description: String(a.description || '').trim(),
+                type: ['parties', 'staff', 'messages', 'gdrive', 'duration'].includes(a.type) ? a.type : 'parties',
+                value: Math.max(0, Number(a.value) || 0),
+                price: Math.max(0, Number(a.price) || 0),
+                isActive: a.isActive !== false
+            }));
+        }
+
+        config.updatedAt = new Date();
+        await config.save();
+
+        res.json({
+            success: true,
+            message: 'Subscription plans, add-ons, and Razorpay settings saved successfully!',
+            planConfig: config.toObject()
+        });
+    } catch (err) {
+        console.error('Error saving subscription settings:', err);
+        res.status(500).json({ success: false, message: 'Failed to save subscription settings: ' + err.message });
     }
 });
 
@@ -73,13 +156,25 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid User ID provided.' });
         }
 
-        const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status } = req.body;
+        const { maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status, planName, featureAccess } = req.body;
 
         const updateData = {
             maxStaffLimit: Math.max(0, parseInt(maxStaffLimit) || 0),
             maxCustomersLimit: Math.max(0, parseInt(maxCustomersLimit) || 0),
             dailyMessageLimit: Math.max(0, parseInt(dailyMessageLimit) || 0)
         };
+
+        if (planName !== undefined) {
+            updateData.planName = String(planName).trim() || 'Custom / Standard';
+        }
+
+        if (featureAccess && typeof featureAccess === 'object') {
+            updateData.featureAccess = {
+                allowGoogleDriveBackup: featureAccess.allowGoogleDriveBackup !== undefined ? Boolean(featureAccess.allowGoogleDriveBackup) : true,
+                allowExcelImport: featureAccess.allowExcelImport !== undefined ? Boolean(featureAccess.allowExcelImport) : true,
+                allowPdfExport: featureAccess.allowPdfExport !== undefined ? Boolean(featureAccess.allowPdfExport) : true
+            };
+        }
 
         if (status && ['approved', 'pending', 'rejected', 'suspended'].includes(status)) {
             updateData.status = status;
@@ -99,7 +194,7 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
         }
 
         const targetUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
-        res.json({ success: true, message: `Updated plan limits and status for ${targetUser ? targetUser.username : 'admin'}.`, user: targetUser });
+        res.json({ success: true, message: `Updated plan limits, access, and status for ${targetUser ? targetUser.username : 'admin'}.`, user: targetUser });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to update limits: ' + err.message });
     }
@@ -158,7 +253,15 @@ router.post('/change-credentials', requireSuperAdmin, async (req, res) => {
 router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
-        await User.findByIdAndUpdate(req.params.id, { status: 'approved', approvedAt: new Date() });
+        const existingUser = await User.findById(req.params.id);
+        const now = new Date();
+        const updateObj = { status: 'approved', approvedAt: now };
+        if (existingUser && !existingUser.planExpiryDate && existingUser.planDurationMonths > 0) {
+            const expiry = new Date(now);
+            expiry.setMonth(expiry.getMonth() + Number(existingUser.planDurationMonths));
+            updateObj.planExpiryDate = expiry;
+        }
+        await User.findByIdAndUpdate(req.params.id, updateObj);
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
         res.json({ success: true, message: 'Account approved.' });
     } catch (err) {

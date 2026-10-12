@@ -46,13 +46,34 @@ const userSchema = new mongoose.Schema({
     ifscCode: { type: String, trim: true },
     upiDetails: { type: String, trim: true },
 
-    // ⚙️ Super Admin Quotas & Limits
+    // ⚙️ Super Admin Quotas, Subscription Plan & Access Limits
     maxStaffLimit: { type: Number, default: 5 },
     maxCustomersLimit: { type: Number, default: 500 },
     dailyMessageLimit: { type: Number, default: 100 },
     dailyMessageCount: { type: Number, default: 0 },
     lastMessageResetDate: { type: Date, default: Date.now },
+    planDurationMonths: { type: Number, default: 0 },
     planExpiryDate: { type: Date, default: null },
+    planId: { type: String, default: 'standard' },
+    planName: { type: String, default: 'Standard Plan' },
+    activeAddons: {
+        type: [{
+            id: String,
+            name: String,
+            type: { type: String },
+            value: Number,
+            price: Number
+        }],
+        default: []
+    },
+    featureAccess: {
+        allowGoogleDriveBackup: { type: Boolean, default: true },
+        allowExcelImport: { type: Boolean, default: true },
+        allowPdfExport: { type: Boolean, default: true }
+    },
+    lastPaymentId: { type: String, trim: true },
+    lastOrderId: { type: String, trim: true },
+    lastAmountPaid: { type: Number, default: 0 },
 
     // 🔑 Password Reset OTP
     resetOtp: { type: String, select: false },

@@ -861,6 +861,166 @@
             }
         }
 
+        /* ── PLANS & RAZORPAY MANAGER ── */
+        .plans-manager-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            text-align: left;
+        }
+        .pm-section-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 26px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+        }
+        .pm-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .pm-section-header h3 {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        .pm-section-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 4px 0 0 0;
+        }
+        .rzp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .plans-editor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+            gap: 20px;
+        }
+        .plan-edit-card {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 20px;
+            background: #fcfdff;
+            position: relative;
+        }
+        .plan-edit-card.popular {
+            border-color: #2563eb;
+            background: linear-gradient(180deg, #eff6ff 0%, #ffffff 140px);
+        }
+        .plan-edit-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #cbd5e1;
+        }
+        .plan-tier-tag {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #e0e7ff;
+            color: #1d4ed8;
+        }
+        .pm-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .pm-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+        .pm-field {
+            margin-bottom: 12px;
+        }
+        .pm-field label {
+            display: block;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 4px;
+        }
+        .pm-field input, .pm-field select, .pm-field textarea {
+            width: 100%;
+            padding: 9px 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            font-size: 13px;
+            background: white;
+            color: var(--text-dark);
+            font-family: inherit;
+        }
+        .pm-field textarea {
+            resize: vertical;
+            min-height: 78px;
+            line-height: 1.45;
+        }
+        .access-checks-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+        .access-checks-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #475569;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .access-check-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 6px;
+            cursor: pointer;
+        }
+        .access-check-row:last-child { margin-bottom: 0; }
+        .access-check-row input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            accent-color: #2563eb;
+            cursor: pointer;
+        }
+        .addon-edit-row {
+            display: grid;
+            grid-template-columns: 1.5fr 2fr 1.2fr 0.9fr 0.9fr auto;
+            gap: 10px;
+            align-items: end;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 900px) {
+            .addon-edit-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .pm-row-3 {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -872,6 +1032,7 @@
             <span class="brand-badge">SUPER ADMIN</span>
         </div>
         <div class="user-actions">
+            <button type="button" class="btn-change-cred" onclick="showTab('plansTab')" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">💳 <span>Plans & Razorpay</span></button>
             <button type="button" class="btn-change-cred" onclick="showTab('settingsTab')">⚙️ <span>Change Credentials</span></button>
             <button class="btn-logout-pill" onclick="handleLogout()">🚪 <span>Logout</span></button>
         </div>
@@ -923,6 +1084,9 @@
             </button>
             <button class="tab-btn" onclick="showTab('rejectedTab')">
                 ❌ Rejected <span class="badge-count" id="tabRejectedCount">0</span>
+            </button>
+            <button class="tab-btn" onclick="showTab('plansTab')">
+                💳 Plans, Add-ons & Razorpay
             </button>
             <button class="tab-btn" onclick="showTab('settingsTab')">
                 ⚙️ Credentials Settings
@@ -1003,6 +1167,70 @@
             </div>
         </div>
 
+        <!-- PLANS, ADD-ONS & RAZORPAY TAB -->
+        <div id="plansTab" class="tab-content" style="display:none;">
+            <div class="plans-manager-wrap">
+                <div id="plansSaveAlert"></div>
+
+                <!-- 1. Razorpay & Sales Config -->
+                <div class="pm-section-card">
+                    <div class="pm-section-header">
+                        <div>
+                            <h3>🔐 Razorpay Payment Gateway & Sales Contact</h3>
+                            <p>Configure your Razorpay API Key ID & Secret so clients can purchase plans and add-ons directly on the landing page with instant account activation.</p>
+                        </div>
+                        <span id="rzpStatusBadge" style="padding:6px 12px; border-radius:999px; font-size:12px; font-weight:800; background:#fef3c7; color:#b45309;">Checking...</span>
+                    </div>
+                    <div class="rzp-grid">
+                        <div class="pm-field">
+                            <label>Razorpay Key ID (e.g. rzp_live_xxxxx or rzp_test_xxxxx)</label>
+                            <input type="text" id="rzpKeyIdInput" placeholder="rzp_live_xxxxxxxxxxxxxx" autocomplete="off">
+                        </div>
+                        <div class="pm-field">
+                            <label>Razorpay Key Secret</label>
+                            <div class="input-group" style="position:relative;">
+                                <input type="password" id="rzpKeySecretInput" placeholder="Enter Razorpay Key Secret" autocomplete="new-password" style="padding-right:38px;">
+                                <span class="toggle-password" onclick="togglePassword(this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">👁️</span>
+                            </div>
+                        </div>
+                        <div class="pm-field">
+                            <label>WhatsApp Sales / Support Number (with country code)</label>
+                            <input type="text" id="whatsappSalesInput" placeholder="917021056404">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Three Subscription Plans Editor -->
+                <div class="pm-section-card">
+                    <div class="pm-section-header">
+                        <div>
+                            <h3>💎 Landing Page Subscription Plans (Basic, Pro & Customized)</h3>
+                            <p>Edit pricing, party/staff/message quotas, validity months, feature permissions, and custom calculator rates shown on the landing page.</p>
+                        </div>
+                    </div>
+                    <div id="plansEditorGrid" class="plans-editor-grid"></div>
+                </div>
+
+                <!-- 3. Power-Up Add-ons Editor -->
+                <div class="pm-section-card">
+                    <div class="pm-section-header">
+                        <div>
+                            <h3>🧩 Subscription Add-ons Manager</h3>
+                            <p>Create or edit optional add-on packs (Extra Parties, Extra Staff, Extra Daily Reminders, Cloud Backup, Extra Validity) that clients can bundle at checkout.</p>
+                        </div>
+                        <button type="button" onclick="addNewAddonRow()" style="padding:9px 15px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer;">+ Add New Add-on</button>
+                    </div>
+                    <div id="addonsEditorList"></div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom:24px;">
+                    <button type="button" onclick="saveSubscriptionSettings()" id="btnSavePlansConfig" class="btn-save-settings" style="max-width:360px; margin:0; font-size:15px; padding:14px 24px;">
+                        💾 Save All Plans, Add-ons & Razorpay Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- SETTINGS TAB -->
         <div id="settingsTab" class="tab-content" style="display:none;">
             <div class="settings-card">
@@ -1045,35 +1273,58 @@
     <div id="limitsModal" class="modal-overlay">
         <div class="modal-card">
             <button type="button" class="modal-close" onclick="closeLimitsModal()">✕</button>
-            <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin-bottom:4px;">⚙️ Manage Admin & Staff Credentials</h3>
+            <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin-bottom:4px;">⚙️ Manage Admin Plan, Quotas & Access</h3>
             <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Target Admin: <strong id="limitAdminName" style="color:var(--text-dark);">Admin</strong></p>
 
-            <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:20px;">
+            <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:16px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                     <h4 style="font-size:13px; font-weight:700; color:var(--text-dark); margin:0;">👥 Staff Accounts Created Under This Admin</h4>
                     <span id="modalStaffBadge" style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">0 Staff</span>
                 </div>
-                <div id="modalStaffList" style="max-height:220px; overflow-y:auto; border-radius:8px; border:1px solid var(--border); background:white;">
+                <div id="modalStaffList" style="max-height:160px; overflow-y:auto; border-radius:8px; border:1px solid var(--border); background:white;">
                 </div>
             </div>
 
             <form id="limitsForm">
                 <input type="hidden" id="modalAdminId">
                 <div class="form-group">
-                    <label>👥 Maximum Staff Members Limit <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(0 = Unlimited)</span></label>
-                    <input type="number" id="modalMaxStaff" name="maxStaffLimit" min="0" required>
+                    <label>💎 Active Subscription Plan Name</label>
+                    <input type="text" id="modalPlanName" name="planName" placeholder="e.g. Basic Plan, Pro Plan, Customized Plan">
                 </div>
-                <div class="form-group">
-                    <label>📊 Maximum Parties / Customers Limit <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(0 = Unlimited)</span></label>
-                    <input type="number" id="modalMaxCustomers" name="maxCustomersLimit" min="0" required>
+                <div class="pm-row-2">
+                    <div class="form-group">
+                        <label>👥 Max Staff <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(0=∞)</span></label>
+                        <input type="number" id="modalMaxStaff" name="maxStaffLimit" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📊 Max Parties <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(0=∞)</span></label>
+                        <input type="number" id="modalMaxCustomers" name="maxCustomersLimit" min="0" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>💬 Daily Reminder / Message Limit <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(0 = Unlimited)</span></label>
-                    <input type="number" id="modalDailyMessages" name="dailyMessageLimit" min="0" required>
+                <div class="pm-row-2">
+                    <div class="form-group">
+                        <label>💬 Daily Reminders <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(0=∞)</span></label>
+                        <input type="number" id="modalDailyMessages" name="dailyMessageLimit" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>📅 Plan Expiry Date</label>
+                        <input type="date" id="modalPlanExpiry" name="planExpiryDate">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>📅 Plan Expiry Date <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(Optional)</span></label>
-                    <input type="date" id="modalPlanExpiry" name="planExpiryDate">
+                <div class="access-checks-box" style="margin-bottom:16px;">
+                    <span class="access-checks-title">🔐 Feature Access Permissions</span>
+                    <label class="access-check-row">
+                        <input type="checkbox" id="modalAllowGDrive" checked>
+                        <span>☁️ Allow Google Drive Cloud Backup & Auto-Sync</span>
+                    </label>
+                    <label class="access-check-row">
+                        <input type="checkbox" id="modalAllowExcel" checked>
+                        <span>📥 Allow Excel Bulk Party Import</span>
+                    </label>
+                    <label class="access-check-row">
+                        <input type="checkbox" id="modalAllowPdf" checked>
+                        <span>📄 Allow Branded PDF Ledger Statement Export</span>
+                    </label>
                 </div>
                 <div class="form-group">
                     <label>🔰 Account Status</label>
@@ -1084,7 +1335,7 @@
                         <option value="rejected">Rejected 🚫</option>
                     </select>
                 </div>
-                <div style="display:flex; gap:12px; margin-top:24px;">
+                <div style="display:flex; gap:12px; margin-top:20px;">
                     <button type="button" onclick="closeLimitsModal()" style="flex:1; padding:12px; background:#f1f5f9; color:var(--text-dark); border:1px solid var(--border); border-radius:10px; font-weight:700; cursor:pointer;">Cancel</button>
                     <button type="submit" style="flex:1; padding:12px; background:linear-gradient(135deg, #1558cc, #0f2d52); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; box-shadow:0 4px 12px rgba(15,45,82,0.2);">Save Changes 💾</button>
                 </div>

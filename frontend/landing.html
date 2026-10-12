@@ -661,7 +661,458 @@
         border: 1px solid var(--border);
       }
     }
+
+    /* ── PRICING & SUBSCRIPTION PLANS ── */
+    .pricing-section {
+      padding: 88px 40px;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef6f0 50%, #f8fafc 100%);
+      border-top: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .pricing-sub {
+      text-align: center;
+      max-width: 660px;
+      margin: -32px auto 48px;
+      font-size: 16px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 28px;
+      max-width: 1180px;
+      margin: 0 auto 56px;
+      align-items: stretch;
+    }
+    .plan-card {
+      background: #ffffff;
+      border: 1.5px solid #dbe3ec;
+      border-radius: 22px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      transition: all 0.25s ease;
+      box-shadow: 0 10px 30px rgba(44, 62, 80, 0.05);
+    }
+    .plan-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 42px rgba(44, 62, 80, 0.11);
+      border-color: var(--primary);
+    }
+    .plan-card.popular {
+      border: 2.5px solid var(--primary);
+      background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 160px);
+      box-shadow: 0 18px 44px rgba(39, 174, 96, 0.16);
+    }
+    .plan-card.selected-plan {
+      outline: 3px solid rgba(39, 174, 96, 0.35);
+    }
+    .plan-badge {
+      position: absolute;
+      top: -13px;
+      right: 24px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+    .plan-card.custom-tier .plan-badge {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    .plan-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .plan-tagline {
+      font-size: 13.5px;
+      color: var(--text2);
+      min-height: 38px;
+      margin-bottom: 18px;
+      line-height: 1.45;
+    }
+    .plan-price-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 18px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .plan-price-currency {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .plan-price-val {
+      font-family: 'Outfit', sans-serif;
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .plan-price-period {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text2);
+    }
+    .plan-quotas-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .quota-pill {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+    .quota-pill strong {
+      display: block;
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--primary-dark);
+    }
+    .quota-pill span {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+    }
+    .custom-sliders-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 18px;
+    }
+    .custom-slider-row {
+      margin-bottom: 12px;
+    }
+    .custom-slider-row:last-child {
+      margin-bottom: 0;
+    }
+    .custom-slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .custom-slider-header span.val-badge {
+      color: #2563eb;
+      font-weight: 800;
+    }
+    .custom-slider-row input[type="range"] {
+      width: 100%;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+    .plan-features-list {
+      list-style: none;
+      margin: 0 0 24px 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .plan-features-list li {
+      font-size: 13.5px;
+      color: #334155;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      line-height: 1.45;
+    }
+    .plan-features-list li::before {
+      content: '✓';
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 11px;
+      font-weight: 900;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .btn-plan-select {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-plan-select.primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(39, 174, 96, 0.28);
+    }
+    .btn-plan-select.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(39, 174, 96, 0.38);
+    }
+    .btn-plan-select.blue {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.28);
+    }
+    .btn-plan-select.outline {
+      background: #f1f5f9;
+      color: var(--text);
+      border: 1.5px solid #cbd5e1;
+    }
+    .btn-plan-select.outline:hover {
+      background: #e2e8f0;
+    }
+
+    /* ── ADD-ONS SECTION ── */
+    .addons-wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1.5px solid #dbe3ec;
+      border-radius: 22px;
+      padding: 32px;
+      box-shadow: 0 10px 30px rgba(44, 62, 80, 0.04);
+    }
+    .addons-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .addons-header h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .addons-header p {
+      font-size: 13.5px;
+      color: var(--text2);
+    }
+    .addons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .addon-card {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 18px;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      user-select: none;
+    }
+    .addon-card:hover {
+      border-color: var(--primary);
+      background: #fff;
+    }
+    .addon-card.active {
+      border-color: var(--primary);
+      background: #f0fdf4;
+      box-shadow: 0 6px 18px rgba(39, 174, 96, 0.14);
+    }
+    .addon-check {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 900;
+      color: transparent;
+      background: #fff;
+      transition: all 0.15s;
+    }
+    .addon-card.active .addon-check {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .addon-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15.5px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+      padding-right: 28px;
+    }
+    .addon-desc {
+      font-size: 12.5px;
+      color: var(--text2);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .addon-price-tag {
+      display: inline-block;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--primary-dark);
+    }
+    .checkout-summary-bar {
+      margin-top: 26px;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: #fff;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .csb-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .csb-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .csb-meta {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+    }
+    .csb-action {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .csb-total {
+      text-align: right;
+    }
+    .csb-total span {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.65);
+    }
+    .csb-total strong {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: #4ade80;
+    }
+
+    /* ── CHECKOUT MODAL ── */
+    .sub-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 16px;
+    }
+    .sub-modal-card {
+      background: #fff;
+      border-radius: 22px;
+      max-width: 560px;
+      width: 100%;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.28);
+      position: relative;
+    }
+    .sub-modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .sub-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .sub-field {
+      margin-bottom: 12px;
+    }
+    .sub-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 5px;
+    }
+    .sub-field input {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+    .sub-field input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.14);
+    }
+    @media (max-width: 640px) {
+      .pricing-section { padding: 60px 16px; }
+      .addons-wrap { padding: 20px 16px; }
+      .sub-form-grid { grid-template-columns: 1fr; }
+      .checkout-summary-bar { flex-direction: column; align-items: stretch; text-align: center; }
+      .csb-action { justify-content: center; }
+      .csb-total { text-align: center; }
+    }
   </style>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 
@@ -673,6 +1124,7 @@
     </div>
     <div class="nav-links">
       <a href="#features">Features</a>
+      <a href="#pricing">Pricing & Plans</a>
       <a href="#workflow">Workflow</a>
       <a href="#roles">Roles</a>
       <a href="login.html" class="nav-cta">→ Dashboard</a>
@@ -687,6 +1139,7 @@
     <p class="hero-sub">A complete financial dashboard for tracking client outstanding, performing aging analysis, and automating WhatsApp payment reminders.</p>
     <div class="hero-btns">
       <a href="login.html" class="btn-primary">→ Access Dashboard</a>
+      <a href="#pricing" class="btn-secondary" style="border-color:var(--primary); color:var(--primary);">💎 Choose Plan & Subscribe</a>
       <a href="register.html" class="btn-secondary">Request Admin Access</a>
     </div>
   </section>
@@ -728,6 +1181,103 @@
       </div>
     </div>
   </section>
+
+  <!-- ── PRICING & SUBSCRIPTION PLANS ── -->
+  <section class="pricing-section" id="pricing">
+    <div class="section-label">Flexible Subscriptions</div>
+    <div class="section-title">Choose the Right Plan for Your Business</div>
+    <p class="pricing-sub">Start with Basic, scale with Pro, or build your own Customized plan with optional power-up add-ons and instant Razorpay activation.</p>
+
+    <!-- 3 Plans Grid -->
+    <div class="plans-grid" id="landingPlansGrid"></div>
+
+    <!-- Power-Up Add-ons -->
+    <div class="addons-wrap">
+      <div class="addons-header">
+        <div>
+          <h3>🧩 Optional Power-Up Add-ons</h3>
+          <p>Click any add-on below to bundle extra capacity or features with your selected subscription plan.</p>
+        </div>
+        <span id="selectedAddonsCountBadge" style="background:#dcfce7; color:#15803d; padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:800;">0 Add-ons Selected</span>
+      </div>
+      <div class="addons-grid" id="landingAddonsGrid"></div>
+
+      <!-- Live Summary Bar -->
+      <div class="checkout-summary-bar">
+        <div class="csb-details">
+          <div class="csb-title" id="csbPlanTitle">Selected: Pro Plan</div>
+          <div class="csb-meta" id="csbQuotasMeta">Includes 1,500 Parties · 10 Staff Accounts · 300 Daily Reminders · 1 Month Validity</div>
+        </div>
+        <div class="csb-action">
+          <div class="csb-total">
+            <span>Total Payable</span>
+            <strong id="csbTotalAmount">₹2,499</strong>
+          </div>
+          <button type="button" class="btn-primary" style="border:none; cursor:pointer; padding:14px 26px;" onclick="openSubscriptionCheckoutModal()">
+            💳 Subscribe & Activate Now →
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SUBSCRIPTION CHECKOUT MODAL ── -->
+  <div id="subscriptionCheckoutModal" class="sub-modal-overlay" role="dialog" aria-modal="true">
+    <div class="sub-modal-card">
+      <button type="button" class="sub-modal-close" onclick="closeSubscriptionCheckoutModal()">✕</button>
+      <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--primary); margin-bottom:4px;">Instant Account Setup & Checkout</div>
+      <h3 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:var(--text); margin-bottom:14px;" id="modalCheckoutTitle">Complete Your Subscription</h3>
+
+      <!-- Order Summary Box -->
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:14px; padding:14px 16px; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="font-size:15px; color:var(--text);" id="modalSummaryPlanName">Pro Plan</strong>
+          <strong style="font-family:'Outfit',sans-serif; font-size:18px; color:var(--primary-dark);" id="modalSummaryTotal">₹2,499</strong>
+        </div>
+        <div style="font-size:12px; color:var(--text2); margin-bottom:8px;" id="modalSummaryAddons">No extra add-ons selected</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;" id="modalSummaryQuotas"></div>
+      </div>
+
+      <div id="checkoutModalAlert"></div>
+
+      <form id="subscriptionCheckoutForm" onsubmit="handleSubscriptionCheckoutSubmit(event)">
+        <div style="font-size:12px; color:#475569; margin-bottom:12px; background:#eff6ff; border:1px solid #bfdbfe; padding:9px 12px; border-radius:9px;">
+          💡 <strong>New Admin?</strong> Enter your desired credentials below — your account will be created & approved automatically after payment. <strong>Existing Admin?</strong> Enter your current username & password to renew/upgrade.
+        </div>
+        <div class="sub-form-grid">
+          <div class="sub-field">
+            <label>Admin Username *</label>
+            <input type="text" id="subRegUsername" required minlength="3" placeholder="e.g. rahul_enterprise" autocomplete="username">
+          </div>
+          <div class="sub-field">
+            <label>Password * (min 6 chars)</label>
+            <input type="password" id="subRegPassword" required minlength="6" placeholder="Enter password" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="sub-field">
+          <label>Company / Firm Name *</label>
+          <input type="text" id="subRegCompany" required placeholder="e.g. Shree Ganesh Traders Pvt. Ltd.">
+        </div>
+        <div class="sub-form-grid">
+          <div class="sub-field">
+            <label>Mobile / WhatsApp No. *</label>
+            <input type="tel" id="subRegPhone" required placeholder="e.g. 9876543210">
+          </div>
+          <div class="sub-field">
+            <label>Business Email *</label>
+            <input type="email" id="subRegEmail" required placeholder="billing@company.com">
+          </div>
+        </div>
+
+        <button type="submit" id="btnPayRazorpay" class="btn-plan-select primary" style="margin-top:8px; font-size:16px; padding:15px;">
+          💳 Pay & Activate Admin Account Instantly
+        </button>
+        <button type="button" id="btnSubmitManualRequest" onclick="submitManualPlanRequest()" class="btn-plan-select outline" style="margin-top:10px; font-size:13px; padding:11px;">
+          📨 Or Submit Plan Request for Super Admin Approval
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- ── WORKFLOW ── -->
   <section class="workflow" id="workflow">
@@ -783,6 +1333,7 @@
       <div class="footer-col">
         <h4>Navigation</h4>
         <a href="login.html">Dashboard Login</a>
+        <a href="#pricing">Subscription Plans</a>
         <a href="register.html">Request Admin Access</a>
         <a href="#features">Key Features</a>
         <a href="#workflow">How It Works</a>
@@ -811,7 +1362,7 @@
 
   <!-- ── STICKY MOBILE BOTTOM CTA ── -->
   <div class="sticky-mobile-cta">
-    <a href="register.html" class="sm-secondary">Request Access</a>
+    <a href="#pricing" class="sm-secondary">💎 View Plans</a>
     <a href="login.html" class="sm-primary">→ Open Dashboard</a>
   </div>
 
@@ -825,6 +1376,8 @@
   </div>
 
   <script>
+    window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';
+
     (function() {
       const consent = localStorage.getItem('wgs_cookie_consent');
       const banner = document.getElementById('cookieBanner');
@@ -838,6 +1391,572 @@
       const banner = document.getElementById('cookieBanner');
       if (banner) banner.style.display = 'none';
     }
+
+    // ── DEFAULT SUBSCRIPTION PLANS & ADD-ONS (Overridden live by /api/subscriptions/config) ──
+    let subConfig = {
+      currency: 'INR',
+      whatsappSalesNumber: '917021056404',
+      razorpayKeyId: '',
+      isRazorpayConfigured: false,
+      plans: [
+        {
+          id: 'basic',
+          name: 'Basic Plan',
+          tagline: 'Ideal for small businesses & solo proprietors starting digital recovery.',
+          badge: 'Starter',
+          price: 999,
+          durationMonths: 1,
+          maxCustomersLimit: 250,
+          maxStaffLimit: 2,
+          dailyMessageLimit: 50,
+          isPopular: false,
+          isCustom: false,
+          featureAccess: { allowGoogleDriveBackup: false, allowExcelImport: true, allowPdfExport: true },
+          features: [
+            'Up to 250 Party Ledgers',
+            '2 Staff / Employee Accounts',
+            '50 WhatsApp Reminders / Day',
+            '0-30 to 180+ Days Aging Analysis',
+            'Tally-Ready Excel Import & Export',
+            'Branded PDF Statement Download'
+          ]
+        },
+        {
+          id: 'pro',
+          name: 'Pro Plan',
+          tagline: 'Built for growing enterprises needing cloud backups & larger teams.',
+          badge: 'Most Popular',
+          price: 2499,
+          durationMonths: 1,
+          maxCustomersLimit: 1500,
+          maxStaffLimit: 10,
+          dailyMessageLimit: 300,
+          isPopular: true,
+          isCustom: false,
+          featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
+          features: [
+            'Up to 1,500 Party Ledgers',
+            '10 Staff / Employee Accounts',
+            '300 WhatsApp Reminders / Day',
+            'Google Drive Automated Cloud Backup',
+            'Tally-Ready Excel Import & Export',
+            'Full Team Activity Audit Trail',
+            'Priority Support & Onboarding'
+          ]
+        },
+        {
+          id: 'customized',
+          name: 'Customized Plan',
+          tagline: 'Tailor your exact party capacity, staff seats, and daily reminder limits.',
+          badge: 'Enterprise / Custom',
+          price: 4999,
+          durationMonths: 1,
+          maxCustomersLimit: 5000,
+          maxStaffLimit: 25,
+          dailyMessageLimit: 1000,
+          isPopular: false,
+          isCustom: true,
+          basePrice: 499,
+          pricePer100Parties: 120,
+          pricePerStaff: 80,
+          pricePer50Messages: 60,
+          featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
+          features: [
+            'Custom Party & Customer Capacity',
+            'Custom Staff Account Seats',
+            'Custom Daily WhatsApp Quota',
+            'Google Drive Automated Cloud Backup',
+            'Dedicated Account Manager',
+            'Custom Billing Duration (1 to 12 Months)'
+          ]
+        }
+      ],
+      addons: [
+        { id: 'addon_parties_500', name: '+500 Extra Parties', description: 'Expand your customer ledger capacity by 500 parties.', type: 'parties', value: 500, price: 499 },
+        { id: 'addon_staff_5', name: '+5 Extra Staff Accounts', description: 'Add 5 more employees/collection agents to your workspace.', type: 'staff', value: 5, price: 399 },
+        { id: 'addon_msgs_100', name: '+100 Daily Reminders', description: 'Increase your daily WhatsApp & Email reminder limit by 100.', type: 'messages', value: 100, price: 299 },
+        { id: 'addon_gdrive', name: 'Cloud Backup Unlock', description: 'Enable automated Google Drive cloud backup & 1-click restore.', type: 'gdrive', value: 1, price: 349 },
+        { id: 'addon_validity_3m', name: '+3 Months Plan Validity', description: 'Extend your subscription validity by an additional 3 months.', type: 'duration', value: 3, price: 1999 }
+      ]
+    };
+
+    let selectedPlanId = 'pro';
+    let selectedAddonIds = new Set();
+    let customSliderState = {
+      parties: 2000,
+      staff: 15,
+      messages: 500,
+      durationMonths: 1
+    };
+
+    function escapeHtmlLanding(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function computeCurrentQuote() {
+      const plans = subConfig.plans || [];
+      const plan = plans.find(p => p.id === selectedPlanId) || plans[0];
+      if (!plan) return null;
+
+      let parties = Number(plan.maxCustomersLimit) || 250;
+      let staff = Number(plan.maxStaffLimit) || 2;
+      let messages = Number(plan.dailyMessageLimit) || 50;
+      let durationMonths = Number(plan.durationMonths) || 1;
+      let planPrice = Number(plan.price) || 999;
+
+      if (plan.isCustom || plan.id === 'customized') {
+        parties = Number(customSliderState.parties) || parties;
+        staff = Number(customSliderState.staff) || staff;
+        messages = Number(customSliderState.messages) || messages;
+        durationMonths = Number(customSliderState.durationMonths) || durationMonths;
+
+        const basePrice = Number(plan.basePrice ?? 499);
+        const rParties = Number(plan.pricePer100Parties ?? 120);
+        const rStaff = Number(plan.pricePerStaff ?? 80);
+        const rMsgs = Number(plan.pricePer50Messages ?? 60);
+
+        const monthlyRate = basePrice + Math.ceil(parties / 100) * rParties + staff * rStaff + Math.ceil(messages / 50) * rMsgs;
+        planPrice = Math.round(monthlyRate * durationMonths);
+      }
+
+      let addonsTotal = 0;
+      const chosenAddons = [];
+      for (const aId of selectedAddonIds) {
+        const addon = (subConfig.addons || []).find(a => a.id === aId);
+        if (!addon) continue;
+        const p = Number(addon.price) || 0;
+        const v = Number(addon.value) || 0;
+        addonsTotal += p;
+        chosenAddons.push(addon);
+        if (addon.type === 'parties') parties += v;
+        else if (addon.type === 'staff') staff += v;
+        else if (addon.type === 'messages') messages += v;
+        else if (addon.type === 'duration') durationMonths += v;
+      }
+
+      return {
+        plan,
+        planPrice,
+        addonsTotal,
+        totalAmount: planPrice + addonsTotal,
+        parties,
+        staff,
+        messages,
+        durationMonths,
+        chosenAddons
+      };
+    }
+
+    function computeCustomPlanPreviewPrice(plan) {
+      const parties = Number(customSliderState.parties) || 2000;
+      const staff = Number(customSliderState.staff) || 15;
+      const messages = Number(customSliderState.messages) || 500;
+      const durationMonths = Number(customSliderState.durationMonths) || 1;
+
+      const basePrice = Number(plan.basePrice ?? 499);
+      const rParties = Number(plan.pricePer100Parties ?? 120);
+      const rStaff = Number(plan.pricePerStaff ?? 80);
+      const rMsgs = Number(plan.pricePer50Messages ?? 60);
+
+      const monthlyRate = basePrice + Math.ceil(parties / 100) * rParties + staff * rStaff + Math.ceil(messages / 50) * rMsgs;
+      return Math.round(monthlyRate * durationMonths);
+    }
+
+    function renderLandingPricing() {
+      const plansGrid = document.getElementById('landingPlansGrid');
+      const addonsGrid = document.getElementById('landingAddonsGrid');
+      if (!plansGrid || !addonsGrid) return;
+
+      plansGrid.innerHTML = (subConfig.plans || []).map(plan => {
+        const isCustom = Boolean(plan.isCustom || plan.id === 'customized');
+        const isSelected = plan.id === selectedPlanId;
+        const displayPrice = isCustom ? computeCustomPlanPreviewPrice(plan) : Number(plan.price || 0);
+        const displayDuration = isCustom ? customSliderState.durationMonths : (Number(plan.durationMonths) || 1);
+
+        return `
+          <div class="plan-card ${plan.isPopular ? 'popular' : ''} ${isCustom ? 'custom-tier' : ''} ${isSelected ? 'selected-plan' : ''}" id="planCard_${escapeHtmlLanding(plan.id)}">
+            <div>
+              ${plan.badge ? `<div class="plan-badge">${escapeHtmlLanding(plan.badge)}</div>` : ''}
+              <div class="plan-name">${escapeHtmlLanding(plan.name)}</div>
+              <div class="plan-tagline">${escapeHtmlLanding(plan.tagline || '')}</div>
+
+              <div class="plan-price-wrap">
+                <span class="plan-price-currency">₹</span>
+                <span class="plan-price-val" id="planPriceVal_${escapeHtmlLanding(plan.id)}">${displayPrice.toLocaleString('en-IN')}</span>
+                <span class="plan-price-period" id="planPeriodVal_${escapeHtmlLanding(plan.id)}">/ ${displayDuration > 1 ? displayDuration + ' Months' : 'Month'}</span>
+              </div>
+
+              ${isCustom ? `
+                <div class="custom-sliders-box">
+                  <div class="custom-slider-row">
+                    <div class="custom-slider-header">
+                      <span>📊 Party Ledgers</span>
+                      <span class="val-badge" id="lblCustomParties">${customSliderState.parties.toLocaleString('en-IN')} Parties</span>
+                    </div>
+                    <input type="range" min="100" max="10000" step="100" value="${customSliderState.parties}" oninput="updateCustomSlider('parties', this.value)">
+                  </div>
+                  <div class="custom-slider-row">
+                    <div class="custom-slider-header">
+                      <span>👥 Staff Accounts</span>
+                      <span class="val-badge" id="lblCustomStaff">${customSliderState.staff} Staff</span>
+                    </div>
+                    <input type="range" min="1" max="50" step="1" value="${customSliderState.staff}" oninput="updateCustomSlider('staff', this.value)">
+                  </div>
+                  <div class="custom-slider-row">
+                    <div class="custom-slider-header">
+                      <span>💬 Daily Reminders</span>
+                      <span class="val-badge" id="lblCustomMessages">${customSliderState.messages} / day</span>
+                    </div>
+                    <input type="range" min="50" max="2000" step="50" value="${customSliderState.messages}" oninput="updateCustomSlider('messages', this.value)">
+                  </div>
+                  <div class="custom-slider-row">
+                    <div class="custom-slider-header">
+                      <span>📅 Validity Period</span>
+                      <span class="val-badge" id="lblCustomDuration">${customSliderState.durationMonths} ${customSliderState.durationMonths > 1 ? 'Months' : 'Month'}</span>
+                    </div>
+                    <input type="range" min="1" max="12" step="1" value="${customSliderState.durationMonths}" oninput="updateCustomSlider('durationMonths', this.value)">
+                  </div>
+                </div>
+              ` : `
+                <div class="plan-quotas-grid">
+                  <div class="quota-pill">
+                    <strong>${Number(plan.maxCustomersLimit || 0).toLocaleString('en-IN')}</strong>
+                    <span>Parties</span>
+                  </div>
+                  <div class="quota-pill">
+                    <strong>${Number(plan.maxStaffLimit || 0)}</strong>
+                    <span>Staff</span>
+                  </div>
+                  <div class="quota-pill">
+                    <strong>${Number(plan.dailyMessageLimit || 0)}</strong>
+                    <span>Msgs/Day</span>
+                  </div>
+                </div>
+              `}
+
+              <ul class="plan-features-list">
+                ${(plan.features || []).map(f => `<li>${escapeHtmlLanding(f)}</li>`).join('')}
+              </ul>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button type="button" class="btn-plan-select ${isCustom ? 'blue' : (plan.isPopular ? 'primary' : 'outline')}" onclick="selectPlanAndCheckout('${escapeHtmlLanding(plan.id)}')">
+                ${isSelected ? '✓ Selected — Proceed to Checkout' : `Choose ${escapeHtmlLanding(plan.name)} →`}
+              </button>
+              ${isCustom ? `
+                <button type="button" class="btn-plan-select outline" style="font-size:13px; padding:10px;" onclick="contactSalesWhatsApp()">
+                  💬 Discuss Custom Needs on WhatsApp
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      addonsGrid.innerHTML = (subConfig.addons || []).map(addon => {
+        const isAdded = selectedAddonIds.has(addon.id);
+        return `
+          <div class="addon-card ${isAdded ? 'active' : ''}" onclick="toggleAddon('${escapeHtmlLanding(addon.id)}')">
+            <div class="addon-check">✓</div>
+            <div class="addon-title">${escapeHtmlLanding(addon.name)}</div>
+            <div class="addon-desc">${escapeHtmlLanding(addon.description || '')}</div>
+            <div class="addon-price-tag">+ ₹${Number(addon.price || 0).toLocaleString('en-IN')}</div>
+          </div>
+        `;
+      }).join('');
+
+      updateSummaryBarUI();
+    }
+
+    function updateCustomSlider(field, val) {
+      customSliderState[field] = Number(val);
+      selectedPlanId = 'customized';
+
+      const lblP = document.getElementById('lblCustomParties');
+      const lblS = document.getElementById('lblCustomStaff');
+      const lblM = document.getElementById('lblCustomMessages');
+      const lblD = document.getElementById('lblCustomDuration');
+      if (lblP) lblP.textContent = customSliderState.parties.toLocaleString('en-IN') + ' Parties';
+      if (lblS) lblS.textContent = customSliderState.staff + ' Staff';
+      if (lblM) lblM.textContent = customSliderState.messages + ' / day';
+      if (lblD) lblD.textContent = customSliderState.durationMonths + (customSliderState.durationMonths > 1 ? ' Months' : ' Month');
+
+      const customPlan = (subConfig.plans || []).find(p => p.isCustom || p.id === 'customized');
+      if (customPlan) {
+        const pVal = document.getElementById('planPriceVal_' + customPlan.id);
+        const perVal = document.getElementById('planPeriodVal_' + customPlan.id);
+        if (pVal) pVal.textContent = computeCustomPlanPreviewPrice(customPlan).toLocaleString('en-IN');
+        if (perVal) perVal.textContent = '/ ' + (customSliderState.durationMonths > 1 ? customSliderState.durationMonths + ' Months' : 'Month');
+      }
+
+      document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected-plan'));
+      const cCard = document.getElementById('planCard_customized');
+      if (cCard) cCard.classList.add('selected-plan');
+
+      updateSummaryBarUI();
+    }
+
+    function toggleAddon(addonId) {
+      if (selectedAddonIds.has(addonId)) {
+        selectedAddonIds.delete(addonId);
+      } else {
+        selectedAddonIds.add(addonId);
+      }
+      renderLandingPricing();
+    }
+
+    function selectPlanAndCheckout(planId) {
+      selectedPlanId = planId;
+      renderLandingPricing();
+      openSubscriptionCheckoutModal();
+    }
+
+    function updateSummaryBarUI() {
+      const q = computeCurrentQuote();
+      if (!q) return;
+
+      const badge = document.getElementById('selectedAddonsCountBadge');
+      if (badge) {
+        badge.textContent = `${q.chosenAddons.length} Add-on${q.chosenAddons.length === 1 ? '' : 's'} Selected`;
+      }
+
+      const titleEl = document.getElementById('csbPlanTitle');
+      const metaEl = document.getElementById('csbQuotasMeta');
+      const totalEl = document.getElementById('csbTotalAmount');
+
+      const addonNames = q.chosenAddons.length ? ` + ${q.chosenAddons.map(a => a.name).join(', ')}` : '';
+      if (titleEl) titleEl.textContent = `Selected: ${q.plan.name}${addonNames}`;
+      if (metaEl) metaEl.textContent = `Final Quotas: ${q.parties.toLocaleString('en-IN')} Parties · ${q.staff} Staff Accounts · ${q.messages} Daily Reminders · ${q.durationMonths} Month${q.durationMonths > 1 ? 's' : ''} Validity`;
+      if (totalEl) totalEl.textContent = `₹${q.totalAmount.toLocaleString('en-IN')}`;
+    }
+
+    function contactSalesWhatsApp() {
+      const q = computeCurrentQuote();
+      const num = (subConfig.whatsappSalesNumber || '917021056404').replace(/[^0-9]/g, '');
+      const msg = `Hello Web Graphics Studio! I would like to inquire about a *Customized WGS Payment Tracker Plan*:\n• Parties: ${customSliderState.parties}\n• Staff Accounts: ${customSliderState.staff}\n• Daily Reminders: ${customSliderState.messages}/day\n• Duration: ${customSliderState.durationMonths} Month(s)\n• Estimated Quote: ₹${q ? q.totalAmount.toLocaleString('en-IN') : ''}`;
+      window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function openSubscriptionCheckoutModal() {
+      const q = computeCurrentQuote();
+      if (!q) return;
+
+      document.getElementById('modalSummaryPlanName').textContent = q.plan.name;
+      document.getElementById('modalSummaryTotal').textContent = `₹${q.totalAmount.toLocaleString('en-IN')}`;
+      document.getElementById('modalSummaryAddons').textContent = q.chosenAddons.length
+        ? `Add-ons: ${q.chosenAddons.map(a => `${a.name} (₹${a.price})`).join(' + ')}`
+        : 'No optional add-ons selected';
+
+      document.getElementById('modalSummaryQuotas').innerHTML = `
+        <span style="background:#dcfce7; color:#166534; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">📊 ${q.parties.toLocaleString('en-IN')} Parties</span>
+        <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">👥 ${q.staff} Staff</span>
+        <span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">💬 ${q.messages} Msgs/Day</span>
+        <span style="background:#f3e8ff; color:#6b21a8; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">📅 ${q.durationMonths} Month${q.durationMonths > 1 ? 's' : ''}</span>
+      `;
+
+      const payBtn = document.getElementById('btnPayRazorpay');
+      if (payBtn) {
+        payBtn.textContent = `💳 Pay ₹${q.totalAmount.toLocaleString('en-IN')} via Razorpay & Activate`;
+      }
+
+      document.getElementById('checkoutModalAlert').innerHTML = '';
+      document.getElementById('subscriptionCheckoutModal').style.display = 'flex';
+    }
+
+    function closeSubscriptionCheckoutModal() {
+      document.getElementById('subscriptionCheckoutModal').style.display = 'none';
+    }
+
+    function getRegistrationPayload() {
+      return {
+        username: (document.getElementById('subRegUsername')?.value || '').trim(),
+        password: document.getElementById('subRegPassword')?.value || '',
+        companyName: (document.getElementById('subRegCompany')?.value || '').trim(),
+        contactNo: (document.getElementById('subRegPhone')?.value || '').trim(),
+        email: (document.getElementById('subRegEmail')?.value || '').trim()
+      };
+    }
+
+    function showCheckoutAlert(msg, isSuccess = false) {
+      const box = document.getElementById('checkoutModalAlert');
+      if (!box) return;
+      box.innerHTML = `<div style="padding:11px 14px; border-radius:10px; font-size:13px; font-weight:700; margin-bottom:14px; background:${isSuccess ? '#dcfce7' : '#fee2e2'}; color:${isSuccess ? '#166534' : '#991b1b'}; border:1px solid ${isSuccess ? '#bbf7d0' : '#fca5a5'};">${msg}</div>`;
+    }
+
+    async function handleSubscriptionCheckoutSubmit(e) {
+      e.preventDefault();
+      const reg = getRegistrationPayload();
+      if (!reg.username || !reg.password || !reg.companyName) {
+        showCheckoutAlert('Please fill in all required Admin account details.');
+        return;
+      }
+
+      const btn = document.getElementById('btnPayRazorpay');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ Initializing Secure Razorpay Order...';
+
+      try {
+        const res = await fetch(window.API_BASE + '/api/subscriptions/create-order', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planId: selectedPlanId,
+            customConfig: customSliderState,
+            addonIds: Array.from(selectedAddonIds),
+            registrationData: reg
+          })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          if (data.code === 'RAZORPAY_NOT_CONFIGURED') {
+            showCheckoutAlert('ℹ️ Online Razorpay gateway is being activated by Super Admin. Clicking "Submit Plan Request" below will immediately send your chosen plan & add-ons for approval!');
+            return;
+          }
+          showCheckoutAlert(data.message || 'Could not initiate payment.');
+          return;
+        }
+
+        if (typeof window.Razorpay === 'undefined') {
+          showCheckoutAlert('Razorpay checkout script failed to load. Please check your internet connection.');
+          return;
+        }
+
+        const rzpOptions = {
+          key: data.keyId,
+          amount: data.amount,
+          currency: data.currency || 'INR',
+          name: 'WGS Payment Tracker',
+          description: `${data.quote.planName} Subscription`,
+          image: window.location.origin + '/images/WGS.png',
+          order_id: data.orderId,
+          prefill: {
+            name: reg.companyName || reg.username,
+            email: reg.email,
+            contact: reg.contactNo
+          },
+          theme: { color: '#27ae60' },
+          handler: async function (response) {
+            try {
+              btn.disabled = true;
+              btn.textContent = '⏳ Verifying Payment & Activating Account...';
+              const verifyRes = await fetch(window.API_BASE + '/api/subscriptions/verify-payment', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  planId: selectedPlanId,
+                  customConfig: customSliderState,
+                  addonIds: Array.from(selectedAddonIds),
+                  registrationData: reg
+                })
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.success) {
+                showCheckoutAlert('🎉 ' + verifyData.message + ' Redirecting to your dashboard...', true);
+                setTimeout(() => {
+                  window.location.href = verifyData.redirect || 'dashboard.html?from=login';
+                }, 1200);
+              } else {
+                showCheckoutAlert(verifyData.message || 'Payment verification failed.');
+              }
+            } catch (vErr) {
+              showCheckoutAlert('Verification error: ' + vErr.message);
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(rzpOptions);
+        rzp.on('payment.failed', function (resp) {
+          showCheckoutAlert('Payment failed: ' + ((resp.error && resp.error.description) || 'Please try again.'));
+        });
+        rzp.open();
+      } catch (err) {
+        showCheckoutAlert('Network error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
+
+    async function submitManualPlanRequest() {
+      const reg = getRegistrationPayload();
+      if (!reg.username || !reg.password || !reg.companyName) {
+        showCheckoutAlert('Please enter your Username, Password, and Company Name first.');
+        return;
+      }
+      if (reg.password.length < 6) {
+        showCheckoutAlert('Password must be at least 6 characters.');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitManualRequest');
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ Submitting Request...';
+
+      try {
+        const res = await fetch(window.API_BASE + '/api/subscriptions/submit-request', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planId: selectedPlanId,
+            customConfig: customSliderState,
+            addonIds: Array.from(selectedAddonIds),
+            registrationData: reg
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showCheckoutAlert('✅ ' + data.message, true);
+          document.getElementById('subscriptionCheckoutForm').reset();
+        } else {
+          showCheckoutAlert(data.message || 'Failed to submit plan request.');
+        }
+      } catch (err) {
+        showCheckoutAlert('Network error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+      }
+    }
+
+    async function loadLiveSubscriptionConfig() {
+      renderLandingPricing();
+      try {
+        const res = await fetch(window.API_BASE + '/api/subscriptions/config');
+        const data = await res.json();
+        if (res.ok && data && data.success) {
+          subConfig = {
+            ...subConfig,
+            currency: data.currency || 'INR',
+            whatsappSalesNumber: data.whatsappSalesNumber || '917021056404',
+            razorpayKeyId: data.razorpayKeyId || '',
+            isRazorpayConfigured: Boolean(data.isRazorpayConfigured),
+            plans: (Array.isArray(data.plans) && data.plans.length) ? data.plans : subConfig.plans,
+            addons: Array.isArray(data.addons) ? data.addons : subConfig.addons
+          };
+          const customPlan = subConfig.plans.find(p => p.isCustom || p.id === 'customized');
+          if (customPlan) {
+            customSliderState.parties = Number(customPlan.maxCustomersLimit) || 2000;
+            customSliderState.staff = Number(customPlan.maxStaffLimit) || 15;
+            customSliderState.messages = Number(customPlan.dailyMessageLimit) || 500;
+            customSliderState.durationMonths = Number(customPlan.durationMonths) || 1;
+          }
+          renderLandingPricing();
+        }
+      } catch (e) {
+        console.warn('Using default subscription plans fallback:', e.message);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadLiveSubscriptionConfig);
   </script>
 
 </body>

@@ -133,6 +133,9 @@ router.post('/drive-backup', requireLogin, async (req, res) => {
     }
     try {
         const adminUser = await User.findById(req.session.adminId).select('+googleDriveToken').lean();
+        if (adminUser && adminUser.featureAccess && adminUser.featureAccess.allowGoogleDriveBackup === false) {
+            return res.status(403).json({ success: false, message: "Google Drive Cloud Backup is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on." });
+        }
         if (!adminUser || !adminUser.googleDriveToken) {
             return res.status(400).json({ success: false, message: "Google Drive not linked." });
         }
@@ -363,6 +366,9 @@ router.post('/import', upload.single('excelFile'), requireLogin, async (req, res
         if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded." });
 
         const adminUser = await User.findById(req.session.adminId);
+        if (adminUser && adminUser.featureAccess && adminUser.featureAccess.allowExcelImport === false) {
+            return res.status(403).json({ success: false, message: "Bulk Excel Import is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin." });
+        }
         const maxCust = adminUser ? (adminUser.maxCustomersLimit ?? 500) : 500;
         if (maxCust > 0) {
             const currentPartyCount = await Customer.countDocuments({ adminId: req.session.adminId });

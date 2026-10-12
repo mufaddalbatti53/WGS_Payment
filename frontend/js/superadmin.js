@@ -48,17 +48,23 @@ document.addEventListener('DOMContentLoaded', () => {
         limitsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('modalAdminId').value;
+            const planName = (document.getElementById('modalPlanName')?.value || '').trim();
             const maxStaffLimit = document.getElementById('modalMaxStaff').value;
             const maxCustomersLimit = document.getElementById('modalMaxCustomers').value;
             const dailyMessageLimit = document.getElementById('modalDailyMessages').value;
             const planExpiryDate = document.getElementById('modalPlanExpiry').value;
             const status = document.getElementById('modalStatus').value;
+            const featureAccess = {
+                allowGoogleDriveBackup: document.getElementById('modalAllowGDrive')?.checked !== false,
+                allowExcelImport: document.getElementById('modalAllowExcel')?.checked !== false,
+                allowPdfExport: document.getElementById('modalAllowPdf')?.checked !== false
+            };
 
             try {
                 const res = await apiJson(`/api/superadmin/update-limits/${id}`, {
                     method: 'POST',
                     body: JSON.stringify({
-                        maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status
+                        planName, maxStaffLimit, maxCustomersLimit, dailyMessageLimit, planExpiryDate, status, featureAccess
                     })
                 });
                 if (res && !res.success) {
@@ -73,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+let currentPlanConfigState = null;
 
 async function loadDashboard() {
     try {
@@ -104,6 +112,11 @@ async function loadDashboard() {
         renderApproved(approvedUsers);
         renderSuspended(suspendedUsers);
         renderRejected(rejectedUsers);
+
+        if (data.planConfig) {
+            currentPlanConfigState = data.planConfig;
+            renderPlansEditor(currentPlanConfigState);
+        }
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
@@ -193,13 +206,31 @@ function closeLimitsModal() {
     document.getElementById('limitsModal').style.display = 'none';
 }
 
-function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, planExpiry, status, rawStaff) {
+function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, planExpiry, status, rawStaff, planName, rawFeatureAccess) {
     document.getElementById('modalAdminId').value = id;
     document.getElementById('limitAdminName').innerText = username;
+    const planNameInput = document.getElementById('modalPlanName');
+    if (planNameInput) planNameInput.value = (planName && planName !== 'undefined' && planName !== 'null') ? planName : 'Custom / Standard';
     document.getElementById('modalMaxStaff').value = (maxStaff !== undefined && maxStaff !== null && maxStaff !== 'undefined' && maxStaff !== 'null') ? maxStaff : 5;
     document.getElementById('modalMaxCustomers').value = (maxParties !== undefined && maxParties !== null && maxParties !== 'undefined' && maxParties !== 'null') ? maxParties : 500;
     document.getElementById('modalDailyMessages').value = (dailyMsgs !== undefined && dailyMsgs !== null && dailyMsgs !== 'undefined' && dailyMsgs !== 'null') ? dailyMsgs : 100;
     document.getElementById('modalStatus').value = status || 'approved';
+
+    let fa = { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true };
+    try {
+        if (typeof rawFeatureAccess === 'string' && rawFeatureAccess !== 'undefined' && rawFeatureAccess !== 'null') {
+            fa = JSON.parse(decodeURIComponent(rawFeatureAccess));
+        } else if (rawFeatureAccess && typeof rawFeatureAccess === 'object') {
+            fa = rawFeatureAccess;
+        }
+    } catch (e) {}
+
+    const gdriveChk = document.getElementById('modalAllowGDrive');
+    const excelChk = document.getElementById('modalAllowExcel');
+    const pdfChk = document.getElementById('modalAllowPdf');
+    if (gdriveChk) gdriveChk.checked = fa.allowGoogleDriveBackup !== false;
+    if (excelChk) excelChk.checked = fa.allowExcelImport !== false;
+    if (pdfChk) pdfChk.checked = fa.allowPdfExport !== false;
     
     if (planExpiry && planExpiry !== 'null' && planExpiry !== 'undefined') {
         const d = new Date(planExpiry);
@@ -248,6 +279,23 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
     document.getElementById('limitsModal').style.display = 'flex';
 }
 
+function buildPlanBadgeHtml(u) {
+    const planLabel = u.planName || 'Standard';
+    const addons = Array.isArray(u.activeAddons) && u.activeAddons.length
+        ? `<div style="font-size:10.5px; color:#4f46e5; font-weight:700; margin-top:3px;">🧩 +${u.activeAddons.length} Add-on${u.activeAddons.length > 1 ? 's' : ''}: ${u.activeAddons.map(a => a.name).join(', ')}</div>`
+        : '';
+    const payLine = u.lastPaymentId
+        ? `<div style="font-size:10.5px; color:#059669; font-weight:700; margin-top:2px;">💳 Paid ₹${Number(u.lastAmountPaid || 0).toLocaleString('en-IN')} (${u.lastPaymentId})</div>`
+        : (u.lastAmountPaid > 0 ? `<div style="font-size:10.5px; color:#d97706; font-weight:700; margin-top:2px;">🧾 Quoted: ₹${Number(u.lastAmountPaid).toLocaleString('en-IN')}</div>` : '');
+    return `
+        <div style="margin-top:4px;">
+            <span style="display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px; font-size:10.5px; font-weight:800;">💎 ${planLabel}</span>
+            ${addons}
+            ${payLine}
+        </div>
+    `;
+}
+
 function renderPending(users) {
     const tbody = document.getElementById('pendingTbody');
     if (!users.length) {
@@ -255,7 +303,6 @@ function renderPending(users) {
         return;
     }
     
-    // reset wrapper innerHTML back to table structure if it was empty state before
     if (document.getElementById('pendingWrapper').querySelector('.empty-state')) {
         document.getElementById('pendingWrapper').innerHTML = `
         <table>
@@ -281,6 +328,8 @@ function renderPending(users) {
         if (dispEmail) contactHtml.push(`<a href="mailto:${dispEmail}" class="contact-item">✉️ ${dispEmail}</a>`);
         if (dispPhone) contactHtml.push(`<a href="tel:${dispPhone}" class="contact-item">📞 ${dispPhone}</a>`);
         if (!u.companyName && !dispEmail && !dispPhone) contactHtml.push(`<span style="color:var(--text-muted);">No contact info</span>`);
+        const rawStaff = encodeURIComponent(JSON.stringify(u.staffList || []));
+        const rawFA = encodeURIComponent(JSON.stringify(u.featureAccess || {}));
 
         html += `
             <tr>
@@ -294,12 +343,16 @@ function renderPending(users) {
                             <div class="username-title">${u.username}</div>
                             ${u.companyName ? `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">${u.companyName}</div>` : ''}
                             <span class="status-badge-pill pending">PENDING</span>
+                            ${buildPlanBadgeHtml(u)}
                         </div>
                     </div>
                 </td>
                 <td>
                     <div class="contact-info-block">
                         ${contactHtml.join('')}
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                            Quotas: <strong>${u.maxCustomersLimit || 500}</strong> Parties · <strong>${u.maxStaffLimit || 5}</strong> Staff · <strong>${u.dailyMessageLimit || 100}</strong> Msgs
+                        </div>
                     </div>
                 </td>
                 <td>
@@ -315,6 +368,8 @@ function renderPending(users) {
                 <td>
                     <div class="action-btn-group">
                         <button type="button" class="btn-action-soft btn-action-approve" style="width:100%;" onclick="actionApprove('${u._id}')">Approve ✅</button>
+                        <button type="button" class="btn-action-soft btn-action-manage" style="width:100%;"
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}')">⚙️ Edit Plan & Quotas</button>
                         <button type="button" class="btn-action-soft btn-action-revoke" style="width:100%;" onclick="actionReject('${u._id}', '${escapeJsStr(u.username)}', false)">Reject ❌</button>
                     </div>
                 </td>
@@ -366,6 +421,7 @@ function renderApproved(users) {
         if (!u.companyName && !dispEmail && !dispPhone) contactHtml.push(`<span style="color:var(--text-muted);">No contact info</span>`);
 
         const rawStaff = encodeURIComponent(JSON.stringify(u.staffList || []));
+        const rawFA = encodeURIComponent(JSON.stringify(u.featureAccess || {}));
 
         html += `
             <tr>
@@ -379,6 +435,7 @@ function renderApproved(users) {
                             <div class="username-title">${u.username}</div>
                             ${u.companyName ? `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">${u.companyName}</div>` : ''}
                             <span class="status-badge-pill approved">APPROVED</span>
+                            ${buildPlanBadgeHtml(u)}
                         </div>
                     </div>
                 </td>
@@ -437,7 +494,7 @@ function renderApproved(users) {
                     <div class="action-btn-group">
                         <button type="button" class="btn-action-soft btn-action-suspend" style="width:100%;" onclick="actionToggleSuspend('${u._id}', 'suspend', '${escapeJsStr(u.username)}')">⊗ Suspend</button>
                         <button type="button" class="btn-action-soft btn-action-manage"
-                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}')">⊕ Manage Admin & Staff</button>
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}')">⊕ Manage Plan & Access</button>
                         <button type="button" class="btn-action-soft btn-action-revoke" style="width:100%;" onclick="actionReject('${u._id}', '${escapeJsStr(u.username)}', true)">⊘ Revoke</button>
                     </div>
                 </td>
@@ -482,6 +539,7 @@ function renderSuspended(users) {
         if (!u.companyName && !dispEmail && !dispPhone) contactHtml.push(`<span style="color:var(--text-muted);">No contact info</span>`);
 
         const rawStaff = encodeURIComponent(JSON.stringify(u.staffList || []));
+        const rawFA = encodeURIComponent(JSON.stringify(u.featureAccess || {}));
 
         html += `
             <tr>
@@ -495,6 +553,7 @@ function renderSuspended(users) {
                             <div class="username-title">${u.username}</div>
                             ${u.companyName ? `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">${u.companyName}</div>` : ''}
                             <span class="status-badge-pill suspended">SUSPENDED</span>
+                            ${buildPlanBadgeHtml(u)}
                         </div>
                     </div>
                 </td>
@@ -524,7 +583,7 @@ function renderSuspended(users) {
                     <div class="action-btn-group">
                         <button type="button" class="btn-action-soft btn-action-approve" style="width:100%;" onclick="actionToggleSuspend('${u._id}', 'resume', '${escapeJsStr(u.username)}')">▶️ Resume Account</button>
                         <button type="button" class="btn-action-soft btn-action-manage"
-                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}')">⚙️ Credentials</button>
+                            onclick="openLimitsModalFromData('${u._id}', '${escapeJsStr(u.username)}', '${u.maxStaffLimit}', '${u.maxCustomersLimit}', '${u.dailyMessageLimit}', '${u.planExpiryDate}', '${u.status}', '${rawStaff}', '${escapeJsStr(u.planName)}', '${rawFA}')">⚙️ Plan & Access</button>
                     </div>
                 </td>
             </tr>
@@ -600,3 +659,322 @@ function renderRejected(users) {
     });
     document.getElementById('rejectedTbody').innerHTML = html;
 }
+
+// ── SUBSCRIPTION PLANS, ADD-ONS & RAZORPAY EDITOR ──
+function renderPlansEditor(config) {
+    if (!config) return;
+
+    const rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
+    const rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
+    const waSalesEl = document.getElementById('whatsappSalesInput');
+    const rzpBadge = document.getElementById('rzpStatusBadge');
+
+    if (rzpKeyIdEl) rzpKeyIdEl.value = config.razorpayKeyId || '';
+    if (rzpKeySecretEl) rzpKeySecretEl.value = config.razorpayKeySecret || '';
+    if (waSalesEl) waSalesEl.value = config.whatsappSalesNumber || '917021056404';
+
+    if (rzpBadge) {
+        if (config.razorpayKeyId && config.razorpayKeySecret) {
+            const isLive = config.razorpayKeyId.startsWith('rzp_live_');
+            rzpBadge.style.background = '#dcfce7';
+            rzpBadge.style.color = '#166534';
+            rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Keys Active' : '🟢 Razorpay TEST Keys Active';
+        } else {
+            rzpBadge.style.background = '#fef3c7';
+            rzpBadge.style.color = '#b45309';
+            rzpBadge.textContent = '⚠️ Razorpay Keys Not Set (Request Mode)';
+        }
+    }
+
+    const plansGrid = document.getElementById('plansEditorGrid');
+    if (plansGrid) {
+        const plans = config.plans || [];
+        plansGrid.innerHTML = plans.map((plan, idx) => {
+            const isCustom = Boolean(plan.isCustom || plan.id === 'customized');
+            const fa = plan.featureAccess || {};
+            const featuresText = (plan.features || []).join('\n');
+            return `
+                <div class="plan-edit-card ${plan.isPopular ? 'popular' : ''}" data-plan-idx="${idx}" data-plan-id="${escapeJsStr(plan.id)}">
+                    <div class="plan-edit-card-header">
+                        <span class="plan-tier-tag">${isCustom ? '🎛️ Tier 3: Customized' : (idx === 0 ? '🌱 Tier 1: Basic' : '🚀 Tier 2: Pro')}</span>
+                        <label style="font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" class="plan-popular-chk" ${plan.isPopular ? 'checked' : ''}> Highlight Popular
+                        </label>
+                    </div>
+
+                    <div class="pm-row-2">
+                        <div class="pm-field">
+                            <label>Plan Title</label>
+                            <input type="text" class="plan-name-inp" value="${escapeJsStr(plan.name || '')}" required>
+                        </div>
+                        <div class="pm-field">
+                            <label>Top Badge Text</label>
+                            <input type="text" class="plan-badge-inp" value="${escapeJsStr(plan.badge || '')}">
+                        </div>
+                    </div>
+
+                    <div class="pm-field">
+                        <label>Subtitle / Tagline</label>
+                        <input type="text" class="plan-tagline-inp" value="${escapeJsStr(plan.tagline || '')}">
+                    </div>
+
+                    <div class="pm-row-2">
+                        <div class="pm-field">
+                            <label>${isCustom ? 'Starting Display Price (₹)' : 'Plan Price (₹)'}</label>
+                            <input type="number" class="plan-price-inp" min="0" value="${Number(plan.price) || 0}">
+                        </div>
+                        <div class="pm-field">
+                            <label>Default Validity (Months)</label>
+                            <input type="number" class="plan-duration-inp" min="1" max="60" value="${Number(plan.durationMonths) || 1}">
+                        </div>
+                    </div>
+
+                    <div class="pm-row-3">
+                        <div class="pm-field">
+                            <label>${isCustom ? 'Default Parties' : 'Max Parties'}</label>
+                            <input type="number" class="plan-parties-inp" min="0" value="${Number(plan.maxCustomersLimit) || 0}">
+                        </div>
+                        <div class="pm-field">
+                            <label>${isCustom ? 'Default Staff' : 'Max Staff'}</label>
+                            <input type="number" class="plan-staff-inp" min="0" value="${Number(plan.maxStaffLimit) || 0}">
+                        </div>
+                        <div class="pm-field">
+                            <label>${isCustom ? 'Default Msgs/Day' : 'Msgs / Day'}</label>
+                            <input type="number" class="plan-msgs-inp" min="0" value="${Number(plan.dailyMessageLimit) || 0}">
+                        </div>
+                    </div>
+
+                    ${isCustom ? `
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:12px;">
+                        <span class="access-checks-title" style="color:#1e40af;">🧮 Custom Plan Calculator Unit Rates (₹ / Month)</span>
+                        <div class="pm-row-2">
+                            <div class="pm-field" style="margin-bottom:8px;">
+                                <label>Base Platform Fee (₹)</label>
+                                <input type="number" class="plan-base-price-inp" min="0" value="${Number(plan.basePrice ?? 499)}">
+                            </div>
+                            <div class="pm-field" style="margin-bottom:8px;">
+                                <label>Per 100 Parties (₹)</label>
+                                <input type="number" class="plan-rate-parties-inp" min="0" value="${Number(plan.pricePer100Parties ?? 120)}">
+                            </div>
+                        </div>
+                        <div class="pm-row-2">
+                            <div class="pm-field" style="margin-bottom:0;">
+                                <label>Per Staff Account (₹)</label>
+                                <input type="number" class="plan-rate-staff-inp" min="0" value="${Number(plan.pricePerStaff ?? 80)}">
+                            </div>
+                            <div class="pm-field" style="margin-bottom:0;">
+                                <label>Per 50 Daily Msgs (₹)</label>
+                                <input type="number" class="plan-rate-msgs-inp" min="0" value="${Number(plan.pricePer50Messages ?? 60)}">
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="access-checks-box">
+                        <span class="access-checks-title">🔐 Included Feature Access</span>
+                        <label class="access-check-row">
+                            <input type="checkbox" class="plan-fa-gdrive" ${fa.allowGoogleDriveBackup !== false ? 'checked' : ''}>
+                            <span>☁️ Google Drive Cloud Backup</span>
+                        </label>
+                        <label class="access-check-row">
+                            <input type="checkbox" class="plan-fa-excel" ${fa.allowExcelImport !== false ? 'checked' : ''}>
+                            <span>📥 Bulk Excel Party Import</span>
+                        </label>
+                        <label class="access-check-row">
+                            <input type="checkbox" class="plan-fa-pdf" ${fa.allowPdfExport !== false ? 'checked' : ''}>
+                            <span>📄 Branded PDF Statement Export</span>
+                        </label>
+                    </div>
+
+                    <div class="pm-field" style="margin-bottom:0;">
+                        <label>Bullet Features Shown on Card (1 per line)</label>
+                        <textarea class="plan-features-txt">${featuresText}</textarea>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderAddonsEditorList(config.addons || []);
+}
+
+function renderAddonsEditorList(addons) {
+    const container = document.getElementById('addonsEditorList');
+    if (!container) return;
+
+    if (!addons.length) {
+        container.innerHTML = `<div style="padding:18px; text-align:center; color:var(--text-muted); font-size:13px;">No add-ons configured. Click "+ Add New Add-on" to create one.</div>`;
+        return;
+    }
+
+    container.innerHTML = addons.map((addon, idx) => `
+        <div class="addon-edit-row" data-addon-id="${escapeJsStr(addon.id || `addon_${idx}`)}">
+            <div class="pm-field" style="margin:0;">
+                <label>Add-on Name</label>
+                <input type="text" class="addon-name-inp" value="${escapeJsStr(addon.name || '')}" placeholder="e.g. +500 Extra Parties">
+            </div>
+            <div class="pm-field" style="margin:0;">
+                <label>Description</label>
+                <input type="text" class="addon-desc-inp" value="${escapeJsStr(addon.description || '')}" placeholder="Short benefit description">
+            </div>
+            <div class="pm-field" style="margin:0;">
+                <label>Boost Type</label>
+                <select class="addon-type-sel">
+                    <option value="parties" ${addon.type === 'parties' ? 'selected' : ''}>📊 Extra Parties</option>
+                    <option value="staff" ${addon.type === 'staff' ? 'selected' : ''}>👥 Extra Staff</option>
+                    <option value="messages" ${addon.type === 'messages' ? 'selected' : ''}>💬 Extra Daily Msgs</option>
+                    <option value="gdrive" ${addon.type === 'gdrive' ? 'selected' : ''}>☁️ Cloud Backup Unlock</option>
+                    <option value="duration" ${addon.type === 'duration' ? 'selected' : ''}>📅 Extra Validity (Months)</option>
+                </select>
+            </div>
+            <div class="pm-field" style="margin:0;">
+                <label>Boost Value</label>
+                <input type="number" class="addon-val-inp" min="0" value="${Number(addon.value) || 0}">
+            </div>
+            <div class="pm-field" style="margin:0;">
+                <label>Price (₹)</label>
+                <input type="number" class="addon-price-inp" min="0" value="${Number(addon.price) || 0}">
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;">
+                <button type="button" onclick="this.closest('.addon-edit-row').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addNewAddonRow() {
+    const container = document.getElementById('addonsEditorList');
+    if (!container) return;
+    if (container.querySelector('.addon-edit-row') === null) {
+        container.innerHTML = '';
+    }
+    const row = document.createElement('div');
+    row.className = 'addon-edit-row';
+    row.setAttribute('data-addon-id', 'addon_' + Date.now());
+    row.innerHTML = `
+        <div class="pm-field" style="margin:0;">
+            <label>Add-on Name</label>
+            <input type="text" class="addon-name-inp" value="+250 Extra Parties" placeholder="e.g. +500 Extra Parties">
+        </div>
+        <div class="pm-field" style="margin:0;">
+            <label>Description</label>
+            <input type="text" class="addon-desc-inp" value="Expand your customer ledger limit" placeholder="Short benefit description">
+        </div>
+        <div class="pm-field" style="margin:0;">
+            <label>Boost Type</label>
+            <select class="addon-type-sel">
+                <option value="parties" selected>📊 Extra Parties</option>
+                <option value="staff">👥 Extra Staff</option>
+                <option value="messages">💬 Extra Daily Msgs</option>
+                <option value="gdrive">☁️ Cloud Backup Unlock</option>
+                <option value="duration">📅 Extra Validity (Months)</option>
+            </select>
+        </div>
+        <div class="pm-field" style="margin:0;">
+            <label>Boost Value</label>
+            <input type="number" class="addon-val-inp" min="0" value="250">
+        </div>
+        <div class="pm-field" style="margin:0;">
+            <label>Price (₹)</label>
+            <input type="number" class="addon-price-inp" min="0" value="299">
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;">
+            <button type="button" onclick="this.closest('.addon-edit-row').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button>
+        </div>
+    `;
+    container.appendChild(row);
+}
+
+async function saveSubscriptionSettings() {
+    const btn = document.getElementById('btnSavePlansConfig');
+    const alertBox = document.getElementById('plansSaveAlert');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Saving Plans & Razorpay Settings...';
+    }
+
+    try {
+        const razorpayKeyId = (document.getElementById('rzpKeyIdInput')?.value || '').trim();
+        const razorpayKeySecret = (document.getElementById('rzpKeySecretInput')?.value || '').trim();
+        const whatsappSalesNumber = (document.getElementById('whatsappSalesInput')?.value || '').trim();
+
+        const planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
+        const plans = planCards.map((card, idx) => {
+            const planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
+            const isCustom = planId === 'customized';
+            return {
+                id: planId,
+                name: card.querySelector('.plan-name-inp')?.value || 'Plan',
+                badge: card.querySelector('.plan-badge-inp')?.value || '',
+                tagline: card.querySelector('.plan-tagline-inp')?.value || '',
+                price: Number(card.querySelector('.plan-price-inp')?.value || 0),
+                durationMonths: Number(card.querySelector('.plan-duration-inp')?.value || 1),
+                maxCustomersLimit: Number(card.querySelector('.plan-parties-inp')?.value || 0),
+                maxStaffLimit: Number(card.querySelector('.plan-staff-inp')?.value || 0),
+                dailyMessageLimit: Number(card.querySelector('.plan-msgs-inp')?.value || 0),
+                isPopular: Boolean(card.querySelector('.plan-popular-chk')?.checked),
+                isCustom,
+                basePrice: Number(card.querySelector('.plan-base-price-inp')?.value ?? 499),
+                pricePer100Parties: Number(card.querySelector('.plan-rate-parties-inp')?.value ?? 120),
+                pricePerStaff: Number(card.querySelector('.plan-rate-staff-inp')?.value ?? 80),
+                pricePer50Messages: Number(card.querySelector('.plan-rate-msgs-inp')?.value ?? 60),
+                featureAccess: {
+                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive')?.checked),
+                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel')?.checked),
+                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf')?.checked)
+                },
+                features: (card.querySelector('.plan-features-txt')?.value || '')
+                    .split('\n')
+                    .map(s => s.trim())
+                    .filter(Boolean),
+                isActive: true
+            };
+        });
+
+        const addonRows = Array.from(document.querySelectorAll('#addonsEditorList .addon-edit-row'));
+        const addons = addonRows.map((row, idx) => ({
+            id: row.getAttribute('data-addon-id') || `addon_${Date.now()}_${idx}`,
+            name: row.querySelector('.addon-name-inp')?.value || 'Add-on',
+            description: row.querySelector('.addon-desc-inp')?.value || '',
+            type: row.querySelector('.addon-type-sel')?.value || 'parties',
+            value: Number(row.querySelector('.addon-val-inp')?.value || 0),
+            price: Number(row.querySelector('.addon-price-inp')?.value || 0),
+            isActive: true
+        }));
+
+        const res = await apiJson('/api/superadmin/subscription-settings', {
+            method: 'POST',
+            body: JSON.stringify({
+                razorpayKeyId,
+                razorpayKeySecret,
+                whatsappSalesNumber,
+                plans,
+                addons
+            })
+        });
+
+        if (res && res.success) {
+            currentPlanConfigState = res.planConfig;
+            renderPlansEditor(currentPlanConfigState);
+            if (alertBox) {
+                alertBox.innerHTML = `<div class="alert-msg success">✅ ${res.message}</div>`;
+                setTimeout(() => { if (alertBox) alertBox.innerHTML = ''; }, 5000);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            if (alertBox) {
+                alertBox.innerHTML = `<div class="alert-msg error">⚠️ ${(res && res.message) || 'Failed to save subscription settings.'}</div>`;
+            }
+        }
+    } catch (err) {
+        if (alertBox) {
+            alertBox.innerHTML = `<div class="alert-msg error">⚠️ ${err.message}</div>`;
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '💾 Save All Plans, Add-ons & Razorpay Settings';
+        }
+    }
+}
+

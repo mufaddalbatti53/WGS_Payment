@@ -29,6 +29,13 @@ router.get('/', async (req, res) => {
 
         const adminUser = await User.findById(req.session.adminId).select('+googleDriveToken').lean() || {};
         adminUser.isGoogleDriveLinked = Boolean(adminUser.googleDriveToken || adminUser.googleEmail);
+        delete adminUser.googleDriveToken;
+        delete adminUser.password;
+        adminUser.featureAccess = {
+            allowGoogleDriveBackup: adminUser.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(adminUser.featureAccess.allowGoogleDriveBackup) : true,
+            allowExcelImport: adminUser.featureAccess?.allowExcelImport !== undefined ? Boolean(adminUser.featureAccess.allowExcelImport) : true,
+            allowPdfExport: adminUser.featureAccess?.allowPdfExport !== undefined ? Boolean(adminUser.featureAccess.allowPdfExport) : true
+        };
 
         if (adminUser && adminUser._id) {
             if (adminUser.status === 'suspended') {
