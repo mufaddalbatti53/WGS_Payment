@@ -52,10 +52,10 @@ const userSchema = new mongoose.Schema({
     dailyMessageLimit: { type: Number, default: 100 },
     dailyMessageCount: { type: Number, default: 0 },
     lastMessageResetDate: { type: Date, default: Date.now },
-    planDurationMonths: { type: Number, default: 0 },
+    planDurationMonths: { type: Number, default: 12 },
     planExpiryDate: { type: Date, default: null },
-    planId: { type: String, default: 'standard' },
-    planName: { type: String, default: 'Standard Plan' },
+    planId: { type: String, default: 'basic' },
+    planName: { type: String, default: 'Basic Plan (Yearly)' },
     activeAddons: {
         type: [{
             id: String,

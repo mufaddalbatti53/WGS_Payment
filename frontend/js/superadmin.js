@@ -720,12 +720,12 @@ function renderPlansEditor(config) {
 
                     <div class="pm-row-2">
                         <div class="pm-field">
-                            <label>${isCustom ? 'Starting Display Price (₹)' : 'Plan Price (₹)'}</label>
+                            <label>${isCustom ? 'Starting Yearly Price (₹ / Yr)' : 'Yearly Plan Price (₹ / Yr)'}</label>
                             <input type="number" class="plan-price-inp" min="0" value="${Number(plan.price) || 0}">
                         </div>
                         <div class="pm-field">
                             <label>Default Validity (Months)</label>
-                            <input type="number" class="plan-duration-inp" min="1" max="60" value="${Number(plan.durationMonths) || 1}">
+                            <input type="number" class="plan-duration-inp" min="1" max="60" value="${Number(plan.durationMonths) || 12}">
                         </div>
                     </div>
 
@@ -746,25 +746,25 @@ function renderPlansEditor(config) {
 
                     ${isCustom ? `
                     <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:12px;">
-                        <span class="access-checks-title" style="color:#1e40af;">🧮 Custom Plan Calculator Unit Rates (₹ / Month)</span>
+                        <span class="access-checks-title" style="color:#1e40af;">🧮 Custom Plan Calculator Unit Rates (₹ / Year)</span>
                         <div class="pm-row-2">
                             <div class="pm-field" style="margin-bottom:8px;">
-                                <label>Base Platform Fee (₹)</label>
-                                <input type="number" class="plan-base-price-inp" min="0" value="${Number(plan.basePrice ?? 499)}">
+                                <label>Base Platform Fee (₹/Yr)</label>
+                                <input type="number" class="plan-base-price-inp" min="0" value="${Number(plan.basePrice ?? 2999)}">
                             </div>
                             <div class="pm-field" style="margin-bottom:8px;">
-                                <label>Per 100 Parties (₹)</label>
-                                <input type="number" class="plan-rate-parties-inp" min="0" value="${Number(plan.pricePer100Parties ?? 120)}">
+                                <label>Per 100 Parties (₹/Yr)</label>
+                                <input type="number" class="plan-rate-parties-inp" min="0" value="${Number(plan.pricePer100Parties ?? 500)}">
                             </div>
                         </div>
                         <div class="pm-row-2">
                             <div class="pm-field" style="margin-bottom:0;">
-                                <label>Per Staff Account (₹)</label>
-                                <input type="number" class="plan-rate-staff-inp" min="0" value="${Number(plan.pricePerStaff ?? 80)}">
+                                <label>Per Staff Account (₹/Yr)</label>
+                                <input type="number" class="plan-rate-staff-inp" min="0" value="${Number(plan.pricePerStaff ?? 400)}">
                             </div>
                             <div class="pm-field" style="margin-bottom:0;">
-                                <label>Per 50 Daily Msgs (₹)</label>
-                                <input type="number" class="plan-rate-msgs-inp" min="0" value="${Number(plan.pricePer50Messages ?? 60)}">
+                                <label>Per 50 Daily Msgs (₹/Yr)</label>
+                                <input type="number" class="plan-rate-msgs-inp" min="0" value="${Number(plan.pricePer50Messages ?? 300)}">
                             </div>
                         </div>
                     </div>
@@ -908,16 +908,16 @@ async function saveSubscriptionSettings() {
                 badge: card.querySelector('.plan-badge-inp')?.value || '',
                 tagline: card.querySelector('.plan-tagline-inp')?.value || '',
                 price: Number(card.querySelector('.plan-price-inp')?.value || 0),
-                durationMonths: Number(card.querySelector('.plan-duration-inp')?.value || 1),
+                durationMonths: Number(card.querySelector('.plan-duration-inp')?.value || 12),
                 maxCustomersLimit: Number(card.querySelector('.plan-parties-inp')?.value || 0),
                 maxStaffLimit: Number(card.querySelector('.plan-staff-inp')?.value || 0),
                 dailyMessageLimit: Number(card.querySelector('.plan-msgs-inp')?.value || 0),
                 isPopular: Boolean(card.querySelector('.plan-popular-chk')?.checked),
                 isCustom,
-                basePrice: Number(card.querySelector('.plan-base-price-inp')?.value ?? 499),
-                pricePer100Parties: Number(card.querySelector('.plan-rate-parties-inp')?.value ?? 120),
-                pricePerStaff: Number(card.querySelector('.plan-rate-staff-inp')?.value ?? 80),
-                pricePer50Messages: Number(card.querySelector('.plan-rate-msgs-inp')?.value ?? 60),
+                basePrice: Number(card.querySelector('.plan-base-price-inp')?.value ?? 2999),
+                pricePer100Parties: Number(card.querySelector('.plan-rate-parties-inp')?.value ?? 500),
+                pricePerStaff: Number(card.querySelector('.plan-rate-staff-inp')?.value ?? 400),
+                pricePer50Messages: Number(card.querySelector('.plan-rate-msgs-inp')?.value ?? 300),
                 featureAccess: {
                     allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive')?.checked),
                     allowExcelImport: Boolean(card.querySelector('.plan-fa-excel')?.checked),

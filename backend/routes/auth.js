@@ -74,7 +74,6 @@ router.post('/login', loginLimiter, async (req, res) => {
             if (user.status === 'pending') return res.json({ success: false, error: "⏳ Your account is pending Super Admin approval. Please wait for approval before logging in." });
             if (user.status === 'suspended') return res.json({ success: false, error: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account." });
             if (user.status === 'rejected') return res.json({ success: false, error: "❌ Your access request was not approved. Please contact support." });
-            if (user.planExpiryDate && new Date() > new Date(user.planExpiryDate)) return res.json({ success: false, error: "⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription." });
         } else if (user.role === 'staff') {
             const parentAdmin = await User.findById(user.adminId).lean();
             if (parentAdmin) {

@@ -16,6 +16,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
         :root {
             --primary: #27ae60;
@@ -779,7 +780,7 @@
         }
 
         @media print {
-            .sidebar, .bulk-action-bar, .back-to-launcher, #subscriptionWarningBox, #quotaAlertBox, .table-controls, .action-buttons, .m-tools, .btn-table, #toast, .desktop-only:not(table, thead, tbody, tr, th, td) {
+            .sidebar, .bulk-action-bar, .back-to-launcher, #subscriptionWarningBox, #quotaAlertBox, #topRightSubContainer, #renewalPopupModal, .table-controls, .action-buttons, .m-tools, .btn-table, #toast, .desktop-only:not(table, thead, tbody, tr, th, td) {
                 display: none !important;
             }
             .main-content {
@@ -789,10 +790,195 @@
             }
         }
 
+        /* ── TOP-RIGHT SUBSCRIPTION DETAILS PILL & POPUP ── */
+        .top-right-sub-container {
+            position: fixed;
+            top: 20px;
+            right: 28px;
+            z-index: 950;
+        }
+        .top-right-sub-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 50px;
+            padding: 8px 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.1);
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .top-right-sub-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+            border-color: var(--primary);
+        }
+        .top-right-sub-btn.near-expiry {
+            background: #fff7ed;
+            border-color: #f97316;
+            box-shadow: 0 8px 25px rgba(249, 115, 22, 0.22);
+            animation: subPulseOrange 2s infinite;
+        }
+        .top-right-sub-btn.expired {
+            background: #fef2f2;
+            border-color: #ef4444;
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.28);
+            animation: subPulseRed 1.8s infinite;
+        }
+        @keyframes subPulseOrange {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.35); }
+            50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
+        }
+        @keyframes subPulseRed {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+        }
+        .top-right-sub-popup {
+            display: none;
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            width: 390px;
+            max-width: calc(100vw - 24px);
+            max-height: calc(100vh - 90px);
+            overflow-y: auto;
+            background: #ffffff;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+            padding: 20px;
+            z-index: 960;
+        }
+        .top-right-sub-popup.open {
+            display: block;
+            animation: fadeInSubPopup 0.18s ease-out;
+        }
+        @keyframes fadeInSubPopup {
+            from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .renew-option-card {
+            flex: 1;
+            min-width: 240px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px;
+            cursor: pointer;
+            background: #ffffff;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .renew-option-card:hover {
+            border-color: #94a3b8;
+        }
+        .renew-option-card.selected {
+            border-color: #27ae60;
+            background: #f0fdf4;
+            box-shadow: 0 8px 24px rgba(39, 174, 96, 0.15);
+        }
+        @media (max-width: 850px) {
+            .top-right-sub-container {
+                top: 12px;
+                right: 12px;
+            }
+            .top-right-sub-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+
     </style>
 </head>
 
 <body>
+
+    <!-- TOP-RIGHT SUBSCRIPTION DETAILS PILL & POPUP (Admin Only) -->
+    <div id="topRightSubContainer" class="top-right-sub-container admin-only" style="display:none;">
+        <button type="button" id="topRightSubBtn" class="top-right-sub-btn" onclick="toggleTopRightSubPopup(event)">
+            <span style="font-size:16px;">💎</span>
+            <span id="topRightSubPlanText" style="font-size:13px; font-weight:800; color:#1e293b;">Yearly Plan</span>
+            <span id="topRightSubDaysBadge" style="font-size:11px; font-weight:800; padding:3px 9px; border-radius:20px; background:#dcfce7; color:#166534;">Active</span>
+            <span style="font-size:10px; color:#64748b;">▼</span>
+        </button>
+
+        <div id="topRightSubPopup" class="top-right-sub-popup" onclick="event.stopPropagation()">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px; margin-bottom:14px;">
+                <div>
+                    <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.6px;">Current Subscription</div>
+                    <div id="subPopupPlanName" style="font-size:18px; font-weight:900; color:#0f172a; margin-top:2px;">Basic Plan (Yearly)</div>
+                    <div style="display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+                        <span id="subPopupCycleBadge" style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; background:#e0f2fe; color:#0369a1;">📅 Yearly Plan (12 Months)</span>
+                        <span id="subPopupStatusBadge" style="font-size:11px; font-weight:800; padding:2px 8px; border-radius:6px; background:#dcfce7; color:#166534;">● Active</span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeTopRightSubPopup()" style="background:#f1f5f9; border:none; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:16px; color:#475569; font-weight:bold;">×</button>
+            </div>
+
+            <!-- Validity & Progress -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">
+                    <span>Valid Until: <strong id="subPopupExpiryDate" style="color:#0f172a;">--</strong></span>
+                    <span id="subPopupDaysLeftText" style="color:#16a34a; font-weight:800;">-- days left</span>
+                </div>
+                <div style="height:7px; background:#e2e8f0; border-radius:10px; overflow:hidden;">
+                    <div id="subPopupProgressBar" style="height:100%; width:100%; background:#22c55e; border-radius:10px; transition:width 0.3s;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-top:6px;">
+                    <span>Activated: <span id="subPopupApprovedAt">--</span></span>
+                    <span id="subPopupLastPaidInfo">Yearly Billing</span>
+                </div>
+            </div>
+
+            <!-- Live Quota Usage -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Plan Quotas & Live Usage</div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px; text-align:center;">
+                        <div style="font-size:10px; color:#64748b; font-weight:700;">PARTIES</div>
+                        <div id="subPopupQuotaParties" style="font-size:14px; font-weight:800; color:#0f172a; margin-top:2px;">0 / 500</div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px; text-align:center;">
+                        <div style="font-size:10px; color:#64748b; font-weight:700;">STAFF</div>
+                        <div id="subPopupQuotaStaff" style="font-size:14px; font-weight:800; color:#0f172a; margin-top:2px;">0 / 3</div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px; text-align:center;">
+                        <div style="font-size:10px; color:#64748b; font-weight:700;">MSGS / DAY</div>
+                        <div id="subPopupQuotaMsgs" style="font-size:14px; font-weight:800; color:#0f172a; margin-top:2px;">0 / 100</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Add-ons -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:6px;">Active Add-ons</div>
+                <div id="subPopupAddonsList" style="display:flex; flex-wrap:wrap; gap:6px; font-size:12px; color:#475569;">
+                    <span style="font-size:12px; color:#94a3b8;">No active add-ons</span>
+                </div>
+            </div>
+
+            <!-- Enabled Features -->
+            <div style="margin-bottom:16px;">
+                <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:6px;">Enabled Features</div>
+                <div id="subPopupFeaturesList" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+            </div>
+
+            <!-- Renewal Actions inside Top-Right Popup -->
+            <div style="border-top:1px solid #e2e8f0; padding-top:14px; display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Yearly Renewal Options</div>
+                <button type="button" id="subPopupBtnRenewWithAddons" onclick="openRenewalModal('with_addons')" style="width:100%; padding:10px 14px; border-radius:10px; border:none; background:linear-gradient(135deg,#27ae60,#16a34a); color:white; font-weight:800; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔄 Renew WITH Add-ons</span>
+                    <span id="subPopupPriceWithAddons">₹-- / Yr</span>
+                </button>
+                <button type="button" id="subPopupBtnRenewWithoutAddons" onclick="openRenewalModal('without_addons')" style="width:100%; padding:10px 14px; border-radius:10px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#1e293b; font-weight:800; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                    <span>⭕ Renew WITHOUT Add-ons (Base Plan)</span>
+                    <span id="subPopupPriceWithoutAddons">₹-- / Yr</span>
+                </button>
+                <a href="index.html#pricing" style="text-align:center; font-size:12px; color:#2563eb; font-weight:700; text-decoration:none; margin-top:4px;">⚡ Upgrade Plan or Add New Add-ons &rarr;</a>
+            </div>
+        </div>
+    </div>
 
     <div class="app-layout">
 
@@ -820,6 +1006,8 @@
                         Settings</a>
                     <a class="nav-item"
                         onclick="document.getElementById('changePasswordModal').style.display='block'">🔑 Change Password</a>
+                    <a class="nav-item"
+                        onclick="openRenewalModal()">💎 Subscription & Renew</a>
                 </div>
                 <div style="flex:1;"></div>
                 <a class="nav-item" href="javascript:void(0)" onclick="handleLogout()"
@@ -829,13 +1017,18 @@
 
         <main class="main-content">
 
-            <div id="subscriptionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
-                <div style="font-size:26px;">⏰</div>
-                <div>
-                    <strong style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
-                    <span style="color:#9a3412; font-size:13px; font-weight:600;">
-                        Your plan expires in <u id="subDaysLeft" style="font-weight:800; font-size:14px;"></u> (on <span id="subExpiryDate"></span>). Please contact Super Admin to renew your subscription.
-                    </span>
+            <div id="subscriptionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="font-size:26px;">⏰</div>
+                    <div>
+                        <strong id="subWarningTitle" style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
+                        <span id="subWarningDesc" style="color:#9a3412; font-size:13px; font-weight:600;">
+                            Your yearly plan expires in <u id="subDaysLeft" style="font-weight:800; font-size:14px;"></u> (on <span id="subExpiryDate"></span>). Renew now with or without add-ons to avoid interruption.
+                        </span>
+                    </div>
+                </div>
+                <div class="admin-only" style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" onclick="openRenewalModal('with_addons')" class="btn-primary" style="background:#ea580c; padding:9px 16px; font-size:13px;">🔄 Renew Subscription Now</button>
                 </div>
             </div>
 
@@ -1384,6 +1577,78 @@
 
                     <button type="submit" class="btn-primary" style="width:100%;">Update Password</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- AUTOMATIC RENEWAL REMINDER & CHECKOUT MODAL (With Add-ons vs Without Add-ons) -->
+        <div id="renewalPopupModal" class="modal" style="z-index: 2000;">
+            <div class="modal-content" style="max-width: 680px; width: 95%; border-radius: 24px; padding: 28px;">
+                <span id="renewalModalCloseBtn" class="close" onclick="closeRenewalModal()">&times;</span>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                    <div id="renewalModalIcon" style="width:46px; height:46px; border-radius:14px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:24px;">⏰</div>
+                    <div>
+                        <h3 id="renewalModalTitle" style="margin:0; font-size:20px; font-weight:900; color:#0f172a;">Renew Yearly Subscription</h3>
+                        <p id="renewalModalSubtitle" style="margin:3px 0 0; font-size:13px; color:#64748b;">Extend your subscription validity by 1 Full Year (12 Months)</p>
+                    </div>
+                </div>
+
+                <!-- Dynamic Expiry Alert Banner inside Modal -->
+                <div id="renewalModalAlertBanner" style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:14px; padding:12px 16px; margin-bottom:18px; font-size:13px; font-weight:700; color:#9a3412;">
+                    Your current plan (<strong id="renewalModalPlanName">Basic Plan (Yearly)</strong>) is valid until <strong id="renewalModalExpiryDate">--</strong>.
+                </div>
+
+                <div style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">
+                    Choose Your Yearly Renewal Option:
+                </div>
+
+                <!-- Side-by-Side Renewal Mode Cards: WITH Add-ons vs WITHOUT Add-ons -->
+                <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px;">
+                    <!-- Option 1: Renew WITH Add-ons -->
+                    <div id="renewCardWithAddons" class="renew-option-card selected" onclick="selectRenewalMode('with_addons')">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span id="renewWithAddonsBadge" style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:20px; background:#dcfce7; color:#166534; text-transform:uppercase;">✅ Recommended • Keep Add-ons</span>
+                            <input type="radio" name="dashboardRenewalMode" id="radioRenewWithAddons" value="with_addons" checked style="accent-color:#27ae60; width:18px; height:18px;">
+                        </div>
+                        <div style="font-size:16px; font-weight:900; color:#0f172a;">Renew WITH Add-ons</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:2px;">Base Yearly Plan + Your Active Add-ons</div>
+                        <div style="margin:12px 0; padding:10px 12px; background:#ffffff; border:1px solid #dcfce7; border-radius:12px;">
+                            <div style="font-size:24px; font-weight:900; color:#15803d;"><span id="renewWithAddonsTotal">₹--</span> <span style="font-size:12px; font-weight:700; color:#64748b;">/ Year</span></div>
+                            <div id="renewWithAddonsBreakdown" style="font-size:11px; color:#475569; margin-top:3px;">Base Plan + Add-ons</div>
+                        </div>
+                        <div id="renewWithAddonsQuotas" style="font-size:12px; color:#334155; line-height:1.6;"></div>
+                        <div id="renewWithAddonsList" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:4px;"></div>
+                    </div>
+
+                    <!-- Option 2: Renew WITHOUT Add-ons (Base Plan Only) -->
+                    <div id="renewCardWithoutAddons" class="renew-option-card" onclick="selectRenewalMode('without_addons')">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:20px; background:#f1f5f9; color:#475569; text-transform:uppercase;">⭕ Base Yearly Plan Only</span>
+                            <input type="radio" name="dashboardRenewalMode" id="radioRenewWithoutAddons" value="without_addons" style="accent-color:#27ae60; width:18px; height:18px;">
+                        </div>
+                        <div style="font-size:16px; font-weight:900; color:#0f172a;">Renew WITHOUT Add-ons</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:2px;">Base Yearly Plan Only (Removes Add-ons)</div>
+                        <div style="margin:12px 0; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+                            <div style="font-size:24px; font-weight:900; color:#0f172a;"><span id="renewWithoutAddonsTotal">₹--</span> <span style="font-size:12px; font-weight:700; color:#64748b;">/ Year</span></div>
+                            <div id="renewWithoutAddonsBreakdown" style="font-size:11px; color:#64748b; margin-top:3px;">Base Plan Only (₹0 Add-ons)</div>
+                        </div>
+                        <div id="renewWithoutAddonsQuotas" style="font-size:12px; color:#334155; line-height:1.6;"></div>
+                        <div style="margin-top:8px; font-size:11px; color:#94a3b8; font-weight:600;">Add-on boosters will not be included</div>
+                    </div>
+                </div>
+
+                <div id="renewalModalError" style="display:none; background:#fee2e2; border:1px solid #fca5a5; color:#b91c1c; padding:10px 14px; border-radius:10px; font-size:13px; font-weight:600; margin-bottom:14px;"></div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <button type="button" id="payRenewalRazorpayBtn" onclick="startDashboardRazorpayRenewal()" class="btn-primary" style="flex:2; min-width:220px; padding:14px 20px; font-size:15px; font-weight:800; background:linear-gradient(135deg,#27ae60,#16a34a); border-radius:14px;">
+                        💳 Pay & Renew Yearly Subscription
+                    </button>
+                    <button type="button" id="renewalRemindLaterBtn" onclick="closeRenewalModal()" class="btn-secondary" style="flex:1; min-width:130px; padding:14px 16px; border-radius:14px;">
+                        Remind Me Later
+                    </button>
+                </div>
+                <div style="text-align:center; margin-top:12px;">
+                    <a href="index.html#pricing" style="font-size:12px; color:#2563eb; font-weight:700; text-decoration:none;">Want to switch plans or pick different add-ons? View Full Pricing & Add-ons &rarr;</a>
+                </div>
             </div>
         </div>
     
@@ -2061,8 +2326,8 @@
             </script>
             
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=4"></script>
-    <script src="js/dashboard.js?v=4"></script>
+    <script src="js/api.js?v=5"></script>
+    <script src="js/dashboard.js?v=5"></script>
 </body>
 
     

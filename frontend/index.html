@@ -1205,13 +1205,13 @@
       <!-- Live Summary Bar -->
       <div class="checkout-summary-bar">
         <div class="csb-details">
-          <div class="csb-title" id="csbPlanTitle">Selected: Pro Plan</div>
-          <div class="csb-meta" id="csbQuotasMeta">Includes 1,500 Parties · 10 Staff Accounts · 300 Daily Reminders · 1 Month Validity</div>
+          <div class="csb-title" id="csbPlanTitle">Selected: Pro Plan (Yearly)</div>
+          <div class="csb-meta" id="csbQuotasMeta">Includes 1,500 Parties · 10 Staff Accounts · 300 Daily Reminders · 1 Year (12 Months) Validity</div>
         </div>
         <div class="csb-action">
           <div class="csb-total">
-            <span>Total Payable</span>
-            <strong id="csbTotalAmount">₹2,499</strong>
+            <span>Total Yearly Payable</span>
+            <strong id="csbTotalAmount">₹9,999</strong>
           </div>
           <button type="button" class="btn-primary" style="border:none; cursor:pointer; padding:14px 26px;" onclick="openSubscriptionCheckoutModal()">
             💳 Subscribe & Activate Now →
@@ -1225,24 +1225,37 @@
   <div id="subscriptionCheckoutModal" class="sub-modal-overlay" role="dialog" aria-modal="true">
     <div class="sub-modal-card">
       <button type="button" class="sub-modal-close" onclick="closeSubscriptionCheckoutModal()">✕</button>
-      <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--primary); margin-bottom:4px;">Instant Account Setup & Checkout</div>
-      <h3 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:var(--text); margin-bottom:14px;" id="modalCheckoutTitle">Complete Your Subscription</h3>
+      <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--primary); margin-bottom:4px;">Instant Yearly Subscription & Renewal</div>
+      <h3 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:var(--text); margin-bottom:14px;" id="modalCheckoutTitle">Complete Your Yearly Subscription</h3>
 
       <!-- Order Summary Box -->
-      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:14px; padding:14px 16px; margin-bottom:18px;">
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:14px; padding:14px 16px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <strong style="font-size:15px; color:var(--text);" id="modalSummaryPlanName">Pro Plan</strong>
-          <strong style="font-family:'Outfit',sans-serif; font-size:18px; color:var(--primary-dark);" id="modalSummaryTotal">₹2,499</strong>
+          <strong style="font-size:15px; color:var(--text);" id="modalSummaryPlanName">Pro Plan (1 Year)</strong>
+          <strong style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--primary-dark);" id="modalSummaryTotal">₹9,999</strong>
         </div>
         <div style="font-size:12px; color:var(--text2); margin-bottom:8px;" id="modalSummaryAddons">No extra add-ons selected</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;" id="modalSummaryQuotas"></div>
+
+        <!-- Option to Renew/Subscribe WITH Add-ons vs WITHOUT Add-ons -->
+        <div id="modalAddonModeToggleWrap" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed #cbd5e1;">
+          <div style="font-size:11.5px; font-weight:800; color:#334155; margin-bottom:8px; text-transform:uppercase;">🔄 Renewal / Checkout Add-on Preference:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <button type="button" id="btnCheckoutWithAddons" onclick="setModalAddonMode(true)" style="padding:9px 10px; border-radius:10px; border:2px solid var(--primary); background:#f0fdf4; color:#166534; font-size:12px; font-weight:800; cursor:pointer; text-align:left;">
+              ✅ With Add-ons<br><span id="lblWithAddonsPrice" style="font-size:11px; font-weight:600;">₹0 / yr</span>
+            </button>
+            <button type="button" id="btnCheckoutWithoutAddons" onclick="setModalAddonMode(false)" style="padding:9px 10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#fff; color:#475569; font-size:12px; font-weight:700; cursor:pointer; text-align:left;">
+              ⭕ Without Add-ons<br><span id="lblWithoutAddonsPrice" style="font-size:11px; font-weight:600;">Base Plan Only</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div id="checkoutModalAlert"></div>
 
       <form id="subscriptionCheckoutForm" onsubmit="handleSubscriptionCheckoutSubmit(event)">
         <div style="font-size:12px; color:#475569; margin-bottom:12px; background:#eff6ff; border:1px solid #bfdbfe; padding:9px 12px; border-radius:9px;">
-          💡 <strong>New Admin?</strong> Enter your desired credentials below — your account will be created & approved automatically after payment. <strong>Existing Admin?</strong> Enter your current username & password to renew/upgrade.
+          💡 <strong>New Admin?</strong> Enter your desired credentials below — your account will be created & approved automatically after payment. <strong>Renewing Existing Admin?</strong> Enter your current username & password to extend your yearly plan (with or without add-ons).
         </div>
         <div class="sub-form-grid">
           <div class="sub-field">
@@ -1270,7 +1283,7 @@
         </div>
 
         <button type="submit" id="btnPayRazorpay" class="btn-plan-select primary" style="margin-top:8px; font-size:16px; padding:15px;">
-          💳 Pay & Activate Admin Account Instantly
+          💳 Pay & Activate Yearly Account Instantly
         </button>
         <button type="button" id="btnSubmitManualRequest" onclick="submitManualPlanRequest()" class="btn-plan-select outline" style="margin-top:10px; font-size:13px; padding:11px;">
           📨 Or Submit Plan Request for Super Admin Approval
@@ -1392,7 +1405,7 @@
       if (banner) banner.style.display = 'none';
     }
 
-    // ── DEFAULT SUBSCRIPTION PLANS & ADD-ONS (Overridden live by /api/subscriptions/config) ──
+    // ── DEFAULT YEARLY SUBSCRIPTION PLANS & ADD-ONS (Overridden live by /api/subscriptions/config) ──
     let subConfig = {
       currency: 'INR',
       whatsappSalesNumber: '917021056404',
@@ -1402,10 +1415,10 @@
         {
           id: 'basic',
           name: 'Basic Plan',
-          tagline: 'Ideal for small businesses & solo proprietors starting digital recovery.',
-          badge: 'Starter',
-          price: 999,
-          durationMonths: 1,
+          tagline: 'Essential yearly payment tracking & aging analysis for growing businesses.',
+          badge: 'YEARLY STARTER',
+          price: 4999,
+          durationMonths: 12,
           maxCustomersLimit: 250,
           maxStaffLimit: 2,
           dailyMessageLimit: 50,
@@ -1413,6 +1426,7 @@
           isCustom: false,
           featureAccess: { allowGoogleDriveBackup: false, allowExcelImport: true, allowPdfExport: true },
           features: [
+            '1 Full Year (12 Months) Validity',
             'Up to 250 Party Ledgers',
             '2 Staff / Employee Accounts',
             '50 WhatsApp Reminders / Day',
@@ -1424,10 +1438,10 @@
         {
           id: 'pro',
           name: 'Pro Plan',
-          tagline: 'Built for growing enterprises needing cloud backups & larger teams.',
-          badge: 'Most Popular',
-          price: 2499,
-          durationMonths: 1,
+          tagline: 'Built for growing enterprises needing yearly cloud backups & larger teams.',
+          badge: 'MOST POPULAR • YEARLY',
+          price: 9999,
+          durationMonths: 12,
           maxCustomersLimit: 1500,
           maxStaffLimit: 10,
           dailyMessageLimit: 300,
@@ -1435,6 +1449,7 @@
           isCustom: false,
           featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
           features: [
+            '1 Full Year (12 Months) Validity',
             'Up to 1,500 Party Ledgers',
             '10 Staff / Employee Accounts',
             '300 WhatsApp Reminders / Day',
@@ -1447,53 +1462,64 @@
         {
           id: 'customized',
           name: 'Customized Plan',
-          tagline: 'Tailor your exact party capacity, staff seats, and daily reminder limits.',
-          badge: 'Enterprise / Custom',
-          price: 4999,
-          durationMonths: 1,
-          maxCustomersLimit: 5000,
-          maxStaffLimit: 25,
-          dailyMessageLimit: 1000,
+          tagline: 'Tailor your exact yearly party capacity, staff seats, and daily reminder limits.',
+          badge: 'CUSTOM YEARLY',
+          price: 14999,
+          durationMonths: 12,
+          maxCustomersLimit: 2000,
+          maxStaffLimit: 15,
+          dailyMessageLimit: 500,
           isPopular: false,
           isCustom: true,
-          basePrice: 499,
-          pricePer100Parties: 120,
-          pricePerStaff: 80,
-          pricePer50Messages: 60,
+          basePrice: 2999,
+          pricePer100Parties: 500,
+          pricePerStaff: 400,
+          pricePer50Messages: 300,
           featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
           features: [
+            '1 Full Year (12 Months) Validity (Extendable)',
             'Custom Party & Customer Capacity',
             'Custom Staff Account Seats',
             'Custom Daily WhatsApp Quota',
             'Google Drive Automated Cloud Backup',
-            'Dedicated Account Manager',
-            'Custom Billing Duration (1 to 12 Months)'
+            'Dedicated Account Manager'
           ]
         }
       ],
       addons: [
-        { id: 'addon_parties_500', name: '+500 Extra Parties', description: 'Expand your customer ledger capacity by 500 parties.', type: 'parties', value: 500, price: 499 },
-        { id: 'addon_staff_5', name: '+5 Extra Staff Accounts', description: 'Add 5 more employees/collection agents to your workspace.', type: 'staff', value: 5, price: 399 },
-        { id: 'addon_msgs_100', name: '+100 Daily Reminders', description: 'Increase your daily WhatsApp & Email reminder limit by 100.', type: 'messages', value: 100, price: 299 },
-        { id: 'addon_gdrive', name: 'Cloud Backup Unlock', description: 'Enable automated Google Drive cloud backup & 1-click restore.', type: 'gdrive', value: 1, price: 349 },
-        { id: 'addon_validity_3m', name: '+3 Months Plan Validity', description: 'Extend your subscription validity by an additional 3 months.', type: 'duration', value: 3, price: 1999 }
+        { id: 'addon_parties_500', name: '+500 Extra Parties (Yearly)', description: 'Expand your customer ledger capacity by 500 parties for the year.', type: 'parties', value: 500, price: 1499 },
+        { id: 'addon_staff_5', name: '+5 Extra Staff Accounts (Yearly)', description: 'Add 5 more employees/collection agents to your workspace.', type: 'staff', value: 5, price: 999 },
+        { id: 'addon_msgs_100', name: '+100 Daily Reminders (Yearly)', description: 'Increase your daily WhatsApp & Email reminder limit by 100.', type: 'messages', value: 100, price: 799 },
+        { id: 'addon_gdrive', name: 'Cloud Backup Unlock (Yearly)', description: 'Enable automated Google Drive cloud backup & 1-click restore.', type: 'gdrive', value: 1, price: 999 },
+        { id: 'addon_validity_12m', name: '+1 Extra Year Validity (12 Months)', description: 'Extend your subscription validity by an additional 12 months.', type: 'duration', value: 12, price: 3999 }
       ]
     };
 
     let selectedPlanId = 'pro';
     let selectedAddonIds = new Set();
+    let includeAddonsInCheckout = true;
     let customSliderState = {
       parties: 2000,
       staff: 15,
       messages: 500,
-      durationMonths: 1
+      durationMonths: 12
     };
 
     function escapeHtmlLanding(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function computeCurrentQuote() {
+    function formatValidityLabel(months) {
+      const m = Number(months) || 12;
+      if (m % 12 === 0) {
+        const yrs = m / 12;
+        return yrs === 1 ? '1 Year (12 Months)' : `${yrs} Years (${m} Months)`;
+      }
+      return `${m} Months`;
+    }
+
+    function computeCurrentQuote(forceIncludeAddons) {
+      const useAddons = forceIncludeAddons !== undefined ? forceIncludeAddons : includeAddonsInCheckout;
       const plans = subConfig.plans || [];
       const plan = plans.find(p => p.id === selectedPlanId) || plans[0];
       if (!plan) return null;
@@ -1501,37 +1527,39 @@
       let parties = Number(plan.maxCustomersLimit) || 250;
       let staff = Number(plan.maxStaffLimit) || 2;
       let messages = Number(plan.dailyMessageLimit) || 50;
-      let durationMonths = Number(plan.durationMonths) || 1;
-      let planPrice = Number(plan.price) || 999;
+      let durationMonths = Number(plan.durationMonths) || 12;
+      let planPrice = Number(plan.price) || 4999;
 
       if (plan.isCustom || plan.id === 'customized') {
         parties = Number(customSliderState.parties) || parties;
         staff = Number(customSliderState.staff) || staff;
         messages = Number(customSliderState.messages) || messages;
-        durationMonths = Number(customSliderState.durationMonths) || durationMonths;
+        durationMonths = Number(customSliderState.durationMonths) || 12;
 
-        const basePrice = Number(plan.basePrice ?? 499);
-        const rParties = Number(plan.pricePer100Parties ?? 120);
-        const rStaff = Number(plan.pricePerStaff ?? 80);
-        const rMsgs = Number(plan.pricePer50Messages ?? 60);
+        const basePrice = Number(plan.basePrice ?? 2999);
+        const rParties = Number(plan.pricePer100Parties ?? 500);
+        const rStaff = Number(plan.pricePerStaff ?? 400);
+        const rMsgs = Number(plan.pricePer50Messages ?? 300);
 
-        const monthlyRate = basePrice + Math.ceil(parties / 100) * rParties + staff * rStaff + Math.ceil(messages / 50) * rMsgs;
-        planPrice = Math.round(monthlyRate * durationMonths);
+        const yearlyRate = basePrice + Math.ceil(parties / 100) * rParties + staff * rStaff + Math.ceil(messages / 50) * rMsgs;
+        planPrice = Math.round(yearlyRate * (durationMonths / 12));
       }
 
       let addonsTotal = 0;
       const chosenAddons = [];
-      for (const aId of selectedAddonIds) {
-        const addon = (subConfig.addons || []).find(a => a.id === aId);
-        if (!addon) continue;
-        const p = Number(addon.price) || 0;
-        const v = Number(addon.value) || 0;
-        addonsTotal += p;
-        chosenAddons.push(addon);
-        if (addon.type === 'parties') parties += v;
-        else if (addon.type === 'staff') staff += v;
-        else if (addon.type === 'messages') messages += v;
-        else if (addon.type === 'duration') durationMonths += v;
+      if (useAddons) {
+        for (const aId of selectedAddonIds) {
+          const addon = (subConfig.addons || []).find(a => a.id === aId);
+          if (!addon) continue;
+          const p = Number(addon.price) || 0;
+          const v = Number(addon.value) || 0;
+          addonsTotal += p;
+          chosenAddons.push(addon);
+          if (addon.type === 'parties') parties += v;
+          else if (addon.type === 'staff') staff += v;
+          else if (addon.type === 'messages') messages += v;
+          else if (addon.type === 'duration') durationMonths += v;
+        }
       }
 
       return {
@@ -1551,15 +1579,15 @@
       const parties = Number(customSliderState.parties) || 2000;
       const staff = Number(customSliderState.staff) || 15;
       const messages = Number(customSliderState.messages) || 500;
-      const durationMonths = Number(customSliderState.durationMonths) || 1;
+      const durationMonths = Number(customSliderState.durationMonths) || 12;
 
-      const basePrice = Number(plan.basePrice ?? 499);
-      const rParties = Number(plan.pricePer100Parties ?? 120);
-      const rStaff = Number(plan.pricePerStaff ?? 80);
-      const rMsgs = Number(plan.pricePer50Messages ?? 60);
+      const basePrice = Number(plan.basePrice ?? 2999);
+      const rParties = Number(plan.pricePer100Parties ?? 500);
+      const rStaff = Number(plan.pricePerStaff ?? 400);
+      const rMsgs = Number(plan.pricePer50Messages ?? 300);
 
-      const monthlyRate = basePrice + Math.ceil(parties / 100) * rParties + staff * rStaff + Math.ceil(messages / 50) * rMsgs;
-      return Math.round(monthlyRate * durationMonths);
+      const yearlyRate = basePrice + Math.ceil(parties / 100) * rParties + staff * rStaff + Math.ceil(messages / 50) * rMsgs;
+      return Math.round(yearlyRate * (durationMonths / 12));
     }
 
     function renderLandingPricing() {
@@ -1571,7 +1599,8 @@
         const isCustom = Boolean(plan.isCustom || plan.id === 'customized');
         const isSelected = plan.id === selectedPlanId;
         const displayPrice = isCustom ? computeCustomPlanPreviewPrice(plan) : Number(plan.price || 0);
-        const displayDuration = isCustom ? customSliderState.durationMonths : (Number(plan.durationMonths) || 1);
+        const displayDuration = isCustom ? customSliderState.durationMonths : (Number(plan.durationMonths) || 12);
+        const periodLabel = displayDuration === 12 ? '/ Year' : (displayDuration % 12 === 0 ? `/ ${displayDuration / 12} Years` : `/ ${displayDuration} Months`);
 
         return `
           <div class="plan-card ${plan.isPopular ? 'popular' : ''} ${isCustom ? 'custom-tier' : ''} ${isSelected ? 'selected-plan' : ''}" id="planCard_${escapeHtmlLanding(plan.id)}">
@@ -1583,7 +1612,7 @@
               <div class="plan-price-wrap">
                 <span class="plan-price-currency">₹</span>
                 <span class="plan-price-val" id="planPriceVal_${escapeHtmlLanding(plan.id)}">${displayPrice.toLocaleString('en-IN')}</span>
-                <span class="plan-price-period" id="planPeriodVal_${escapeHtmlLanding(plan.id)}">/ ${displayDuration > 1 ? displayDuration + ' Months' : 'Month'}</span>
+                <span class="plan-price-period" id="planPeriodVal_${escapeHtmlLanding(plan.id)}">${periodLabel}</span>
               </div>
 
               ${isCustom ? `
@@ -1611,10 +1640,10 @@
                   </div>
                   <div class="custom-slider-row">
                     <div class="custom-slider-header">
-                      <span>📅 Validity Period</span>
-                      <span class="val-badge" id="lblCustomDuration">${customSliderState.durationMonths} ${customSliderState.durationMonths > 1 ? 'Months' : 'Month'}</span>
+                      <span>📅 Yearly Duration</span>
+                      <span class="val-badge" id="lblCustomDuration">${formatValidityLabel(customSliderState.durationMonths)}</span>
                     </div>
-                    <input type="range" min="1" max="12" step="1" value="${customSliderState.durationMonths}" oninput="updateCustomSlider('durationMonths', this.value)">
+                    <input type="range" min="12" max="36" step="12" value="${customSliderState.durationMonths}" oninput="updateCustomSlider('durationMonths', this.value)">
                   </div>
                 </div>
               ` : `
@@ -1641,7 +1670,7 @@
 
             <div style="display:flex; flex-direction:column; gap:8px;">
               <button type="button" class="btn-plan-select ${isCustom ? 'blue' : (plan.isPopular ? 'primary' : 'outline')}" onclick="selectPlanAndCheckout('${escapeHtmlLanding(plan.id)}')">
-                ${isSelected ? '✓ Selected — Proceed to Checkout' : `Choose ${escapeHtmlLanding(plan.name)} →`}
+                ${isSelected ? '✓ Selected — Proceed to Yearly Checkout' : `Choose ${escapeHtmlLanding(plan.name)} (Yearly) →`}
               </button>
               ${isCustom ? `
                 <button type="button" class="btn-plan-select outline" style="font-size:13px; padding:10px;" onclick="contactSalesWhatsApp()">
@@ -1679,14 +1708,15 @@
       if (lblP) lblP.textContent = customSliderState.parties.toLocaleString('en-IN') + ' Parties';
       if (lblS) lblS.textContent = customSliderState.staff + ' Staff';
       if (lblM) lblM.textContent = customSliderState.messages + ' / day';
-      if (lblD) lblD.textContent = customSliderState.durationMonths + (customSliderState.durationMonths > 1 ? ' Months' : ' Month');
+      if (lblD) lblD.textContent = formatValidityLabel(customSliderState.durationMonths);
 
       const customPlan = (subConfig.plans || []).find(p => p.isCustom || p.id === 'customized');
       if (customPlan) {
         const pVal = document.getElementById('planPriceVal_' + customPlan.id);
         const perVal = document.getElementById('planPeriodVal_' + customPlan.id);
+        const dm = customSliderState.durationMonths;
         if (pVal) pVal.textContent = computeCustomPlanPreviewPrice(customPlan).toLocaleString('en-IN');
-        if (perVal) perVal.textContent = '/ ' + (customSliderState.durationMonths > 1 ? customSliderState.durationMonths + ' Months' : 'Month');
+        if (perVal) perVal.textContent = dm === 12 ? '/ Year' : `/ ${dm / 12} Years`;
       }
 
       document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected-plan'));
@@ -1701,18 +1731,20 @@
         selectedAddonIds.delete(addonId);
       } else {
         selectedAddonIds.add(addonId);
+        includeAddonsInCheckout = true;
       }
       renderLandingPricing();
     }
 
     function selectPlanAndCheckout(planId) {
       selectedPlanId = planId;
+      includeAddonsInCheckout = true;
       renderLandingPricing();
       openSubscriptionCheckoutModal();
     }
 
     function updateSummaryBarUI() {
-      const q = computeCurrentQuote();
+      const q = computeCurrentQuote(true);
       if (!q) return;
 
       const badge = document.getElementById('selectedAddonsCountBadge');
@@ -1725,40 +1757,79 @@
       const totalEl = document.getElementById('csbTotalAmount');
 
       const addonNames = q.chosenAddons.length ? ` + ${q.chosenAddons.map(a => a.name).join(', ')}` : '';
-      if (titleEl) titleEl.textContent = `Selected: ${q.plan.name}${addonNames}`;
-      if (metaEl) metaEl.textContent = `Final Quotas: ${q.parties.toLocaleString('en-IN')} Parties · ${q.staff} Staff Accounts · ${q.messages} Daily Reminders · ${q.durationMonths} Month${q.durationMonths > 1 ? 's' : ''} Validity`;
+      if (titleEl) titleEl.textContent = `Selected: ${q.plan.name} (Yearly)${addonNames}`;
+      if (metaEl) metaEl.textContent = `Final Quotas: ${q.parties.toLocaleString('en-IN')} Parties · ${q.staff} Staff Accounts · ${q.messages} Daily Reminders · ${formatValidityLabel(q.durationMonths)}`;
       if (totalEl) totalEl.textContent = `₹${q.totalAmount.toLocaleString('en-IN')}`;
     }
 
     function contactSalesWhatsApp() {
-      const q = computeCurrentQuote();
+      const q = computeCurrentQuote(true);
       const num = (subConfig.whatsappSalesNumber || '917021056404').replace(/[^0-9]/g, '');
-      const msg = `Hello Web Graphics Studio! I would like to inquire about a *Customized WGS Payment Tracker Plan*:\n• Parties: ${customSliderState.parties}\n• Staff Accounts: ${customSliderState.staff}\n• Daily Reminders: ${customSliderState.messages}/day\n• Duration: ${customSliderState.durationMonths} Month(s)\n• Estimated Quote: ₹${q ? q.totalAmount.toLocaleString('en-IN') : ''}`;
+      const msg = `Hello Web Graphics Studio! I would like to inquire about a *Customized Yearly WGS Payment Tracker Plan*:\n• Parties: ${customSliderState.parties}\n• Staff Accounts: ${customSliderState.staff}\n• Daily Reminders: ${customSliderState.messages}/day\n• Duration: ${formatValidityLabel(customSliderState.durationMonths)}\n• Estimated Quote: ₹${q ? q.totalAmount.toLocaleString('en-IN') : ''}`;
       window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    function openSubscriptionCheckoutModal() {
-      const q = computeCurrentQuote();
+    function setModalAddonMode(withAddons) {
+      includeAddonsInCheckout = Boolean(withAddons);
+      refreshCheckoutModalSummary();
+    }
+
+    function refreshCheckoutModalSummary() {
+      const qWith = computeCurrentQuote(true);
+      const qWithout = computeCurrentQuote(false);
+      const q = includeAddonsInCheckout ? qWith : qWithout;
       if (!q) return;
 
-      document.getElementById('modalSummaryPlanName').textContent = q.plan.name;
+      document.getElementById('modalSummaryPlanName').textContent = `${q.plan.name} (${formatValidityLabel(q.durationMonths)})`;
       document.getElementById('modalSummaryTotal').textContent = `₹${q.totalAmount.toLocaleString('en-IN')}`;
       document.getElementById('modalSummaryAddons').textContent = q.chosenAddons.length
-        ? `Add-ons: ${q.chosenAddons.map(a => `${a.name} (₹${a.price})`).join(' + ')}`
-        : 'No optional add-ons selected';
+        ? `Included Add-ons: ${q.chosenAddons.map(a => `${a.name} (₹${a.price})`).join(' + ')}`
+        : (selectedAddonIds.size > 0 ? 'Renewing / Subscribing WITHOUT Add-ons (Base Yearly Plan Only)' : 'No optional add-ons selected');
 
       document.getElementById('modalSummaryQuotas').innerHTML = `
         <span style="background:#dcfce7; color:#166534; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">📊 ${q.parties.toLocaleString('en-IN')} Parties</span>
         <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">👥 ${q.staff} Staff</span>
         <span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">💬 ${q.messages} Msgs/Day</span>
-        <span style="background:#f3e8ff; color:#6b21a8; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">📅 ${q.durationMonths} Month${q.durationMonths > 1 ? 's' : ''}</span>
+        <span style="background:#f3e8ff; color:#6b21a8; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700;">📅 ${formatValidityLabel(q.durationMonths)}</span>
       `;
+
+      const toggleWrap = document.getElementById('modalAddonModeToggleWrap');
+      if (toggleWrap) {
+        if (selectedAddonIds.size > 0) {
+          toggleWrap.style.display = 'block';
+          document.getElementById('lblWithAddonsPrice').textContent = `₹${qWith.totalAmount.toLocaleString('en-IN')} (${qWith.chosenAddons.length} Add-on${qWith.chosenAddons.length > 1 ? 's' : ''})`;
+          document.getElementById('lblWithoutAddonsPrice').textContent = `₹${qWithout.totalAmount.toLocaleString('en-IN')} (Base Plan Only)`;
+
+          const btnWith = document.getElementById('btnCheckoutWithAddons');
+          const btnWithout = document.getElementById('btnCheckoutWithoutAddons');
+          if (includeAddonsInCheckout) {
+            btnWith.style.border = '2px solid var(--primary)';
+            btnWith.style.background = '#f0fdf4';
+            btnWith.style.color = '#166534';
+            btnWithout.style.border = '1.5px solid #cbd5e1';
+            btnWithout.style.background = '#fff';
+            btnWithout.style.color = '#475569';
+          } else {
+            btnWithout.style.border = '2px solid #2563eb';
+            btnWithout.style.background = '#eff6ff';
+            btnWithout.style.color = '#1e40af';
+            btnWith.style.border = '1.5px solid #cbd5e1';
+            btnWith.style.background = '#fff';
+            btnWith.style.color = '#475569';
+          }
+        } else {
+          toggleWrap.style.display = 'none';
+        }
+      }
 
       const payBtn = document.getElementById('btnPayRazorpay');
       if (payBtn) {
-        payBtn.textContent = `💳 Pay ₹${q.totalAmount.toLocaleString('en-IN')} via Razorpay & Activate`;
+        payBtn.textContent = `💳 Pay ₹${q.totalAmount.toLocaleString('en-IN')} via Razorpay & Activate Yearly Plan`;
       }
+    }
 
+    function openSubscriptionCheckoutModal() {
+      refreshCheckoutModalSummary();
       document.getElementById('checkoutModalAlert').innerHTML = '';
       document.getElementById('subscriptionCheckoutModal').style.display = 'flex';
     }
@@ -1791,6 +1862,7 @@
         return;
       }
 
+      const activeAddonList = includeAddonsInCheckout ? Array.from(selectedAddonIds) : [];
       const btn = document.getElementById('btnPayRazorpay');
       const origText = btn.textContent;
       btn.disabled = true;
@@ -1804,7 +1876,7 @@
           body: JSON.stringify({
             planId: selectedPlanId,
             customConfig: customSliderState,
-            addonIds: Array.from(selectedAddonIds),
+            addonIds: activeAddonList,
             registrationData: reg
           })
         });
@@ -1829,7 +1901,7 @@
           amount: data.amount,
           currency: data.currency || 'INR',
           name: 'WGS Payment Tracker',
-          description: `${data.quote.planName} Subscription`,
+          description: `${data.quote.planName} (Yearly Subscription)`,
           image: window.location.origin + '/images/WGS.png',
           order_id: data.orderId,
           prefill: {
@@ -1852,7 +1924,7 @@
                   razorpay_signature: response.razorpay_signature,
                   planId: selectedPlanId,
                   customConfig: customSliderState,
-                  addonIds: Array.from(selectedAddonIds),
+                  addonIds: activeAddonList,
                   registrationData: reg
                 })
               });
@@ -1895,6 +1967,7 @@
         return;
       }
 
+      const activeAddonList = includeAddonsInCheckout ? Array.from(selectedAddonIds) : [];
       const btn = document.getElementById('btnSubmitManualRequest');
       const orig = btn.textContent;
       btn.disabled = true;
@@ -1908,7 +1981,7 @@
           body: JSON.stringify({
             planId: selectedPlanId,
             customConfig: customSliderState,
-            addonIds: Array.from(selectedAddonIds),
+            addonIds: activeAddonList,
             registrationData: reg
           })
         });
@@ -1947,7 +2020,7 @@
             customSliderState.parties = Number(customPlan.maxCustomersLimit) || 2000;
             customSliderState.staff = Number(customPlan.maxStaffLimit) || 15;
             customSliderState.messages = Number(customPlan.dailyMessageLimit) || 500;
-            customSliderState.durationMonths = Number(customPlan.durationMonths) || 1;
+            customSliderState.durationMonths = Math.max(12, Number(customPlan.durationMonths) || 12);
           }
           renderLandingPricing();
         }

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
 const User = require('../models/User');
+const PlanConfig = require('../models/PlanConfig');
+const subscriptionsRouter = require('./subscriptions');
 
 router.get('/', async (req, res) => {
     if (!req.session.userId) {
@@ -27,7 +29,12 @@ router.get('/', async (req, res) => {
             finalCustomers = await Customer.find({ adminId: req.session.adminId }).lean();
         }
 
-        const adminUser = await User.findById(req.session.adminId).select('+googleDriveToken').lean() || {};
+        const [adminUserRaw, staffCount, planConfig] = await Promise.all([
+            User.findById(req.session.adminId).select('+googleDriveToken').lean(),
+            req.session.adminId ? User.countDocuments({ role: 'staff', adminId: req.session.adminId }) : Promise.resolve(0),
+            PlanConfig.getOrCreateSingleton()
+        ]);
+        const adminUser = adminUserRaw || {};
         adminUser.isGoogleDriveLinked = Boolean(adminUser.googleDriveToken || adminUser.googleEmail);
         delete adminUser.googleDriveToken;
         delete adminUser.password;
@@ -46,24 +53,30 @@ router.get('/', async (req, res) => {
                 req.session.destroy();
                 return res.status(403).json({ success: false, message: "❌ Your access has been revoked. Please contact support." });
             }
-            if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
+            if (req.session.role !== 'admin' && adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
                 req.session.destroy();
-                return res.status(403).json({ success: false, message: "⌛ Your subscription plan has expired. Please contact Super Admin to renew your subscription." });
+                return res.status(403).json({ success: false, message: "⌛ Your organization's subscription plan has expired. Please ask your Admin to renew." });
             }
         }
 
         let subscriptionAlert = null;
+        let daysLeftVal = null;
+        let expiryFormattedStr = 'Lifetime / Active';
+
         if (adminUser.planExpiryDate) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const expiry = new Date(adminUser.planExpiryDate); expiry.setHours(0, 0, 0, 0);
             const diffTime = expiry.getTime() - today.getTime();
-            const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            daysLeftVal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            expiryFormattedStr = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-            if (daysLeft <= 10) {
+            if (daysLeftVal <= 15) {
                 subscriptionAlert = {
-                    expired: daysLeft < 0,
-                    daysLeft: Math.max(0, daysLeft),
-                    expiryFormatted: expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                    expired: daysLeftVal < 0,
+                    nearExpiry: daysLeftVal >= 0 && daysLeftVal <= 15,
+                    daysLeft: Math.max(0, daysLeftVal),
+                    rawDaysLeft: daysLeftVal,
+                    expiryFormatted: expiryFormattedStr
                 };
             }
         }
@@ -79,6 +92,59 @@ router.get('/', async (req, res) => {
             if (dailyLimit > 0 && (adminUser.dailyMessageCount || 0) >= dailyLimit) {
                 quotaAlert = `Daily message limit reached (${adminUser.dailyMessageCount}/${dailyLimit}).`;
             }
+        }
+
+        // Build Subscription Details & Renewal Quotes (With Add-ons vs Without Add-ons)
+        let subscriptionDetails = null;
+        if (adminUser && adminUser._id && planConfig) {
+            const activeAddons = Array.isArray(adminUser.activeAddons) ? adminUser.activeAddons : [];
+            const calcQuote = subscriptionsRouter.calculateSubscriptionQuote;
+            const resolveParams = subscriptionsRouter.resolveAdminRenewalParams;
+
+            let renewWithAddonsQuote = null;
+            let renewWithoutAddonsQuote = null;
+            try {
+                const paramsWith = resolveParams(adminUser, planConfig, { renewalMode: 'with_addons' });
+                renewWithAddonsQuote = calcQuote(planConfig, paramsWith.planId, paramsWith.customConfig, paramsWith.addonIds);
+
+                const paramsWithout = resolveParams(adminUser, planConfig, { renewalMode: 'without_addons' });
+                renewWithoutAddonsQuote = calcQuote(planConfig, paramsWithout.planId, paramsWithout.customConfig, []);
+            } catch (qErr) {
+                console.warn('Error computing renewal quotes:', qErr.message);
+            }
+
+            const keyId = (planConfig.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '').trim();
+            const keySecret = (planConfig.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
+
+            subscriptionDetails = {
+                planId: adminUser.planId || 'basic',
+                planName: adminUser.planName || 'Basic Plan (Yearly)',
+                planDurationMonths: adminUser.planDurationMonths || 12,
+                approvedAt: adminUser.approvedAt || adminUser.requestedAt,
+                planExpiryDate: adminUser.planExpiryDate || null,
+                expiryFormatted: expiryFormattedStr,
+                daysLeft: daysLeftVal,
+                isNearExpiry: daysLeftVal !== null && daysLeftVal >= 0 && daysLeftVal <= 15,
+                isExpired: daysLeftVal !== null && daysLeftVal < 0,
+                activeAddons,
+                hasAddons: activeAddons.length > 0,
+                quotas: {
+                    partiesUsed: finalCustomers.length,
+                    partiesLimit: adminUser.maxCustomersLimit ?? 500,
+                    staffUsed: staffCount,
+                    staffLimit: adminUser.maxStaffLimit ?? 5,
+                    messagesUsed: adminUser.dailyMessageCount || 0,
+                    messagesLimit: adminUser.dailyMessageLimit ?? 100
+                },
+                featureAccess: adminUser.featureAccess,
+                lastPaymentId: adminUser.lastPaymentId || '',
+                lastAmountPaid: adminUser.lastAmountPaid || 0,
+                renewWithAddonsQuote,
+                renewWithoutAddonsQuote,
+                availableAddons: (planConfig.addons || []).filter(a => a.isActive !== false),
+                whatsappSalesNumber: planConfig.whatsappSalesNumber || '917021056404',
+                isRazorpayConfigured: Boolean(keyId && keySecret)
+            };
         }
 
         let totalPending = 0, actionRequiredCount = 0;
@@ -147,6 +213,7 @@ router.get('/', async (req, res) => {
             adminUser: adminUser,
             stats: stats,
             subscriptionAlert: subscriptionAlert,
+            subscriptionDetails: subscriptionDetails,
             quotaAlert: quotaAlert
         });
     } catch (err) {

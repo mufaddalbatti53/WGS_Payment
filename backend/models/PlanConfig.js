@@ -7,17 +7,17 @@ const planItemSchema = new mongoose.Schema({
     badge: { type: String, default: '' },
     isPopular: { type: Boolean, default: false },
     isCustom: { type: Boolean, default: false },
-    price: { type: Number, default: 999 },
-    durationMonths: { type: Number, default: 1 },
-    billingLabel: { type: String, default: '/ month' },
-    maxCustomersLimit: { type: Number, default: 200 },
+    price: { type: Number, default: 4999 },
+    durationMonths: { type: Number, default: 12 },
+    billingLabel: { type: String, default: '/ year' },
+    maxCustomersLimit: { type: Number, default: 250 },
     maxStaffLimit: { type: Number, default: 2 },
     dailyMessageLimit: { type: Number, default: 50 },
-    // Customized plan unit rates
-    basePrice: { type: Number, default: 499 },
-    pricePer100Parties: { type: Number, default: 150 },
-    pricePerStaff: { type: Number, default: 100 },
-    pricePer50Messages: { type: Number, default: 75 },
+    // Customized plan yearly unit rates
+    basePrice: { type: Number, default: 2999 },
+    pricePer100Parties: { type: Number, default: 500 },
+    pricePerStaff: { type: Number, default: 400 },
+    pricePer50Messages: { type: Number, default: 300 },
     features: { type: [String], default: [] },
     featureAccess: {
         allowGoogleDriveBackup: { type: Boolean, default: true },
@@ -31,7 +31,7 @@ const addonItemSchema = new mongoose.Schema({
     id: { type: String, required: true },
     name: { type: String, required: true },
     description: { type: String, default: '' },
-    price: { type: Number, required: true, default: 199 },
+    price: { type: Number, required: true, default: 999 },
     type: {
         type: String,
         enum: ['parties', 'staff', 'messages', 'duration', 'gdrive', 'custom'],
@@ -55,17 +55,18 @@ const DEFAULT_PLANS = [
     {
         id: 'basic',
         name: 'Basic Plan',
-        tagline: 'Essential payment tracking & aging analysis for growing businesses.',
-        badge: 'STARTER',
+        tagline: 'Essential yearly payment tracking & aging analysis for growing businesses.',
+        badge: 'YEARLY STARTER',
         isPopular: false,
         isCustom: false,
-        price: 999,
-        durationMonths: 1,
-        billingLabel: '/ month',
+        price: 4999,
+        durationMonths: 12,
+        billingLabel: '/ year',
         maxCustomersLimit: 250,
         maxStaffLimit: 2,
         dailyMessageLimit: 50,
         features: [
+            '1 Full Year (12 Months) Validity',
             'Up to 250 Active Parties',
             '2 Staff / Team Accounts',
             '50 Daily Payment Reminders (WhatsApp/SMS/Email)',
@@ -83,20 +84,21 @@ const DEFAULT_PLANS = [
     {
         id: 'pro',
         name: 'Pro Plan',
-        tagline: 'Full-featured automation, cloud backups & higher quotas for active finance teams.',
-        badge: 'MOST POPULAR',
+        tagline: 'Full-featured yearly automation, cloud backups & higher quotas for finance teams.',
+        badge: 'MOST POPULAR • YEARLY',
         isPopular: true,
         isCustom: false,
-        price: 2499,
-        durationMonths: 3,
-        billingLabel: '/ 3 months',
-        maxCustomersLimit: 1000,
+        price: 9999,
+        durationMonths: 12,
+        billingLabel: '/ year',
+        maxCustomersLimit: 1500,
         maxStaffLimit: 10,
-        dailyMessageLimit: 250,
+        dailyMessageLimit: 300,
         features: [
-            'Up to 1,000 Active Parties',
+            '1 Full Year (12 Months) Validity',
+            'Up to 1,500 Active Parties',
             '10 Staff / Team Accounts',
-            '250 Daily Payment Reminders (WhatsApp/SMS/Email)',
+            '300 Daily Payment Reminders (WhatsApp/SMS/Email)',
             'Automated Google Drive Cloud Backups',
             'Tally / Busy Excel Import & Export',
             'Customer Self-Service Portal & Priority Support'
@@ -111,21 +113,22 @@ const DEFAULT_PLANS = [
     {
         id: 'customized',
         name: 'Customized Plan',
-        tagline: 'Tailor your exact party quota, team size, and daily message limits with live pricing.',
-        badge: 'BUILD YOUR OWN',
+        tagline: 'Tailor your exact yearly party quota, team size, and daily message limits with live pricing.',
+        badge: 'CUSTOM YEARLY',
         isPopular: false,
         isCustom: true,
-        price: 1699,
-        durationMonths: 1,
-        billingLabel: '/ month',
-        maxCustomersLimit: 500,
-        maxStaffLimit: 5,
-        dailyMessageLimit: 150,
-        basePrice: 499,
-        pricePer100Parties: 120,
-        pricePerStaff: 80,
-        pricePer50Messages: 60,
+        price: 14999,
+        durationMonths: 12,
+        billingLabel: '/ year',
+        maxCustomersLimit: 2000,
+        maxStaffLimit: 15,
+        dailyMessageLimit: 500,
+        basePrice: 2999,
+        pricePer100Parties: 500,
+        pricePerStaff: 400,
+        pricePer50Messages: 300,
         features: [
+            '1 Full Year (12 Months) Validity (Extendable)',
             'Custom Active Parties Quota (100 – 10,000+)',
             'Custom Staff / Team Accounts (1 – 100+)',
             'Custom Daily Reminder Quota (50 – 2,500+)',
@@ -145,47 +148,47 @@ const DEFAULT_PLANS = [
 const DEFAULT_ADDONS = [
     {
         id: 'addon_parties_500',
-        name: '+500 Extra Parties',
-        description: 'Expand your party ledger capacity by 500 additional customer accounts.',
-        price: 399,
+        name: '+500 Extra Parties (Yearly)',
+        description: 'Expand your party ledger capacity by 500 additional customer accounts for the year.',
+        price: 1499,
         type: 'parties',
         value: 500,
         isActive: true
     },
     {
         id: 'addon_staff_5',
-        name: '+5 Extra Staff Accounts',
+        name: '+5 Extra Staff Accounts (Yearly)',
         description: 'Add 5 more staff/employee logins for your collections and accounting team.',
-        price: 299,
+        price: 999,
         type: 'staff',
         value: 5,
         isActive: true
     },
     {
         id: 'addon_msgs_100',
-        name: '+100 Daily Reminders',
+        name: '+100 Daily Reminders (Yearly)',
         description: 'Boost your daily WhatsApp, SMS & Email payment reminder quota by 100/day.',
-        price: 199,
+        price: 799,
         type: 'messages',
         value: 100,
         isActive: true
     },
     {
         id: 'addon_gdrive',
-        name: 'Cloud Backup Unlock',
+        name: 'Cloud Backup Unlock (Yearly)',
         description: 'Enable automated & 1-click Google Drive cloud backups on Basic plans.',
-        price: 249,
+        price: 999,
         type: 'gdrive',
         value: 1,
         isActive: true
     },
     {
-        id: 'addon_validity_3m',
-        name: '+3 Months Plan Validity',
-        description: 'Extend your subscription validity by an additional 3 months.',
-        price: 999,
+        id: 'addon_validity_12m',
+        name: '+1 Extra Year Validity (12 Months)',
+        description: 'Extend your subscription validity by an additional 12 months (1 full year).',
+        price: 3999,
         type: 'duration',
-        value: 3,
+        value: 12,
         isActive: true
     }
 ];
@@ -207,6 +210,15 @@ planConfigSchema.statics.getOrCreateSingleton = async function () {
         if (!config.plans || config.plans.length === 0) {
             config.plans = DEFAULT_PLANS;
             modified = true;
+        } else {
+            // Migrate any old 1-month/3-month default plans to Yearly (12 months)
+            config.plans.forEach(p => {
+                if (!p.durationMonths || p.durationMonths < 12) {
+                    p.durationMonths = 12;
+                    p.billingLabel = '/ year';
+                    modified = true;
+                }
+            });
         }
         if (!config.addons || config.addons.length === 0) {
             config.addons = DEFAULT_ADDONS;
