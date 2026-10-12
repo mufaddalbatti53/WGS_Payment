@@ -1402,8 +1402,8 @@
     </div>
 
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=12"></script>
-    <script src="js/superadmin.js?v=12"></script>
+    <script src="js/api.js?v=13"></script>
+    <script src="js/superadmin.js?v=13"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1565,13 +1565,126 @@
                 };
             }
 
-            // Ensure modal preset buttons are rendered and applyPlanPresetToModal always uses live plans + auto-sets expiry
-            document.addEventListener('DOMContentLoaded', function() {
-                var grid = document.getElementById('plansEditorGrid');
-                if (grid && !grid.children.length && typeof window.renderPlansEditor === 'function') {
-                    window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+            // Standalone Fallback Renderer for Plans & Add-ons
+            window.renderStandalonePlansEditor = function(config) {
+                var cfg = config || window.currentPlanConfigState || FALLBACK_PLAN_CONFIG;
+                var rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
+                var rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
+                var waSalesEl = document.getElementById('whatsappSalesInput');
+                var saEmailEl = document.getElementById('superadminEmailInput');
+                var rzpBadge = document.getElementById('rzpStatusBadge');
+
+                var keyId = String(cfg.razorpayKeyId || '').trim();
+                var keySecret = String(cfg.razorpayKeySecret || '').trim();
+
+                if (rzpKeyIdEl && !rzpKeyIdEl.value) rzpKeyIdEl.value = keyId;
+                if (rzpKeySecretEl && !rzpKeySecretEl.value) rzpKeySecretEl.value = keySecret;
+                if (waSalesEl && !waSalesEl.value) waSalesEl.value = cfg.whatsappSalesNumber || '917021056404';
+                if (saEmailEl && !saEmailEl.value) saEmailEl.value = cfg.superadminEmail || '';
+
+                if (rzpBadge) {
+                    if (keyId && keySecret) {
+                        var isLive = keyId.indexOf('rzp_live_') === 0;
+                        rzpBadge.style.background = '#dcfce7';
+                        rzpBadge.style.color = '#166534';
+                        rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Keys Active' : '🟢 Razorpay TEST Keys Active';
+                    } else {
+                        rzpBadge.style.background = '#fef3c7';
+                        rzpBadge.style.color = '#b45309';
+                        rzpBadge.textContent = '⚠️ Razorpay Keys Not Set (Request Mode)';
+                    }
                 }
-            });
+
+                var plansGrid = document.getElementById('plansEditorGrid');
+                if (plansGrid && (!plansGrid.children.length || plansGrid.innerHTML.trim() === '')) {
+                    var plans = (Array.isArray(cfg.plans) && cfg.plans.length) ? cfg.plans : FALLBACK_PLAN_CONFIG.plans;
+                    plansGrid.innerHTML = plans.map(function(plan, idx) {
+                        var isCustom = Boolean(plan.isCustom || plan.id === 'customized');
+                        var fa = plan.featureAccess || {};
+                        var featuresList = Array.isArray(plan.features) ? plan.features : (typeof plan.features === 'string' ? plan.features.split('\n') : []);
+                        var featuresText = featuresList.map(function(f){ return String(f).trim(); }).filter(Boolean).join('\n');
+                        return '<div class="plan-edit-card ' + (plan.isPopular ? 'popular' : '') + '" data-plan-idx="' + idx + '" data-plan-id="' + (plan.id || '') + '">' +
+                            '<div class="plan-edit-card-header">' +
+                                '<span class="plan-tier-tag">' + (isCustom ? '🎛️ Tier 3: Customized' : (idx === 0 ? '🌱 Tier 1: Basic' : '🚀 Tier 2: Pro')) + '</span>' +
+                                '<label style="font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; cursor:pointer;">' +
+                                    '<input type="checkbox" class="plan-popular-chk" ' + (plan.isPopular ? 'checked' : '') + '> Highlight Popular' +
+                                '</label>' +
+                            '</div>' +
+                            '<div class="pm-row-2">' +
+                                '<div class="pm-field"><label>Plan Title</label><input type="text" class="plan-name-inp" value="' + (plan.name || '') + '" required></div>' +
+                                '<div class="pm-field"><label>Top Badge Text</label><input type="text" class="plan-badge-inp" value="' + (plan.badge || '') + '"></div>' +
+                            '</div>' +
+                            '<div class="pm-field"><label>Subtitle / Tagline</label><input type="text" class="plan-tagline-inp" value="' + (plan.tagline || '') + '"></div>' +
+                            '<div class="pm-row-2">' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Starting Yearly Price (₹ / Yr)' : 'Yearly Plan Price (₹ / Yr)') + '</label><input type="number" class="plan-price-inp" min="0" value="' + (Number(plan.price) || 0) + '"></div>' +
+                                '<div class="pm-field"><label>Default Validity (Months)</label><input type="number" class="plan-duration-inp" min="1" max="60" value="' + (Number(plan.durationMonths) || 12) + '"></div>' +
+                            '</div>' +
+                            '<div class="pm-row-3">' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Default Parties' : 'Max Parties') + '</label><input type="number" class="plan-parties-inp" min="0" value="' + (Number(plan.maxCustomersLimit) || 0) + '"></div>' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Default Staff' : 'Max Staff') + '</label><input type="number" class="plan-staff-inp" min="0" value="' + (Number(plan.maxStaffLimit) || 0) + '"></div>' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Default Msgs/Day' : 'Msgs / Day') + '</label><input type="number" class="plan-msgs-inp" min="0" value="' + (Number(plan.dailyMessageLimit) || 0) + '"></div>' +
+                            '</div>' +
+                            (isCustom ? '<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
+                                '<span class="access-checks-title" style="color:#1e40af;">🧮 Custom Plan Calculator Unit Rates (₹ / Year)</span>' +
+                                '<div class="pm-row-2">' +
+                                    '<div class="pm-field" style="margin-bottom:8px;"><label>Base Platform Fee (₹/Yr)</label><input type="number" class="plan-base-price-inp" min="0" value="' + (Number(plan.basePrice != null ? plan.basePrice : 2999)) + '"></div>' +
+                                    '<div class="pm-field" style="margin-bottom:8px;"><label>Per 100 Parties (₹/Yr)</label><input type="number" class="plan-rate-parties-inp" min="0" value="' + (Number(plan.pricePer100Parties != null ? plan.pricePer100Parties : 500)) + '"></div>' +
+                                '</div>' +
+                                '<div class="pm-row-2">' +
+                                    '<div class="pm-field" style="margin-bottom:0;"><label>Per Staff Account (₹/Yr)</label><input type="number" class="plan-rate-staff-inp" min="0" value="' + (Number(plan.pricePerStaff != null ? plan.pricePerStaff : 400)) + '"></div>' +
+                                    '<div class="pm-field" style="margin-bottom:0;"><label>Per 50 Daily Msgs (₹/Yr)</label><input type="number" class="plan-rate-msgs-inp" min="0" value="' + (Number(plan.pricePer50Messages != null ? plan.pricePer50Messages : 300)) + '"></div>' +
+                                '</div>' +
+                            '</div>' : '') +
+                            '<div class="access-checks-box">' +
+                                '<span class="access-checks-title">🔐 Included Feature Access</span>' +
+                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-gdrive" ' + (fa.allowGoogleDriveBackup !== false ? 'checked' : '') + '><span>☁️ Google Drive Cloud Backup</span></label>' +
+                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-excel" ' + (fa.allowExcelImport !== false ? 'checked' : '') + '><span>📥 Bulk Excel Party Import</span></label>' +
+                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-pdf" ' + (fa.allowPdfExport !== false ? 'checked' : '') + '><span>📄 Branded PDF Statement Export</span></label>' +
+                            '</div>' +
+                            '<div class="pm-field" style="margin-bottom:0;"><label>Bullet Features Shown on Card (1 per line)</label><textarea class="plan-features-txt">' + featuresText + '</textarea></div>' +
+                        '</div>';
+                    }).join('');
+                }
+
+                var addonsList = document.getElementById('addonsEditorList');
+                if (addonsList && (!addonsList.children.length || addonsList.innerHTML.trim() === '')) {
+                    var addons = (Array.isArray(cfg.addons) && cfg.addons.length) ? cfg.addons : FALLBACK_PLAN_CONFIG.addons;
+                    addonsList.innerHTML = addons.map(function(addon, idx) {
+                        return '<div class="addon-edit-row" data-addon-id="' + (addon.id || ('addon_' + idx)) + '">' +
+                            '<div class="pm-field" style="margin:0;"><label>Add-on Name</label><input type="text" class="addon-name-inp" value="' + (addon.name || '') + '" placeholder="e.g. +500 Extra Parties"></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Description</label><input type="text" class="addon-desc-inp" value="' + (addon.description || '') + '" placeholder="Short benefit description"></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Boost Type</label><select class="addon-type-sel">' +
+                                '<option value="parties" ' + (addon.type === 'parties' ? 'selected' : '') + '>📊 Extra Parties</option>' +
+                                '<option value="staff" ' + (addon.type === 'staff' ? 'selected' : '') + '>👥 Extra Staff</option>' +
+                                '<option value="messages" ' + (addon.type === 'messages' ? 'selected' : '') + '>💬 Extra Daily Msgs</option>' +
+                                '<option value="gdrive" ' + (addon.type === 'gdrive' ? 'selected' : '') + '>☁️ Cloud Backup Unlock</option>' +
+                                '<option value="duration" ' + (addon.type === 'duration' ? 'selected' : '') + '>📅 Extra Validity (Months)</option>' +
+                            '</select></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Boost Value</label><input type="number" class="addon-val-inp" min="0" value="' + (Number(addon.value) || 0) + '"></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Price (₹)</label><input type="number" class="addon-price-inp" min="0" value="' + (Number(addon.price) || 0) + '"></div>' +
+                            '<div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;"><button type="button" onclick="this.closest(\'.addon-edit-row\').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button></div>' +
+                        '</div>';
+                    }).join('');
+                }
+            };
+
+            // Execute immediately without waiting for DOMContentLoaded so user NEVER sees "Checking..."
+            if (typeof window.renderPlansEditor === 'function') {
+                window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+            } else {
+                window.renderStandalonePlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+            }
+
+            // Also guarantee execution on DOMContentLoaded or tab switch
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (typeof window.renderPlansEditor === 'function') {
+                        window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+                    } else {
+                        window.renderStandalonePlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+                    }
+                });
+            }
         })();
     </script>
 </body>

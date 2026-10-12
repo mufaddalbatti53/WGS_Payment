@@ -2,137 +2,6 @@ function escapeJsStr(str) {
     return (str || '').toString().replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadDashboard();
-
-    const credForm = document.getElementById('superadminCredForm');
-    if (credForm) {
-        credForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const password = document.getElementById('saNewPassword').value;
-            const confirmPassword = document.getElementById('saConfirmPassword').value;
-            const msgContainer = document.getElementById('settingsMsgContainer');
-            if (password !== confirmPassword) {
-                if (msgContainer) {
-                    msgContainer.innerHTML = `<div class="alert-msg error">⚠️ New Passwords do not match. Please retype carefully.</div>`;
-                } else {
-                    alert('New Passwords do not match. Please retype carefully.');
-                }
-                return;
-            }
-
-            const currentPassword = document.getElementById('saCurrentPassword').value;
-            const newUsername = document.getElementById('saUsername').value;
-
-            try {
-                const res = await apiJson('/api/superadmin/change-credentials', {
-                    method: 'POST',
-                    body: JSON.stringify({ newUsername, currentPassword, newPassword: password, confirmPassword })
-                });
-                if (res && res.success) {
-                    msgContainer.innerHTML = `<div class="alert-msg success">✅ ${res.message || 'Credentials updated successfully.'}</div>`;
-                    document.getElementById('saCurrentPassword').value = '';
-                    document.getElementById('saNewPassword').value = '';
-                    document.getElementById('saConfirmPassword').value = '';
-                } else {
-                    msgContainer.innerHTML = `<div class="alert-msg error">⚠️ ${(res && (res.message || res.error)) || 'Failed to update credentials.'}</div>`;
-                }
-            } catch (err) {
-                msgContainer.innerHTML = `<div class="alert-msg error">⚠️ ${err.message}</div>`;
-            }
-        });
-    }
-
-    const limitsForm = document.getElementById('limitsForm');
-    if (limitsForm) {
-        limitsForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('modalAdminId').value;
-            const planId = (document.getElementById('modalSelectedPlanId')?.value || '').trim();
-            const planName = (document.getElementById('modalPlanName')?.value || '').trim();
-            const planPrice = document.getElementById('modalPlanPrice')?.value;
-            const planDurationMonths = document.getElementById('modalPlanDurationMonths')?.value || 12;
-            const maxStaffLimit = document.getElementById('modalMaxStaff').value;
-            const maxCustomersLimit = document.getElementById('modalMaxCustomers').value;
-            const dailyMessageLimit = document.getElementById('modalDailyMessages').value;
-            const planExpiryDate = document.getElementById('modalPlanExpiry').value;
-            const status = document.getElementById('modalStatus').value;
-            const featureAccess = {
-                allowGoogleDriveBackup: document.getElementById('modalAllowGDrive')?.checked !== false,
-                allowExcelImport: document.getElementById('modalAllowExcel')?.checked !== false,
-                allowPdfExport: document.getElementById('modalAllowPdf')?.checked !== false
-            };
-
-            try {
-                const res = await apiJson(`/api/superadmin/update-limits/${id}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        planId,
-                        planName,
-                        planPrice,
-                        planDurationMonths,
-                        maxStaffLimit,
-                        maxCustomersLimit,
-                        dailyMessageLimit,
-                        planExpiryDate,
-                        status,
-                        featureAccess
-                    })
-                });
-                if (res && !res.success) {
-                    alert('Error updating limits: ' + (res.message || 'Unknown error'));
-                    return;
-                }
-                closeLimitsModal();
-                loadDashboard();
-            } catch (err) {
-                alert('Error updating limits: ' + err.message);
-            }
-        });
-    }
-
-    // Modal overlay backdrop click to close
-    const limitsModalEl = document.getElementById('limitsModal');
-    if (limitsModalEl) {
-        limitsModalEl.addEventListener('click', (e) => {
-            if (e.target === limitsModalEl) {
-                closeLimitsModal();
-            }
-        });
-    }
-
-    // Delegated click listener for Plan Preset Buttons
-    const presetBarEl = document.getElementById('modalPlanPresetBar');
-    if (presetBarEl) {
-        presetBarEl.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-plan-id]');
-            if (btn) {
-                const planId = btn.getAttribute('data-plan-id');
-                if (planId && typeof window.applyPlanPresetToModal === 'function') {
-                    window.applyPlanPresetToModal(planId);
-                }
-            }
-        });
-    }
-
-    // Escape key closes modal
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            const modal = document.getElementById('limitsModal');
-            if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
-                closeLimitsModal();
-            }
-        }
-    });
-
-    // Immediately render default plans & add-ons so the editor is never empty
-    if (!currentPlanConfigState) {
-        currentPlanConfigState = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
-        window.currentPlanConfigState = currentPlanConfigState;
-        renderPlansEditor(currentPlanConfigState);
-    }
-});
-
 const DEFAULT_SUPERADMIN_PLAN_CONFIG = {
     razorpayKeyId: '',
     razorpayKeySecret: '',
@@ -282,6 +151,155 @@ const DEFAULT_SUPERADMIN_PLAN_CONFIG = {
 };
 
 let currentPlanConfigState = null;
+window.DEFAULT_SUPERADMIN_PLAN_CONFIG = DEFAULT_SUPERADMIN_PLAN_CONFIG;
+
+function initSuperAdminApp() {
+    // 1. Immediately render plans & add-ons with current/default state so editor is NEVER empty or stuck on "Checking..."
+    if (!currentPlanConfigState) {
+        currentPlanConfigState = window.currentPlanConfigState || JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+        window.currentPlanConfigState = currentPlanConfigState;
+    }
+    if (typeof renderPlansEditor === 'function') {
+        renderPlansEditor(currentPlanConfigState);
+    }
+
+    // 2. Fetch live dashboard data from API
+    loadDashboard();
+
+    // 3. Bind forms & listeners
+    const credForm = document.getElementById('superadminCredForm');
+    if (credForm && !credForm.dataset.bound) {
+        credForm.dataset.bound = 'true';
+        credForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('saNewPassword').value;
+            const confirmPassword = document.getElementById('saConfirmPassword').value;
+            const msgContainer = document.getElementById('settingsMsgContainer');
+            if (password !== confirmPassword) {
+                if (msgContainer) {
+                    msgContainer.innerHTML = `<div class="alert-msg error">⚠️ New Passwords do not match. Please retype carefully.</div>`;
+                } else {
+                    alert('New Passwords do not match. Please retype carefully.');
+                }
+                return;
+            }
+
+            const currentPassword = document.getElementById('saCurrentPassword').value;
+            const newUsername = document.getElementById('saUsername').value;
+
+            try {
+                const res = await apiJson('/api/superadmin/change-credentials', {
+                    method: 'POST',
+                    body: JSON.stringify({ newUsername, currentPassword, newPassword: password, confirmPassword })
+                });
+                if (res && res.success) {
+                    msgContainer.innerHTML = `<div class="alert-msg success">✅ ${res.message || 'Credentials updated successfully.'}</div>`;
+                    document.getElementById('saCurrentPassword').value = '';
+                    document.getElementById('saNewPassword').value = '';
+                    document.getElementById('saConfirmPassword').value = '';
+                } else {
+                    msgContainer.innerHTML = `<div class="alert-msg error">⚠️ ${(res && (res.message || res.error)) || 'Failed to update credentials.'}</div>`;
+                }
+            } catch (err) {
+                msgContainer.innerHTML = `<div class="alert-msg error">⚠️ ${err.message}</div>`;
+            }
+        });
+    }
+
+    const limitsForm = document.getElementById('limitsForm');
+    if (limitsForm && !limitsForm.dataset.bound) {
+        limitsForm.dataset.bound = 'true';
+        limitsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('modalAdminId').value;
+            const planId = (document.getElementById('modalSelectedPlanId')?.value || '').trim();
+            const planName = (document.getElementById('modalPlanName')?.value || '').trim();
+            const planPrice = document.getElementById('modalPlanPrice')?.value;
+            const planDurationMonths = document.getElementById('modalPlanDurationMonths')?.value || 12;
+            const maxStaffLimit = document.getElementById('modalMaxStaff').value;
+            const maxCustomersLimit = document.getElementById('modalMaxCustomers').value;
+            const dailyMessageLimit = document.getElementById('modalDailyMessages').value;
+            const planExpiryDate = document.getElementById('modalPlanExpiry').value;
+            const status = document.getElementById('modalStatus').value;
+            const featureAccess = {
+                allowGoogleDriveBackup: document.getElementById('modalAllowGDrive')?.checked !== false,
+                allowExcelImport: document.getElementById('modalAllowExcel')?.checked !== false,
+                allowPdfExport: document.getElementById('modalAllowPdf')?.checked !== false
+            };
+
+            try {
+                const res = await apiJson(`/api/superadmin/update-limits/${id}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        planId,
+                        planName,
+                        planPrice,
+                        planDurationMonths,
+                        maxStaffLimit,
+                        maxCustomersLimit,
+                        dailyMessageLimit,
+                        planExpiryDate,
+                        status,
+                        featureAccess
+                    })
+                });
+                if (res && !res.success) {
+                    alert('Error updating limits: ' + (res.message || 'Unknown error'));
+                    return;
+                }
+                closeLimitsModal();
+                loadDashboard();
+            } catch (err) {
+                alert('Error updating limits: ' + err.message);
+            }
+        });
+    }
+
+    // Modal overlay backdrop click to close
+    const limitsModalEl = document.getElementById('limitsModal');
+    if (limitsModalEl && !limitsModalEl.dataset.bound) {
+        limitsModalEl.dataset.bound = 'true';
+        limitsModalEl.addEventListener('click', (e) => {
+            if (e.target === limitsModalEl) {
+                closeLimitsModal();
+            }
+        });
+    }
+
+    // Delegated click listener for Plan Preset Buttons
+    const presetBarEl = document.getElementById('modalPlanPresetBar');
+    if (presetBarEl && !presetBarEl.dataset.bound) {
+        presetBarEl.dataset.bound = 'true';
+        presetBarEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-plan-id]');
+            if (btn) {
+                const planId = btn.getAttribute('data-plan-id');
+                if (planId && typeof window.applyPlanPresetToModal === 'function') {
+                    window.applyPlanPresetToModal(planId);
+                }
+            }
+        });
+    }
+
+    // Escape key closes modal
+    if (!document.body?.dataset?.escBound) {
+        if (document.body) document.body.dataset.escBound = 'true';
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('limitsModal');
+                if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                    closeLimitsModal();
+                }
+            }
+        });
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSuperAdminApp);
+} else {
+    initSuperAdminApp();
+}
 
 window.getLivePlansList = function() {
     const planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
@@ -469,7 +487,15 @@ function showTab(tabId) {
             btn.classList.add('active');
         }
     });
+
+    if (tabId === 'plansTab') {
+        const grid = document.getElementById('plansEditorGrid');
+        if (!grid || !grid.children.length) {
+            renderPlansEditor(currentPlanConfigState || window.currentPlanConfigState || DEFAULT_SUPERADMIN_PLAN_CONFIG);
+        }
+    }
 }
+window.showTab = showTab;
 
 function togglePassword(icon) {
     const input = icon.previousElementSibling;
@@ -1299,7 +1325,14 @@ function renderRejected(users) {
 
 // ── SUBSCRIPTION PLANS, ADD-ONS & RAZORPAY EDITOR ──
 function renderPlansEditor(config) {
-    if (!config) return;
+    const activeConfig = (config && Array.isArray(config.plans) && config.plans.length > 0)
+        ? config
+        : (currentPlanConfigState && Array.isArray(currentPlanConfigState.plans) && currentPlanConfigState.plans.length > 0)
+            ? currentPlanConfigState
+            : DEFAULT_SUPERADMIN_PLAN_CONFIG;
+
+    currentPlanConfigState = activeConfig;
+    window.currentPlanConfigState = activeConfig;
 
     const rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
     const rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
@@ -1307,14 +1340,17 @@ function renderPlansEditor(config) {
     const saEmailEl = document.getElementById('superadminEmailInput');
     const rzpBadge = document.getElementById('rzpStatusBadge');
 
-    if (rzpKeyIdEl) rzpKeyIdEl.value = config.razorpayKeyId || '';
-    if (rzpKeySecretEl) rzpKeySecretEl.value = config.razorpayKeySecret || '';
-    if (waSalesEl) waSalesEl.value = config.whatsappSalesNumber || '917021056404';
-    if (saEmailEl) saEmailEl.value = config.superadminEmail || '';
+    const keyIdStr = String(activeConfig.razorpayKeyId || '').trim();
+    const keySecretStr = String(activeConfig.razorpayKeySecret || '').trim();
+
+    if (rzpKeyIdEl) rzpKeyIdEl.value = keyIdStr;
+    if (rzpKeySecretEl) rzpKeySecretEl.value = keySecretStr;
+    if (waSalesEl) waSalesEl.value = activeConfig.whatsappSalesNumber || '917021056404';
+    if (saEmailEl) saEmailEl.value = activeConfig.superadminEmail || '';
 
     if (rzpBadge) {
-        if (config.razorpayKeyId && config.razorpayKeySecret) {
-            const isLive = config.razorpayKeyId.startsWith('rzp_live_');
+        if (keyIdStr && keySecretStr) {
+            const isLive = keyIdStr.startsWith('rzp_live_');
             rzpBadge.style.background = '#dcfce7';
             rzpBadge.style.color = '#166534';
             rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Keys Active' : '🟢 Razorpay TEST Keys Active';
@@ -1327,11 +1363,17 @@ function renderPlansEditor(config) {
 
     const plansGrid = document.getElementById('plansEditorGrid');
     if (plansGrid) {
-        const plans = config.plans || [];
+        const plans = (Array.isArray(activeConfig.plans) && activeConfig.plans.length > 0)
+            ? activeConfig.plans
+            : DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
+
         plansGrid.innerHTML = plans.map((plan, idx) => {
             const isCustom = Boolean(plan.isCustom || plan.id === 'customized');
             const fa = plan.featureAccess || {};
-            const featuresText = (plan.features || []).join('\n');
+            const featuresList = Array.isArray(plan.features)
+                ? plan.features
+                : (typeof plan.features === 'string' ? plan.features.split('\n') : []);
+            const featuresText = featuresList.map(f => String(f).trim()).filter(Boolean).join('\n');
             return `
                 <div class="plan-edit-card ${plan.isPopular ? 'popular' : ''}" data-plan-idx="${idx}" data-plan-id="${escapeJsStr(plan.id)}">
                     <div class="plan-edit-card-header">
@@ -1434,15 +1476,23 @@ function renderPlansEditor(config) {
         }).join('');
     }
 
-    renderAddonsEditorList(config.addons || []);
+    const activeAddons = (Array.isArray(activeConfig.addons) && activeConfig.addons.length > 0)
+        ? activeConfig.addons
+        : DEFAULT_SUPERADMIN_PLAN_CONFIG.addons;
+    renderAddonsEditorList(activeAddons);
     renderModalPlanPresetButtons(document.getElementById('modalSelectedPlanId')?.value || 'basic');
 }
+window.renderPlansEditor = renderPlansEditor;
 
 function renderAddonsEditorList(addons) {
     const container = document.getElementById('addonsEditorList');
     if (!container) return;
 
-    if (!addons.length) {
+    const list = (Array.isArray(addons) && addons.length > 0)
+        ? addons
+        : (DEFAULT_SUPERADMIN_PLAN_CONFIG.addons || []);
+
+    if (!list.length) {
         container.innerHTML = `<div style="padding:18px; text-align:center; color:var(--text-muted); font-size:13px;">No add-ons configured. Click "+ Add New Add-on" to create one.</div>`;
         return;
     }
@@ -1621,4 +1671,11 @@ async function saveSubscriptionSettings() {
         }
     }
 }
+
+window.renderPlansEditor = renderPlansEditor;
+window.renderAddonsEditorList = renderAddonsEditorList;
+window.addNewAddonRow = addNewAddonRow;
+window.resetDefaultPlansAndAddons = resetDefaultPlansAndAddons;
+window.saveSubscriptionSettings = saveSubscriptionSettings;
+window.DEFAULT_SUPERADMIN_PLAN_CONFIG = DEFAULT_SUPERADMIN_PLAN_CONFIG;
 
