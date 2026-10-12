@@ -4,6 +4,12 @@ const Customer = require('../models/Customer');
 const User = require('../models/User');
 const PlanConfig = require('../models/PlanConfig');
 const subscriptionsRouter = require('./subscriptions');
+const { isPlanExpiredDate } = require('../middleware/auth');
+const {
+    checkAndSendExpiryNotificationsForAdmin,
+    runExpiryEmailScan,
+    syncStaffQuotaForAdmin
+} = require('../utils/emailService');
 
 router.get('/', async (req, res) => {
     if (!req.session.userId) {
@@ -28,13 +34,18 @@ router.get('/', async (req, res) => {
             customersPromise = Customer.find({ adminId: req.session.adminId }).lean();
         }
 
-        const [finalCustomers, adminUserRaw, staffCount, planConfig] = await Promise.all([
+        const [finalCustomers, adminUserRaw, staffMembersRaw, planConfig] = await Promise.all([
             customersPromise,
             User.findById(req.session.adminId).select('+googleDriveToken').lean(),
-            req.session.adminId ? User.countDocuments({ role: 'staff', adminId: req.session.adminId }) : Promise.resolve(0),
+            req.session.adminId
+                ? User.find({ role: 'staff', adminId: req.session.adminId }).select('_id username status isQuotaLocked').sort({ _id: 1 }).lean()
+                : Promise.resolve([]),
             PlanConfig.getOrCreateSingleton()
         ]);
         const adminUser = adminUserRaw || {};
+        let staffMembers = Array.isArray(staffMembersRaw) ? staffMembersRaw : [];
+        const staffCount = staffMembers.length;
+
         adminUser.isGoogleDriveLinked = Boolean(adminUser.googleDriveToken || adminUser.googleEmail);
         delete adminUser.googleDriveToken;
         delete adminUser.password;
@@ -53,10 +64,28 @@ router.get('/', async (req, res) => {
                 req.session.destroy();
                 return res.status(403).json({ success: false, message: "❌ Your access has been revoked. Please contact support." });
             }
-            if (req.session.role !== 'admin' && adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
+            if (req.session.role === 'staff') {
+                const thisStaff = staffMembers.find(s => String(s._id) === String(req.session.userId));
+                if (!thisStaff || thisStaff.status === 'suspended' || thisStaff.status === 'rejected') {
+                    req.session.destroy();
+                    return res.status(403).json({ success: false, message: "⏸️ Your staff account is currently inactive. Please contact your Admin." });
+                }
+                if (isPlanExpiredDate(adminUser.planExpiryDate)) {
+                    req.session.destroy();
+                    return res.status(403).json({ success: false, message: "⌛ Your company's subscription plan has expired. Staff login and access are disabled until your Admin renews the plan." });
+                }
+                if (thisStaff.isQuotaLocked || adminUser.requiresStaffSelection) {
+                    req.session.destroy();
+                    return res.status(403).json({ success: false, message: `🔒 Your staff account is paused because your company's plan allows up to ${adminUser.maxStaffLimit ?? 5} active staff.` });
+                }
+            } else if (req.session.role !== 'admin' && isPlanExpiredDate(adminUser.planExpiryDate)) {
                 req.session.destroy();
                 return res.status(403).json({ success: false, message: "⌛ Your organization's subscription plan has expired. Please ask your Admin to renew." });
             }
+
+            // Trigger non-blocking expiry email check (10 days before & post-expiry)
+            checkAndSendExpiryNotificationsForAdmin(adminUser).catch(() => {});
+            runExpiryEmailScan().catch(() => {});
         }
 
         let subscriptionAlert = null;
@@ -70,10 +99,10 @@ router.get('/', async (req, res) => {
             daysLeftVal = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             expiryFormattedStr = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-            if (daysLeftVal <= 15) {
+            if (daysLeftVal <= 10) {
                 subscriptionAlert = {
                     expired: daysLeftVal < 0,
-                    nearExpiry: daysLeftVal >= 0 && daysLeftVal <= 15,
+                    nearExpiry: daysLeftVal >= 0 && daysLeftVal <= 10,
                     daysLeft: Math.max(0, daysLeftVal),
                     rawDaysLeft: daysLeftVal,
                     expiryFormatted: expiryFormattedStr
@@ -93,6 +122,18 @@ router.get('/', async (req, res) => {
                 quotaAlert = `Daily message limit reached (${adminUser.dailyMessageCount}/${dailyLimit}).`;
             }
         }
+
+        // Check if active unlocked staff count exceeds maxStaffLimit (and auto-sync if needed)
+        const maxStaffLimit = Number(adminUser.maxStaffLimit ?? 5);
+        let unlockedStaffCount = staffMembers.filter(s => !s.isQuotaLocked).length;
+        let requiresStaffSelection = Boolean(adminUser.requiresStaffSelection);
+        if (maxStaffLimit > 0 && staffCount > maxStaffLimit && unlockedStaffCount > maxStaffLimit) {
+            const synced = await syncStaffQuotaForAdmin(adminUser._id, maxStaffLimit);
+            staffMembers = synced.staffList || staffMembers;
+            unlockedStaffCount = synced.activeStaffCount;
+            requiresStaffSelection = true;
+        }
+        const pausedStaffCount = staffMembers.filter(s => s.isQuotaLocked).length;
 
         // Build Subscription Details & Renewal Quotes (With Add-ons vs Without Add-ons)
         let subscriptionDetails = null;
@@ -129,17 +170,34 @@ router.get('/', async (req, res) => {
                 planExpiryDate: adminUser.planExpiryDate || null,
                 expiryFormatted: expiryFormattedStr,
                 daysLeft: daysLeftVal,
-                isNearExpiry: daysLeftVal !== null && daysLeftVal >= 0 && daysLeftVal <= 15,
+                isNearExpiry: daysLeftVal !== null && daysLeftVal >= 0 && daysLeftVal <= 10,
                 isExpired: daysLeftVal !== null && daysLeftVal < 0,
+                isReadOnly: daysLeftVal !== null && daysLeftVal < 0,
                 activeAddons,
                 hasAddons: activeAddons.length > 0,
                 quotas: {
                     partiesUsed: finalCustomers.length,
                     partiesLimit: adminUser.maxCustomersLimit ?? 500,
                     staffUsed: staffCount,
-                    staffLimit: adminUser.maxStaffLimit ?? 5,
+                    staffActive: unlockedStaffCount,
+                    staffPaused: pausedStaffCount,
+                    staffLimit: maxStaffLimit,
                     messagesUsed: adminUser.dailyMessageCount || 0,
                     messagesLimit: adminUser.dailyMessageLimit ?? 100
+                },
+                staffQuotaSelection: {
+                    required: Boolean(maxStaffLimit > 0 && staffCount > maxStaffLimit && requiresStaffSelection),
+                    hasExcessStaff: Boolean(maxStaffLimit > 0 && staffCount > maxStaffLimit),
+                    totalStaff: staffCount,
+                    maxStaffLimit: maxStaffLimit,
+                    activeStaffCount: unlockedStaffCount,
+                    pausedStaffCount: pausedStaffCount,
+                    staffList: staffMembers.map(s => ({
+                        _id: s._id,
+                        username: s.username,
+                        status: s.status || 'approved',
+                        isQuotaLocked: Boolean(s.isQuotaLocked)
+                    }))
                 },
                 featureAccess: adminUser.featureAccess,
                 lastPaymentId: adminUser.lastPaymentId || '',

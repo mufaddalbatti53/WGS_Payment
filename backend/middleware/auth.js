@@ -1,6 +1,15 @@
 const User = require('../models/User');
 const ActivityLog = require('../models/Activity');
 
+function isPlanExpiredDate(planExpiryDate) {
+    if (!planExpiryDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(planExpiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    return expiry.getTime() < today.getTime();
+}
+
 const requireLogin = async (req, res, next) => {
     if (!req.session || !req.session.userId) {
         return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
@@ -10,7 +19,13 @@ const requireLogin = async (req, res, next) => {
 
     try {
         const adminId = req.session.adminId || req.session.userId;
-        const adminUser = await User.findById(adminId).select('status planExpiryDate role').lean();
+        const [adminUser, staffUser] = await Promise.all([
+            User.findById(adminId).select('status planExpiryDate role requiresStaffSelection maxStaffLimit').lean(),
+            req.session.role === 'staff'
+                ? User.findById(req.session.userId).select('status isQuotaLocked').lean()
+                : Promise.resolve(null)
+        ]);
+
         if (!adminUser) {
             req.session.destroy();
             return res.status(401).json({ success: false, message: "Account not found. Please log in again." });
@@ -23,22 +38,68 @@ const requireLogin = async (req, res, next) => {
             req.session.destroy();
             return res.status(401).json({ success: false, message: "❌ Your access has been revoked. Please contact support." });
         }
-        if (adminUser.planExpiryDate && new Date() > new Date(adminUser.planExpiryDate)) {
-            const isDashboardLoad = req.session.role === 'admin' && req.method === 'GET' && (req.baseUrl === '/api/dashboard' || req.originalUrl.startsWith('/api/dashboard'));
-            if (!isDashboardLoad) {
-                if (req.session.role === 'staff') {
-                    req.session.destroy();
-                    return res.status(401).json({
-                        success: false,
-                        error: "⌛ Your company's subscription plan has expired. Please ask your Admin to renew.",
-                        message: "⌛ Your company's subscription plan has expired. Please ask your Admin to renew."
-                    });
-                }
+
+        const expired = isPlanExpiredDate(adminUser.planExpiryDate);
+
+        if (req.session.role === 'staff') {
+            if (!staffUser || staffUser.status === 'suspended' || staffUser.status === 'rejected') {
+                req.session.destroy();
+                return res.status(401).json({
+                    success: false,
+                    error: "⏸️ Your staff account is currently inactive. Please contact your Admin.",
+                    message: "⏸️ Your staff account is currently inactive. Please contact your Admin."
+                });
+            }
+            if (expired) {
+                req.session.destroy();
+                return res.status(401).json({
+                    success: false,
+                    error: "⌛ Your company's subscription plan has expired. Staff login and access are disabled until your Admin renews the plan or adds an add-on.",
+                    message: "⌛ Your company's subscription plan has expired. Staff login and access are disabled until your Admin renews the plan or adds an add-on."
+                });
+            }
+            if (staffUser.isQuotaLocked || adminUser.requiresStaffSelection) {
+                req.session.destroy();
+                return res.status(401).json({
+                    success: false,
+                    error: `🔒 Your staff account is paused because your company's plan allows up to ${adminUser.maxStaffLimit ?? 5} active staff. Please ask your Admin to select your account or upgrade their Staff quota.`,
+                    message: `🔒 Your staff account is paused because your company's plan allows up to ${adminUser.maxStaffLimit ?? 5} active staff. Please ask your Admin to select your account or upgrade their Staff quota.`
+                });
+            }
+        }
+
+        if (expired) {
+            // Admin Read-Only Mode: Only allow viewing dashboard/staff/activity via GET, or subscription/logout endpoints
+            const urlPath = (req.originalUrl || req.baseUrl || '').split('?')[0];
+            const isAllowedReadOnlyGet =
+                req.method === 'GET' &&
+                (urlPath.startsWith('/api/dashboard') || urlPath === '/api/staff' || urlPath.startsWith('/api/activity'));
+            const isSubscriptionOrLogout =
+                urlPath.startsWith('/api/subscriptions') || urlPath.includes('/logout');
+
+            if (!isAllowedReadOnlyGet && !isSubscriptionOrLogout) {
                 return res.status(403).json({
                     success: false,
                     code: 'PLAN_EXPIRED',
-                    error: "⌛ Your yearly subscription plan has expired. Please click 'Renew Plan' in the top-right Subscription menu on your dashboard to extend your plan.",
-                    message: "⌛ Your yearly subscription plan has expired. Please click 'Renew Plan' in the top-right Subscription menu on your dashboard to extend your plan."
+                    error: "🔒 Read-Only Mode: Your subscription has expired. You can only view your dashboard until you renew your plan or purchase an add-on.",
+                    message: "🔒 Read-Only Mode: Your subscription has expired. You can only view your dashboard until you renew your plan or purchase an add-on."
+                });
+            }
+        } else if (req.session.role === 'admin' && adminUser.requiresStaffSelection) {
+            // If Admin has more staff than new plan allows (e.g. 5 staff, plan allows 3), require selecting active staff first before other mutations
+            const urlPath = (req.originalUrl || req.baseUrl || '').split('?')[0];
+            const isAllowedDuringStaffSelection =
+                req.method === 'GET' ||
+                urlPath.startsWith('/api/staff') ||
+                urlPath.startsWith('/api/subscriptions') ||
+                urlPath.includes('/logout');
+
+            if (!isAllowedDuringStaffSelection) {
+                return res.status(403).json({
+                    success: false,
+                    code: 'STAFF_SELECTION_REQUIRED',
+                    error: `👥 Action Required: Your current plan allows ${adminUser.maxStaffLimit ?? 3} staff accounts. Please first select which ${adminUser.maxStaffLimit ?? 3} staff members will get active access.`,
+                    message: `👥 Action Required: Your current plan allows ${adminUser.maxStaffLimit ?? 3} staff accounts. Please first select which ${adminUser.maxStaffLimit ?? 3} staff members will get active access.`
                 });
             }
         }
@@ -90,5 +151,6 @@ module.exports = {
     requireLogin,
     requireAdmin,
     requireSuperAdmin,
-    logActivity
+    logActivity,
+    isPlanExpiredDate
 };

@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
-const { requireLogin, logActivity } = require('../middleware/auth');
+const { requireLogin, logActivity, isPlanExpiredDate } = require('../middleware/auth');
+const { notifyRegistrationOrRequest, checkAndSendExpiryNotificationsForAdmin } = require('../utils/emailService');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { google } = require('googleapis');
@@ -75,11 +76,26 @@ router.post('/login', loginLimiter, async (req, res) => {
             if (user.status === 'suspended') return res.json({ success: false, error: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin to reactivate your account." });
             if (user.status === 'rejected') return res.json({ success: false, error: "❌ Your access request was not approved. Please contact support." });
         } else if (user.role === 'staff') {
+            if (user.status === 'suspended' || user.status === 'rejected') {
+                return res.json({ success: false, error: "⏸️ Your staff account is currently suspended or inactive. Please contact your Admin." });
+            }
             const parentAdmin = await User.findById(user.adminId).lean();
             if (parentAdmin) {
                 if (parentAdmin.status === 'suspended') return res.json({ success: false, error: "⏸️ Your company account is currently suspended due to unpaid fees. Please contact Super Admin." });
                 if (parentAdmin.status === 'rejected') return res.json({ success: false, error: "❌ Your company access has been revoked. Please contact support." });
-                if (parentAdmin.planExpiryDate && new Date() > new Date(parentAdmin.planExpiryDate)) return res.json({ success: false, error: "⌛ Your company's subscription plan has expired. Please contact Super Admin." });
+                if (isPlanExpiredDate(parentAdmin.planExpiryDate)) {
+                    checkAndSendExpiryNotificationsForAdmin(parentAdmin).catch(() => {});
+                    return res.json({
+                        success: false,
+                        error: "⌛ Your company's subscription plan has expired. Staff sign-in is disabled until your Admin renews the plan or purchases an add-on."
+                    });
+                }
+                if (user.isQuotaLocked || parentAdmin.requiresStaffSelection) {
+                    return res.json({
+                        success: false,
+                        error: `🔒 Your staff account is currently paused because your company's plan allows up to ${parentAdmin.maxStaffLimit ?? 5} active staff. Please ask your Admin to enable your account or upgrade their Staff quota.`
+                    });
+                }
             }
         }
 
@@ -90,6 +106,10 @@ router.post('/login', loginLimiter, async (req, res) => {
             req.session.role = user.role;
             req.session.username = user.username;
             req.session.adminId = user.role === 'admin' ? user._id : (user.role === 'superadmin' ? user._id : user.adminId);
+
+            if (user.role === 'admin') {
+                checkAndSendExpiryNotificationsForAdmin(user).catch(() => {});
+            }
 
             return res.json({ 
                 success: true, 
@@ -122,17 +142,21 @@ router.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const hashedAnswer = await bcrypt.hash(req.body.securityAnswer || '', 10);
 
-        await User.create({
+        const newUser = await User.create({
             username: rawUsername,
             password: hashedPassword,
             email: req.body.email ? req.body.email.trim() : '',
+            companyEmail: req.body.email ? req.body.email.trim() : '',
             phone: req.body.phone ? req.body.phone.trim() : '',
+            contactNo: req.body.phone ? req.body.phone.trim() : '',
             role: 'admin',
             status: 'pending',
             requestedAt: new Date(),
             securityQuestion: req.body.securityQuestion,
             securityAnswer: hashedAnswer
         });
+
+        await notifyRegistrationOrRequest(newUser);
 
         res.json({ success: true, message: "✅ Registration request submitted! Please wait for Super Admin approval before logging in." });
     } catch (e) {

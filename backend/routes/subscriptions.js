@@ -5,6 +5,12 @@ const bcrypt = require('bcryptjs');
 const PlanConfig = require('../models/PlanConfig');
 const User = require('../models/User');
 const ActivityLog = require('../models/Activity');
+const {
+    syncStaffQuotaForAdmin,
+    notifyPlanPurchased,
+    notifyPlanRenewedOrAddon,
+    notifyRegistrationOrRequest
+} = require('../utils/emailService');
 
 function escapeRegExp(str) {
     return (str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -348,11 +354,20 @@ router.post('/verify-payment', async (req, res) => {
             user.lastPaymentId = razorpay_payment_id;
             user.lastOrderId = razorpay_order_id;
             user.lastAmountPaid = quote.totalAmount;
+            user.lastPreExpiryEmailSentAt = null;
+            user.lastPreExpiryDaysNotified = null;
+            user.lastPostExpiryEmailSentAt = null;
             await user.save();
 
-            // Re-activate all staff accounts under this Admin in case they were suspended
+            // Re-activate staff accounts under this Admin
             await User.updateMany({ role: 'staff', adminId: user._id }, { status: 'approved' });
         }
+
+        const staffQuotaStatus = await syncStaffQuotaForAdmin(
+            user._id,
+            quote.finalStaffLimit,
+            Array.isArray(req.body.selectedStaffIds) ? req.body.selectedStaffIds : null
+        );
 
         await ActivityLog.create({
             adminId: user._id,
@@ -361,6 +376,8 @@ router.post('/verify-payment', async (req, res) => {
             actionType: 'Subscription Activated',
             details: `Purchased ${quote.planName} (₹${quote.totalAmount}, PayID: ${razorpay_payment_id}) — Limits: ${quote.finalPartiesLimit} Parties, ${quote.finalStaffLimit} Staff, ${quote.finalMessagesLimit} Msgs/day.`
         });
+
+        await notifyPlanPurchased(user, quote, razorpay_payment_id, staffQuotaStatus);
 
         // Automatically log the Admin in
         if (req.session) {
@@ -375,6 +392,7 @@ router.post('/verify-payment', async (req, res) => {
             success: true,
             message: 'Payment verified and Admin account activated!',
             redirect: 'dashboard.html?from=login',
+            staffQuotaStatus,
             user: {
                 username: user.username,
                 role: user.role,
@@ -454,6 +472,8 @@ router.post('/submit-request', async (req, res) => {
             details: `Requested ${quote.planName} (Quoted: ₹${quote.totalAmount}) — Limits: ${quote.finalPartiesLimit} Parties, ${quote.finalStaffLimit} Staff, ${quote.finalMessagesLimit} Msgs/day.`
         });
 
+        await notifyRegistrationOrRequest(user, quote);
+
         res.json({
             success: true,
             message: `Your ${quote.planName} subscription request (₹${quote.totalAmount.toLocaleString('en-IN')}) has been submitted! Super Admin will review and activate your account shortly.`
@@ -473,9 +493,78 @@ async function resolveRenewalAdminUser(req) {
     return user;
 }
 
-// Helper to build customConfig & addonIds for an Admin's renewal mode ('with_addons' vs 'without_addons')
+// Helper to calculate quote when purchasing standalone Add-ons from the Dashboard
+function calculateAddonsOnlyQuote(user, config, addonIds = []) {
+    const validAddonIds = Array.isArray(addonIds) ? addonIds : [];
+    const selectedAddons = [];
+    let addonsTotal = 0;
+
+    let finalPartiesLimit = Number(user.maxCustomersLimit) || 250;
+    let finalStaffLimit = Number(user.maxStaffLimit) || 2;
+    let finalMessagesLimit = Number(user.dailyMessageLimit) || 50;
+    let addedDurationMonths = 0;
+
+    const featureAccess = {
+        allowGoogleDriveBackup: user.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(user.featureAccess.allowGoogleDriveBackup) : true,
+        allowExcelImport: user.featureAccess?.allowExcelImport !== undefined ? Boolean(user.featureAccess.allowExcelImport) : true,
+        allowPdfExport: user.featureAccess?.allowPdfExport !== undefined ? Boolean(user.featureAccess.allowPdfExport) : true
+    };
+
+    for (const addonId of validAddonIds) {
+        const addon = (config.addons || []).find(a => a.id === addonId && a.isActive !== false);
+        if (!addon) continue;
+        const addonPrice = Number(addon.price) || 0;
+        const addonVal = Number(addon.value) || 0;
+        const addonName = addon.name || addon.title || addon.id;
+        addonsTotal += addonPrice;
+        selectedAddons.push({
+            id: addon.id,
+            name: addonName,
+            title: addonName,
+            type: addon.type,
+            value: addonVal,
+            price: addonPrice
+        });
+
+        if (addon.type === 'parties') finalPartiesLimit += addonVal;
+        else if (addon.type === 'staff') finalStaffLimit += addonVal;
+        else if (addon.type === 'messages') finalMessagesLimit += addonVal;
+        else if (addon.type === 'duration') addedDurationMonths += addonVal;
+        else if (addon.type === 'gdrive') featureAccess.allowGoogleDriveBackup = true;
+    }
+
+    if (!selectedAddons.length) {
+        throw new Error('Please select at least one Add-on to purchase.');
+    }
+
+    const totalAmount = Math.max(1, Math.round(addonsTotal));
+    return {
+        planId: user.planId || 'basic',
+        planName: user.planName || 'Basic Plan',
+        planPrice: 0,
+        baseAmount: 0,
+        addonsTotal: totalAmount,
+        addonsAmount: totalAmount,
+        totalAmount,
+        finalPartiesLimit,
+        finalStaffLimit,
+        finalMessagesLimit,
+        finalDurationMonths: addedDurationMonths,
+        limits: {
+            partyLimit: finalPartiesLimit,
+            staffLimit: finalStaffLimit,
+            dailyMessageLimit: finalMessagesLimit,
+            durationMonths: addedDurationMonths || (user.planDurationMonths || 12)
+        },
+        selectedAddons,
+        featureAccess
+    };
+}
+
+// Helper to build customConfig & addonIds for an Admin's renewal mode ('with_addons', 'without_addons', or 'addons_only')
 function resolveAdminRenewalParams(user, config, body = {}) {
-    const renewalMode = body.renewalMode === 'without_addons' ? 'without_addons' : 'with_addons';
+    const rawMode = body.renewalMode || body.renewMode || 'with_addons';
+    const renewalMode = rawMode === 'without_addons' ? 'without_addons' : (rawMode === 'addons_only' ? 'addons_only' : 'with_addons');
     let planId = body.planId || user.planId || '';
 
     // If SuperAdmin changed user.planName, ensure planId matches user.planName
@@ -510,7 +599,9 @@ function resolveAdminRenewalParams(user, config, body = {}) {
     };
 
     let addonIds = [];
-    if (renewalMode === 'with_addons') {
+    if (renewalMode === 'addons_only') {
+        addonIds = Array.isArray(body.addonIds) ? body.addonIds : [];
+    } else if (renewalMode === 'with_addons') {
         if (Array.isArray(body.addonIds)) {
             addonIds = body.addonIds;
         } else {
@@ -523,18 +614,19 @@ function resolveAdminRenewalParams(user, config, body = {}) {
     return { renewalMode, planId, customConfig, addonIds, fallbackUserAddons: activeAddons };
 }
 
-// POST /api/subscriptions/create-renewal-order (Authenticated Admin Dashboard Renewal)
-router.post('/create-renewal-order', async (req, res) => {
+async function handleCreateRenewalOrder(req, res) {
     try {
         const user = await resolveRenewalAdminUser(req);
         if (!user) {
-            const msg = 'Please log in as an Admin to renew your subscription.';
+            const msg = 'Please log in as an Admin to renew your subscription or purchase add-ons.';
             return res.status(401).json({ success: false, message: msg, error: msg });
         }
 
         const config = await PlanConfig.getOrCreateSingleton();
         const { renewalMode, planId, customConfig, addonIds, fallbackUserAddons } = resolveAdminRenewalParams(user, config, req.body);
-        const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
+        const quote = renewalMode === 'addons_only'
+            ? calculateAddonsOnlyQuote(user, config, addonIds)
+            : calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
 
         const keyId = (config.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '').trim();
         const keySecret = (config.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
@@ -569,7 +661,8 @@ router.post('/create-renewal-order', async (req, res) => {
                     companyName: user.companyName || '',
                     planId: quote.planId,
                     planName: quote.planName,
-                    renewalMode
+                    renewalMode,
+                    addonIds: JSON.stringify(addonIds || [])
                 }
             })
         });
@@ -609,10 +702,12 @@ router.post('/create-renewal-order', async (req, res) => {
         const msg = err.message || 'Server error creating renewal order.';
         res.status(500).json({ success: false, message: msg, error: msg });
     }
-});
+}
 
-// POST /api/subscriptions/verify-renewal (Authenticated Admin Dashboard Renewal Verification)
-router.post('/verify-renewal', async (req, res) => {
+router.post('/create-renewal-order', handleCreateRenewalOrder);
+router.post('/renew-order', handleCreateRenewalOrder);
+
+async function handleVerifyRenewal(req, res) {
     try {
         const user = await resolveRenewalAdminUser(req);
         if (!user) {
@@ -649,17 +744,23 @@ router.post('/verify-renewal', async (req, res) => {
             return res.status(400).json({ success: false, message: msg, error: msg });
         }
 
-        // Ensure renewalMode is accurately resolved even if the client omitted it in the request body
+        // Ensure renewalMode and addonIds are accurately resolved even if the client omitted them
         const effectiveBody = { ...req.body };
-        if (!effectiveBody.renewalMode && keyId && keySecret) {
+        if (!effectiveBody.renewalMode && effectiveBody.renewMode) {
+            effectiveBody.renewalMode = effectiveBody.renewMode;
+        }
+        if ((!effectiveBody.renewalMode || (effectiveBody.renewalMode === 'addons_only' && !effectiveBody.addonIds)) && keyId && keySecret) {
             try {
                 const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
                 const ordRes = await fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpay_order_id)}`, {
                     headers: { 'Authorization': `Basic ${authHeader}` }
                 });
                 const ordData = await ordRes.json();
-                if (ordData && ordData.notes && ordData.notes.renewalMode) {
-                    effectiveBody.renewalMode = ordData.notes.renewalMode;
+                if (ordData && ordData.notes) {
+                    if (ordData.notes.renewalMode) effectiveBody.renewalMode = ordData.notes.renewalMode;
+                    if (ordData.notes.addonIds && !effectiveBody.addonIds) {
+                        try { effectiveBody.addonIds = JSON.parse(ordData.notes.addonIds); } catch (e) {}
+                    }
                 }
             } catch (ordErr) {
                 console.warn('Could not fetch order notes for renewalMode fallback:', ordErr.message);
@@ -667,55 +768,93 @@ router.post('/verify-renewal', async (req, res) => {
         }
 
         const { renewalMode, planId, customConfig, addonIds, fallbackUserAddons } = resolveAdminRenewalParams(user, config, effectiveBody);
-        const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
+        const quote = renewalMode === 'addons_only'
+            ? calculateAddonsOnlyQuote(user, config, addonIds)
+            : calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
 
         const now = new Date();
         let baseDate = now;
+        const wasExpired = !user.planExpiryDate || new Date(user.planExpiryDate) <= now;
         if (user.planExpiryDate && new Date(user.planExpiryDate) > now) {
             baseDate = new Date(user.planExpiryDate);
         }
-        const expiryDate = new Date(baseDate);
-        expiryDate.setMonth(expiryDate.getMonth() + quote.finalDurationMonths);
+
+        let expiryDate = user.planExpiryDate ? new Date(user.planExpiryDate) : new Date(now);
+        if (renewalMode === 'addons_only') {
+            // If purchasing a duration add-on, or if the account was expired and they purchased an add-on to unlock access
+            const monthsToAdd = quote.finalDurationMonths > 0 ? quote.finalDurationMonths : (wasExpired ? 12 : 0);
+            if (monthsToAdd > 0) {
+                expiryDate = new Date(baseDate);
+                expiryDate.setMonth(expiryDate.getMonth() + monthsToAdd);
+            }
+        } else {
+            expiryDate = new Date(baseDate);
+            expiryDate.setMonth(expiryDate.getMonth() + quote.finalDurationMonths);
+        }
 
         user.status = 'approved';
         if (!user.approvedAt) user.approvedAt = now;
         user.maxCustomersLimit = quote.finalPartiesLimit;
         user.maxStaffLimit = quote.finalStaffLimit;
         user.dailyMessageLimit = quote.finalMessagesLimit;
-        user.planDurationMonths = quote.finalDurationMonths;
+        if (renewalMode !== 'addons_only') {
+            user.planDurationMonths = quote.finalDurationMonths;
+            user.planId = quote.planId;
+            user.planName = quote.planName;
+            user.activeAddons = renewalMode === 'without_addons' ? [] : quote.selectedAddons;
+        } else {
+            const existingAddons = Array.isArray(user.activeAddons) ? user.activeAddons : [];
+            user.activeAddons = [...existingAddons, ...quote.selectedAddons];
+        }
         user.planExpiryDate = expiryDate;
-        user.planId = quote.planId;
-        user.planName = quote.planName;
-        user.activeAddons = renewalMode === 'without_addons' ? [] : quote.selectedAddons;
         user.featureAccess = quote.featureAccess;
         user.lastPaymentId = razorpay_payment_id;
         user.lastOrderId = razorpay_order_id;
         user.lastAmountPaid = quote.totalAmount;
+        user.lastPreExpiryEmailSentAt = null;
+        user.lastPreExpiryDaysNotified = null;
+        user.lastPostExpiryEmailSentAt = null;
         await user.save();
 
-        // Also re-approve any staff accounts under this Admin
+        // Also re-approve any staff accounts under this Admin and sync staff quota locks
         await User.updateMany({ role: 'staff', adminId: user._id }, { status: 'approved' });
+        const staffQuotaStatus = await syncStaffQuotaForAdmin(
+            user._id,
+            user.maxStaffLimit,
+            Array.isArray(req.body.selectedStaffIds) ? req.body.selectedStaffIds : null
+        );
+
+        const modeLabel = renewalMode === 'addons_only'
+            ? `Add-on Pack (${quote.selectedAddons.map(a => a.name).join(', ')})`
+            : (renewalMode === 'with_addons' && quote.selectedAddons.length ? 'Yearly Plan Renewal (WITH Add-ons)' : 'Yearly Plan Renewal (WITHOUT Add-ons)');
 
         await ActivityLog.create({
             adminId: user._id,
             actorName: user.username,
             actorRole: 'admin',
-            actionType: 'Subscription Renewed',
-            details: `Renewed ${quote.planName} (${renewalMode === 'with_addons' && quote.selectedAddons.length ? 'WITH Add-ons' : 'WITHOUT Add-ons / Base Plan'}, ₹${quote.totalAmount}, PayID: ${razorpay_payment_id}) until ${expiryDate.toLocaleDateString('en-IN')}.`
+            actionType: renewalMode === 'addons_only' ? 'Add-on Purchased' : 'Subscription Renewed',
+            details: `${modeLabel} — ${user.planName} (₹${quote.totalAmount}, PayID: ${razorpay_payment_id}) valid until ${expiryDate.toLocaleDateString('en-IN')}.`
         });
+
+        await notifyPlanRenewedOrAddon(user, quote, modeLabel, razorpay_payment_id, staffQuotaStatus);
 
         res.json({
             success: true,
-            message: `Yearly subscription renewed ${renewalMode === 'with_addons' && quote.selectedAddons.length ? 'WITH Add-ons' : 'WITHOUT Add-ons'}! Valid until ${expiryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
-            newExpiryDate: expiryDate
+            message: `${modeLabel} completed! Valid until ${expiryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
+            newExpiryDate: expiryDate,
+            staffQuotaStatus
         });
     } catch (err) {
         console.error('Error verifying renewal:', err);
         const msg = 'Server error verifying renewal: ' + err.message;
         res.status(500).json({ success: false, message: msg, error: msg });
     }
-});
+}
+
+router.post('/verify-renewal', handleVerifyRenewal);
+router.post('/renew-verify', handleVerifyRenewal);
 
 router.calculateSubscriptionQuote = calculateSubscriptionQuote;
+router.calculateAddonsOnlyQuote = calculateAddonsOnlyQuote;
 router.resolveAdminRenewalParams = resolveAdminRenewalParams;
 module.exports = router;

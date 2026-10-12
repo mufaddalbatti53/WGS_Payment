@@ -1197,6 +1197,10 @@
                             <label>WhatsApp Sales / Support Number (with country code)</label>
                             <input type="text" id="whatsappSalesInput" placeholder="917021056404">
                         </div>
+                        <div class="pm-field">
+                            <label>📧 SuperAdmin Alert Email (Receives Purchase, Renewal & Expiry Alerts)</label>
+                            <input type="email" id="superadminEmailInput" placeholder="admin@yourcompany.com (defaults to SMTP sender email if blank)">
+                        </div>
                     </div>
                 </div>
 
@@ -1351,8 +1355,8 @@
     </div>
 
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=8"></script>
-    <script src="js/superadmin.js?v=8"></script>
+    <script src="js/api.js?v=9"></script>
+    <script src="js/superadmin.js?v=9"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1360,6 +1364,7 @@
                 razorpayKeyId: '',
                 razorpayKeySecret: '',
                 whatsappSalesNumber: '917021056404',
+                superadminEmail: '',
                 currency: 'INR',
                 plans: [
                     {
@@ -1461,11 +1466,13 @@
                     var rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
                     var rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
                     var waSalesEl = document.getElementById('whatsappSalesInput');
+                    var saEmailEl = document.getElementById('superadminEmailInput');
                     var rzpBadge = document.getElementById('rzpStatusBadge');
 
                     if (rzpKeyIdEl) rzpKeyIdEl.value = config.razorpayKeyId || '';
                     if (rzpKeySecretEl) rzpKeySecretEl.value = config.razorpayKeySecret || '';
                     if (waSalesEl) waSalesEl.value = config.whatsappSalesNumber || '917021056404';
+                    if (saEmailEl) saEmailEl.value = config.superadminEmail || '';
 
                     if (rzpBadge) {
                         if (config.razorpayKeyId && config.razorpayKeySecret) {
@@ -1599,6 +1606,7 @@
                     merged.razorpayKeyId = (document.getElementById('rzpKeyIdInput') && document.getElementById('rzpKeyIdInput').value) || '';
                     merged.razorpayKeySecret = (document.getElementById('rzpKeySecretInput') && document.getElementById('rzpKeySecretInput').value) || '';
                     merged.whatsappSalesNumber = (document.getElementById('whatsappSalesInput') && document.getElementById('whatsappSalesInput').value) || '917021056404';
+                    merged.superadminEmail = (document.getElementById('superadminEmailInput') && document.getElementById('superadminEmailInput').value) || '';
                     window.renderPlansEditor(merged);
                 };
             }
@@ -1612,6 +1620,7 @@
                         var razorpayKeyId = ((document.getElementById('rzpKeyIdInput') && document.getElementById('rzpKeyIdInput').value) || '').trim();
                         var razorpayKeySecret = ((document.getElementById('rzpKeySecretInput') && document.getElementById('rzpKeySecretInput').value) || '').trim();
                         var whatsappSalesNumber = ((document.getElementById('whatsappSalesInput') && document.getElementById('whatsappSalesInput').value) || '').trim();
+                        var superadminEmail = ((document.getElementById('superadminEmailInput') && document.getElementById('superadminEmailInput').value) || '').trim();
 
                         var planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
                         var plans = planCards.map(function(card, idx) {
@@ -1659,7 +1668,7 @@
 
                         var res = await apiJson('/api/superadmin/subscription-settings', {
                             method: 'POST',
-                            body: JSON.stringify({ razorpayKeyId: razorpayKeyId, razorpayKeySecret: razorpayKeySecret, whatsappSalesNumber: whatsappSalesNumber, plans: plans, addons: addons })
+                            body: JSON.stringify({ razorpayKeyId: razorpayKeyId, razorpayKeySecret: razorpayKeySecret, whatsappSalesNumber: whatsappSalesNumber, superadminEmail: superadminEmail, plans: plans, addons: addons })
                         });
                         if (res && res.success) {
                             window.renderPlansEditor(res.planConfig);

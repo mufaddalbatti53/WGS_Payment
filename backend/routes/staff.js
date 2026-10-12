@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { requireAdmin, logActivity } = require('../middleware/auth');
+const { requireAdmin, logActivity, isPlanExpiredDate } = require('../middleware/auth');
+const { syncStaffQuotaForAdmin } = require('../utils/emailService');
 
 function escapeRegExp(string) {
     return (string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -10,16 +11,18 @@ function escapeRegExp(string) {
 
 router.get('/', requireAdmin, async (req, res) => {
     try {
-        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).lean();
+        const myStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).sort({ _id: 1 }).lean();
         const adminUser = await User.findById(req.session.adminId).lean() || {};
         const maxStaffLimit = adminUser.maxStaffLimit ?? 5;
 
         let subscriptionAlert = null;
+        let isExpired = false;
         if (adminUser.planExpiryDate) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const expiry = new Date(adminUser.planExpiryDate); expiry.setHours(0, 0, 0, 0);
             const diffTime = expiry.getTime() - today.getTime();
             const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            isExpired = daysLeft < 0;
 
             if (daysLeft <= 10) {
                 subscriptionAlert = {
@@ -30,15 +33,75 @@ router.get('/', requireAdmin, async (req, res) => {
             }
         }
 
+        const activeStaffCount = myStaff.filter(s => !s.isQuotaLocked).length;
+        const pausedStaffCount = myStaff.filter(s => s.isQuotaLocked).length;
+        const hasExcessStaff = maxStaffLimit > 0 && myStaff.length > maxStaffLimit;
+        const requiresStaffSelection = Boolean(hasExcessStaff && (adminUser.requiresStaffSelection || activeStaffCount > maxStaffLimit));
+
         res.json({
             success: true,
-            staffMembers: myStaff,
+            staffMembers: myStaff.map(s => ({
+                ...s,
+                isQuotaLocked: Boolean(s.isQuotaLocked)
+            })),
             maxStaffLimit: maxStaffLimit,
             currentStaffCount: myStaff.length,
+            activeStaffCount,
+            pausedStaffCount,
+            hasExcessStaff,
+            requiresStaffSelection,
+            isExpired,
             subscriptionAlert: subscriptionAlert
         });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error loading staff." });
+    }
+});
+
+// POST /api/staff/select-active — Admin selects which `maxStaffLimit` staff members get active access
+router.post('/select-active', requireAdmin, async (req, res) => {
+    try {
+        const adminUser = await User.findById(req.session.adminId);
+        if (!adminUser) {
+            return res.status(404).json({ success: false, message: 'Admin account not found.' });
+        }
+        if (isPlanExpiredDate(adminUser.planExpiryDate)) {
+            return res.status(403).json({
+                success: false,
+                code: 'PLAN_EXPIRED',
+                message: 'Your subscription has expired. Please renew your plan or add an add-on first.'
+            });
+        }
+
+        const maxStaff = Number(adminUser.maxStaffLimit ?? 5);
+        const allStaff = await User.find({ role: 'staff', adminId: req.session.adminId }).sort({ _id: 1 });
+        const rawIds = Array.isArray(req.body.activeStaffIds) ? req.body.activeStaffIds.map(String) : [];
+
+        if (maxStaff > 0 && rawIds.length > maxStaff) {
+            return res.status(400).json({
+                success: false,
+                message: `Your current plan allows up to ${maxStaff} active staff accounts. Please select at most ${maxStaff} staff members.`
+            });
+        }
+
+        if (allStaff.length > 0 && rawIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Please select up to ${Math.min(allStaff.length, maxStaff || allStaff.length)} staff member(s) to activate.`
+            });
+        }
+
+        const staffQuotaStatus = await syncStaffQuotaForAdmin(req.session.adminId, maxStaff, rawIds);
+        await logActivity(req, "Selected Active Staff", `Activated ${staffQuotaStatus.activeStaffCount} of ${staffQuotaStatus.totalStaff} staff accounts within plan quota (${maxStaff}).`);
+
+        res.json({
+            success: true,
+            message: `Active staff updated! ${staffQuotaStatus.activeStaffCount} staff enabled, ${staffQuotaStatus.pausedStaffCount} paused.`,
+            staffQuotaStatus
+        });
+    } catch (err) {
+        console.error("Select active staff error:", err);
+        res.status(500).json({ success: false, message: 'Failed to update active staff selection: ' + err.message });
     }
 });
 
@@ -54,7 +117,7 @@ router.post('/', requireAdmin, async (req, res) => {
         if (maxStaff > 0) {
             const currentStaffCount = await User.countDocuments({ role: 'staff', adminId: req.session.adminId });
             if (currentStaffCount >= maxStaff) {
-                return res.status(403).json({ success: false, message: `Staff limit reached (${currentStaffCount}/${maxStaff}). Contact Super Admin to upgrade your quota.` });
+                return res.status(403).json({ success: false, message: `Staff limit reached (${currentStaffCount}/${maxStaff}). Upgrade your plan or purchase an Extra Staff Add-on.` });
             }
         }
 
@@ -71,6 +134,7 @@ router.post('/', requireAdmin, async (req, res) => {
             password: hashedPassword,
             role: 'staff',
             status: 'approved',
+            isQuotaLocked: false,
             adminId: req.session.adminId,
             securityQuestion: "Managed by Admin?",
             securityAnswer: dummyAnswer
@@ -105,7 +169,11 @@ router.post('/reset-password', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
     try {
         const staff = await User.findOneAndDelete({ _id: req.params.id, adminId: req.session.adminId });
-        if (staff) await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
+        if (staff) {
+            const adminUser = await User.findById(req.session.adminId).select('maxStaffLimit').lean();
+            await syncStaffQuotaForAdmin(req.session.adminId, adminUser ? adminUser.maxStaffLimit : 5);
+            await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
+        }
         res.json({ success: true, message: 'Staff deleted successfully.' });
     } catch (err) {
         console.error("Staff Delete Error:", err);

@@ -47,6 +47,7 @@ const planConfigSchema = new mongoose.Schema({
     razorpayKeySecret: { type: String, default: '' },
     currency: { type: String, default: 'INR' },
     whatsappSalesNumber: { type: String, default: '917021056404' },
+    superadminEmail: { type: String, default: '' },
     plans: { type: [planItemSchema], default: [] },
     addons: { type: [addonItemSchema], default: [] }
 }, { timestamps: true });

@@ -335,19 +335,49 @@
             Logout</a>
     </div>
     <div class="main-wrapper">
-        <div id="subscriptionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
-            <div style="font-size:26px;">⏰</div>
-            <div>
-                <strong style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
-                <span style="color:#9a3412; font-size:13px; font-weight:600;">
-                    Your plan expires in <u id="subDaysLeft" style="font-weight:800; font-size:14px;"></u> (on <span id="subExpiryDate"></span>). Please contact Super Admin to renew your subscription.
-                </span>
+        <div id="subscriptionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
+            <div style="display:flex; align-items:center; gap:14px;">
+                <div id="staffSubWarnIcon" style="font-size:26px;">⏰</div>
+                <div>
+                    <strong id="staffSubWarnTitle" style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
+                    <span id="staffSubWarnDesc" style="color:#9a3412; font-size:13px; font-weight:600;">
+                        Your plan expires in <u id="subDaysLeft" style="font-weight:800; font-size:14px;"></u> (on <span id="subExpiryDate"></span>).
+                    </span>
+                </div>
             </div>
+            <a href="dashboard.html" style="background:#ea580c; color:white; padding:9px 15px; border-radius:10px; text-decoration:none; font-weight:800; font-size:13px;">🔄 Renew / Buy Add-on &rarr;</a>
         </div>
+
         <div id="msgContainer" style="display:none; border-radius:16px; padding:14px 18px; margin-bottom:20px; font-weight:700; font-size:13px;">
         </div>
 
-        <div class="floating-card" style="background: #f8fafc; border-color: #e2e8f0; position: relative; z-index: 100;">
+        <!-- STAFF QUOTA ACCESS SELECTION CARD (Shown when total staff > plan staff limit, e.g. 5 staff vs 3 allowed) -->
+        <div id="staffQuotaSelectionCard" class="floating-card" style="display:none; background:#fff7ed; border:2px solid #f59e0b;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                <div>
+                    <h3 id="staffQuotaCardTitle" style="margin:0; font-size:18px; color:#9a3412;">👥 Select Which Staff Members Get Active Login Access</h3>
+                    <p id="staffQuotaCardSubtitle" style="margin:4px 0 0; font-size:13px; color:#7c2d12;">
+                        Your plan allows <strong id="staffQuotaMaxText">3</strong> active staff members, and you have <strong id="staffQuotaTotalText">5</strong> staff accounts. Select which staff members can sign in below.
+                    </p>
+                </div>
+                <span style="background:#ffffff; border:1.5px solid #fdba74; color:#9a3412; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:800;">
+                    Selected: <span id="staffPageSelectedCount">0</span> / <span id="staffPageMaxAllowed">3</span>
+                </span>
+            </div>
+
+            <div id="staffPageQuotaChecklist" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:15px;"></div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button type="button" id="saveStaffPageQuotaBtn" onclick="saveStaffPageQuotaSelection()" class="btn-primary" style="flex:2; min-width:200px; background:linear-gradient(135deg,#2563eb,#1d4ed8);">
+                    ✅ Save Active Staff Access
+                </button>
+                <a href="dashboard.html" style="flex:1; min-width:160px; text-align:center; padding:12px 16px; border-radius:12px; background:#eef2ff; color:#3730a3; border:1.5px solid #c7d2fe; text-decoration:none; font-weight:800; font-size:13px;">
+                    🧩 Buy Staff Add-on &rarr;
+                </a>
+            </div>
+        </div>
+
+        <div id="createStaffCard" class="floating-card" style="background: #f8fafc; border-color: #e2e8f0; position: relative; z-index: 100;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
                 <h3 style="margin: 0; color: var(--text-dark); font-size: 18px;">Create New Staff Account</h3>
                 <span id="staffLimitBadge" style="background:#e0e7ff; color:#3730a3; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:700;">
@@ -371,7 +401,7 @@
                     <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
                 </div>
         
-                <button type="submit" class="btn-primary" style="position: relative; z-index: 102;">Create Account</button>
+                <button type="submit" id="createStaffSubmitBtn" class="btn-primary" style="position: relative; z-index: 102;">Create Account</button>
             </form>
         </div>
 
@@ -380,7 +410,7 @@
                 <thead>
                     <tr>
                         <th>Username</th>
-                        <th>Role</th>
+                        <th>Login Access</th>
                         <th>Reset Password</th>
                         <th style="text-align: right; padding-right: 20px;">Delete</th>
                     </tr>
@@ -393,8 +423,8 @@
     </div>
 
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js"></script>
-    <script src="js/staff.js"></script>
+    <script src="js/api.js?v=9"></script>
+    <script src="js/staff.js?v=9"></script>
 </body>
 
 </html>

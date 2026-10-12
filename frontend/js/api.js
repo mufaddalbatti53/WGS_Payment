@@ -14,13 +14,26 @@ async function apiFetch(path, options = {}) {
     if (options.body instanceof FormData) delete merged.headers['Content-Type'];
     const response = await fetch(url, merged);
     if (response.status === 401) {
-        window.location.href = '/login.html';
-        throw new Error('Session expired');
+        let errMsg = 'Session expired. Please log in again.';
+        try {
+            const errData = await response.clone().json();
+            if (errData && errData.message) errMsg = errData.message;
+        } catch (e) {}
+        window.location.href = '/login.html?error=' + encodeURIComponent(errMsg);
+        throw new Error(errMsg);
     }
     return response;
 }
 
 async function apiJson(path, options = {}) {
     const response = await apiFetch(path, options);
-    return response.json();
+    const data = await response.json();
+    if (response.status === 403 && data) {
+        if (data.code === 'PLAN_EXPIRED' && typeof window.openRenewalModal === 'function') {
+            setTimeout(() => window.openRenewalModal(), 100);
+        } else if (data.code === 'STAFF_SELECTION_REQUIRED' && typeof window.openStaffQuotaSelectModal === 'function') {
+            setTimeout(() => window.openStaffQuotaSelectModal(), 100);
+        }
+    }
+    return data;
 }

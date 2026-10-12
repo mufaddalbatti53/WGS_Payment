@@ -24,6 +24,7 @@ function populateDashboard(data) {
     }
     
     const role = data.role || 'customer';
+    window.currentUserRole = role;
     const settings = data.adminUser || {};
     window.adminProfile = settings;
     const stats = data.stats || {};
@@ -67,26 +68,31 @@ function populateDashboard(data) {
         if (data.subscriptionAlert) {
             subBox.style.display = 'flex';
             const dLeft = data.subscriptionAlert.daysLeft;
+            const warnIcon = document.getElementById('subWarningIcon');
             if (dLeft < 0) {
                 subBox.style.background = '#fef2f2';
                 subBox.style.borderColor = '#ef4444';
+                if (warnIcon) warnIcon.innerText = '🚨';
                 if (document.getElementById('subWarningTitle')) {
                     document.getElementById('subWarningTitle').style.color = '#b91c1c';
-                    document.getElementById('subWarningTitle').innerText = '🚨 Yearly Subscription Expired!';
+                    document.getElementById('subWarningTitle').innerText = '🚨 Subscription Expired — View-Only Mode Active!';
                 }
                 if (document.getElementById('subWarningDesc')) {
                     document.getElementById('subWarningDesc').style.color = '#7f1d1d';
-                    document.getElementById('subWarningDesc').innerHTML = `Your plan expired <u>${Math.abs(dLeft)} day(s) ago</u> (on ${escapeHtml(data.subscriptionAlert.expiryFormatted)}). Please renew your yearly plan now (with or without add-ons) to continue uninterrupted access.`;
+                    document.getElementById('subWarningDesc').innerHTML = `Your plan expired <u>${Math.abs(dLeft)} day(s) ago</u> (on ${escapeHtml(data.subscriptionAlert.expiryFormatted)}). You can view your dashboard, but <strong>all actions and staff sign-ins are disabled</strong> until you renew your plan or buy an add-on.`;
                 }
             } else {
                 subBox.style.background = '#fff7ed';
                 subBox.style.borderColor = '#f97316';
+                if (warnIcon) warnIcon.innerText = '⏰';
                 if (document.getElementById('subWarningTitle')) {
                     document.getElementById('subWarningTitle').style.color = '#c2410c';
                     document.getElementById('subWarningTitle').innerText = '⏰ Subscription Expiry Reminder';
                 }
-                if (document.getElementById('subDaysLeft')) document.getElementById('subDaysLeft').innerText = dLeft + ' day(s)';
-                if (document.getElementById('subExpiryDate')) document.getElementById('subExpiryDate').innerText = data.subscriptionAlert.expiryFormatted;
+                if (document.getElementById('subWarningDesc')) {
+                    document.getElementById('subWarningDesc').style.color = '#9a3412';
+                    document.getElementById('subWarningDesc').innerHTML = `Your yearly plan expires in <u id="subDaysLeft" style="font-weight:800; font-size:14px;">${dLeft} day(s)</u> (on <span id="subExpiryDate">${escapeHtml(data.subscriptionAlert.expiryFormatted)}</span>). Renew now with or without add-ons to avoid interruption.`;
+                }
             }
         } else {
             subBox.style.display = 'none';
@@ -135,13 +141,33 @@ function populateDashboard(data) {
         }
     }
 
-    // Populate Top-Right Subscription Details Popup & Auto Renewal Reminder Modal
+    // Populate Top-Right Subscription Details Popup, Staff Quota Selection & Auto Renewal Reminder Modal
     if (typeof populateSubscriptionUI === 'function') {
         populateSubscriptionUI(data.subscriptionDetails, role);
     }
 
     renderCustomers(data.customers || [], role, settings.companyName || 'Our Company');
 }
+
+window.checkDashboardActionAllowed = function(actionName) {
+    if (window.currentUserRole === 'customer') return true;
+    const sub = window.currentSubscriptionDetails;
+    if (sub && sub.isExpired) {
+        alert(`🚨 Subscription Expired (View-Only Mode): Your subscription has ended, so your account is in View-Only mode. You cannot ${actionName || 'make changes'} until you renew your plan or add an add-on.`);
+        if (typeof window.openRenewalModal === 'function') {
+            window.openRenewalModal();
+        }
+        return false;
+    }
+    if (sub && sub.staffQuotaSelection && sub.staffQuotaSelection.required) {
+        alert(`👥 Staff Access Selection Required: Your current plan allows ${sub.staffQuotaSelection.maxStaffLimit} active staff, and you have ${sub.staffQuotaSelection.totalStaff} staff accounts. Please select which ${sub.staffQuotaSelection.maxStaffLimit} staff members get active access first.`);
+        if (typeof window.openStaffQuotaSelectModal === 'function') {
+            window.openStaffQuotaSelectModal();
+        }
+        return false;
+    }
+    return true;
+};
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -432,6 +458,7 @@ function setupForms() {
 
 // Attach IDs and pre-populate modals
 window.openEditModal = function(id, comp, cont, ph, wa, em, tot, paid, oth) {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('edit a party')) return;
     const c = window.customerMap && window.customerMap[id] ? window.customerMap[id] : null;
     let compVal = c ? (c.companyName || '') : (comp || '');
     let contVal = c ? (c.contactPerson || '') : (cont || '');
@@ -463,6 +490,7 @@ window.openEditModal = function(id, comp, cont, ph, wa, em, tot, paid, oth) {
 };
 
 window.openActionModal = function(id, cname) {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('update action dates')) return;
     const c = window.customerMap && window.customerMap[id] ? window.customerMap[id] : null;
     const name = c ? c.companyName : (cname ? decodeURIComponent(cname) : '');
     const titleEl = document.getElementById('actionModalCompanyName');
@@ -481,11 +509,13 @@ window.openActionModal = function(id, cname) {
 };
 
 window.openTransactionModal = function(id) {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('update party balances')) return;
     document.getElementById('transactionForm').setAttribute('data-id', id);
     document.getElementById('transactionModal').style.display = 'block';
 };
 
 window.deleteCustomer = async function(id) {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('delete a party')) return;
     if(confirm('Are you sure you want to delete this party?')) {
         try {
             const res = await apiJson(`/api/customers/${id}`, { method: 'DELETE' });
@@ -509,6 +539,7 @@ window.handleLogout = async function() {
 };
 
 window.linkGoogleDrive = async function() {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('link Google Drive')) return;
     if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowGoogleDriveBackup === false) {
         alert('☁️ Google Drive Cloud Backup is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on.');
         return;
@@ -526,6 +557,7 @@ window.linkGoogleDrive = async function() {
 };
 
 window.disconnectGoogleDrive = async function() {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('disconnect Google Drive')) return;
     if (confirm('Disconnect Google Drive?')) {
         try {
             const res = await apiJson('/api/backup/google/disconnect', { method: 'POST' });
@@ -540,6 +572,7 @@ window.disconnectGoogleDrive = async function() {
 };
 
 window.exportExcel = async function() {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('export Excel reports')) return;
     try {
         if (typeof showToast === 'function') showToast('⏳ Preparing Excel export...');
         const response = await apiFetch('/api/backup/export', {
@@ -568,6 +601,7 @@ window.exportExcel = async function() {
 };
 
 window.downloadJsonBackup = async function() {
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('download JSON backups')) return;
     try {
         if (typeof showToast === 'function') showToast('⏳ Preparing JSON backup...');
         const response = await apiFetch('/api/backup/backup-data');
@@ -595,6 +629,10 @@ window.downloadJsonBackup = async function() {
 
 window.handleQuickImport = async function(fileInput) {
     if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('import Excel data')) {
+        fileInput.value = '';
+        return;
+    }
     if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowExcelImport === false) {
         fileInput.value = '';
         alert('📥 Bulk Excel Import is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin.');
@@ -621,6 +659,7 @@ window.handleQuickImport = async function(fileInput) {
 
 window.handleImportSubmit = async function(e) {
     e.preventDefault();
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('import Excel data')) return;
     if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowExcelImport === false) {
         return alert('📥 Bulk Excel Import is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin.');
     }
@@ -647,6 +686,7 @@ window.handleImportSubmit = async function(e) {
 
 window.handleRestoreSubmit = async function(e) {
     e.preventDefault();
+    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('restore backup data')) return;
     const fileInput = document.getElementById('restoreFileInput');
     if (!fileInput.files.length) return alert('Please choose a JSON backup file.');
     if (!confirm('⚠️ WARNING: This will overwrite your current party data with the uploaded file. Proceed?')) return;
@@ -670,11 +710,13 @@ window.handleRestoreSubmit = async function(e) {
 };
 
 // =========================================================================
-// TOP-RIGHT SUBSCRIPTION DETAILS POPUP & YEARLY RENEWAL MODAL (WITH / WITHOUT ADD-ONS)
+// TOP-RIGHT SUBSCRIPTION DETAILS POPUP, ADD-ONS & STAFF QUOTA SELECTION
 // =========================================================================
 window.currentSubscriptionDetails = null;
 window.selectedRenewalMode = 'with_addons';
+window.selectedDashboardAddonIds = [];
 window._renewalPopupShownThisLoad = false;
+window._staffQuotaModalShownThisLoad = false;
 
 window.populateSubscriptionUI = function(sub, role) {
     const container = document.getElementById('topRightSubContainer');
@@ -708,7 +750,7 @@ window.populateSubscriptionUI = function(sub, role) {
             daysBadge.style.background = '#dcfce7';
             daysBadge.style.color = '#166534';
         } else if (sub.isExpired) {
-            daysBadge.innerText = '🚨 Expired';
+            daysBadge.innerText = '🚨 Expired (View-Only)';
             daysBadge.style.background = '#fee2e2';
             daysBadge.style.color = '#b91c1c';
         } else if (sub.isNearExpiry) {
@@ -734,7 +776,7 @@ window.populateSubscriptionUI = function(sub, role) {
     const statusBadge = document.getElementById('subPopupStatusBadge');
     if (statusBadge) {
         if (sub.isExpired) {
-            statusBadge.innerText = '● Expired';
+            statusBadge.innerText = '● Expired (View-Only)';
             statusBadge.style.background = '#fee2e2';
             statusBadge.style.color = '#b91c1c';
         } else if (sub.isNearExpiry) {
@@ -816,6 +858,36 @@ window.populateSubscriptionUI = function(sub, role) {
         ).join('');
     }
 
+    // Staff Quota Selection Banner & Button
+    const sq = sub.staffQuotaSelection || null;
+    const staffBannerBox = document.getElementById('staffSelectionWarningBox');
+    const staffPopupBtn = document.getElementById('subPopupBtnManageStaffAccess');
+    if (sq && (sq.required || sq.hasExcessStaff)) {
+        if (staffBannerBox) {
+            staffBannerBox.style.display = 'flex';
+            setElText('staffBannerMax', sq.maxStaffLimit);
+            setElText('staffBannerTotal', sq.totalStaff);
+            const titleEl = document.getElementById('staffSelectionWarningTitle');
+            const descEl = document.getElementById('staffSelectionWarningDesc');
+            if (sq.required) {
+                if (titleEl) titleEl.innerText = `🚨 Action Required: Select Which ${sq.maxStaffLimit} of ${sq.totalStaff} Staff Get Active Login Access`;
+                if (descEl) descEl.innerHTML = `Your plan allows <strong>${sq.maxStaffLimit}</strong> active staff, and you have <strong>${sq.totalStaff}</strong> staff accounts. Please choose which <strong>${sq.maxStaffLimit}</strong> staff members get access before continuing.`;
+            } else {
+                if (titleEl) titleEl.innerText = `👥 Staff Quota Active (${sq.activeStaffCount} Active / ${sq.pausedStaffCount} Paused)`;
+                if (descEl) descEl.innerHTML = `Your plan allows <strong>${sq.maxStaffLimit}</strong> active staff out of your <strong>${sq.totalStaff}</strong> staff accounts. You can change which staff members have active login access anytime.`;
+            }
+        }
+        if (staffPopupBtn) {
+            staffPopupBtn.style.display = 'flex';
+            setElText('subPopupStaffSelectionBadge', `${sq.activeStaffCount}/${sq.maxStaffLimit} Active →`);
+        }
+    } else {
+        if (staffBannerBox) staffBannerBox.style.display = 'none';
+        if (staffPopupBtn) staffPopupBtn.style.display = 'none';
+    }
+
+    populateStaffQuotaModal(sq);
+
     // Quotes for Renew WITH Add-ons vs WITHOUT Add-ons
     const withQuote = sub.renewWithAddonsQuote || {};
     const withoutQuote = sub.renewWithoutAddonsQuote || {};
@@ -828,8 +900,12 @@ window.populateSubscriptionUI = function(sub, role) {
     // Populate Renewal Reminder Modal (#renewalPopupModal)
     populateRenewalModalContent(sub);
 
-    // Automatically open the Renewal Reminder Modal if subscription is near expiry (<= 15 days) or expired (< 0 days)
-    if ((sub.isNearExpiry || sub.isExpired) && !window._renewalPopupShownThisLoad) {
+    // Priority 1: If Admin must select which staff members get access under their new plan, open Staff Quota Selection Modal
+    if (sq && sq.required && !window._staffQuotaModalShownThisLoad) {
+        window._staffQuotaModalShownThisLoad = true;
+        openStaffQuotaSelectModal();
+    } else if ((sub.isNearExpiry || sub.isExpired) && !window._renewalPopupShownThisLoad) {
+        // Priority 2: Automatically open Renewal Reminder Modal if subscription is near expiry (<= 10 days) or expired (< 0 days)
         window._renewalPopupShownThisLoad = true;
         const defaultMode = sub.hasAddons ? 'with_addons' : 'without_addons';
         openRenewalModal(defaultMode);
@@ -841,6 +917,7 @@ function populateRenewalModalContent(sub) {
     const withQuote = sub.renewWithAddonsQuote || {};
     const withoutQuote = sub.renewWithoutAddonsQuote || {};
     const activeAddons = Array.isArray(sub.activeAddons) ? sub.activeAddons : [];
+    const availableAddons = Array.isArray(sub.availableAddons) ? sub.availableAddons : [];
 
     const iconEl = document.getElementById('renewalModalIcon');
     const titleEl = document.getElementById('renewalModalTitle');
@@ -849,13 +926,13 @@ function populateRenewalModalContent(sub) {
 
     if (sub.isExpired) {
         if (iconEl) { iconEl.innerText = '🚨'; iconEl.style.background = '#fee2e2'; }
-        if (titleEl) titleEl.innerText = 'Your Yearly Subscription Has Expired!';
-        if (subEl) subEl.innerText = 'Renew now with or without your add-ons to restore full access for 1 Year (12 Months).';
+        if (titleEl) titleEl.innerText = 'Subscription Expired — Account in View-Only Mode';
+        if (subEl) subEl.innerText = 'Renew your yearly plan OR purchase an add-on pack below to immediately unlock full access for you and your staff.';
         if (bannerEl) {
             bannerEl.style.background = '#fef2f2';
             bannerEl.style.borderColor = '#fca5a5';
             bannerEl.style.color = '#991b1b';
-            bannerEl.innerHTML = `🚨 Your <strong>${escapeHtml(sub.planName)}</strong> expired <strong>${Math.abs(sub.daysLeft)} day(s) ago</strong> (on <strong>${escapeHtml(sub.expiryFormatted)}</strong>). Please select a renewal option below.`;
+            bannerEl.innerHTML = `🚨 Your <strong>${escapeHtml(sub.planName)}</strong> expired <strong>${Math.abs(sub.daysLeft)} day(s) ago</strong> (on <strong>${escapeHtml(sub.expiryFormatted)}</strong>). All actions & staff logins are paused until you renew or buy an add-on.`;
         }
     } else if (sub.isNearExpiry) {
         if (iconEl) { iconEl.innerText = '⏰'; iconEl.style.background = '#fff7ed'; }
@@ -869,13 +946,13 @@ function populateRenewalModalContent(sub) {
         }
     } else {
         if (iconEl) { iconEl.innerText = '💎'; iconEl.style.background = '#f0fdf4'; }
-        if (titleEl) titleEl.innerText = 'Renew Yearly Subscription';
-        if (subEl) subEl.innerText = 'Extend your subscription by 1 Full Year (12 Months) with or without add-ons.';
+        if (titleEl) titleEl.innerText = 'Renew Yearly Subscription or Buy Add-ons';
+        if (subEl) subEl.innerText = 'Extend your subscription by 1 Full Year (12 Months) or add extra Staff, Parties, Messages & Cloud Backup.';
         if (bannerEl) {
             bannerEl.style.background = '#f0fdf4';
             bannerEl.style.borderColor = '#bbf7d0';
             bannerEl.style.color = '#166534';
-            bannerEl.innerHTML = `✅ Your <strong>${escapeHtml(sub.planName)}</strong> is active until <strong>${escapeHtml(sub.expiryFormatted || 'Active')}</strong> (${sub.daysLeft !== null ? sub.daysLeft + ' days remaining' : 'Active'}). Renewing adds 12 Months to your validity.`;
+            bannerEl.innerHTML = `✅ Your <strong>${escapeHtml(sub.planName)}</strong> is active until <strong>${escapeHtml(sub.expiryFormatted || 'Active')}</strong> (${sub.daysLeft !== null ? sub.daysLeft + ' days remaining' : 'Active'}).`;
         }
     }
 
@@ -918,7 +995,7 @@ function populateRenewalModalContent(sub) {
                 `<span style="background:#dcfce7; color:#166534; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">+ ${escapeHtml(a.name || a.title || a.id || a.addonId || 'Add-on')}</span>`
             ).join('');
         } else {
-            withListEl.innerHTML = `<a href="index.html#pricing" style="font-size:11px; color:#16a34a; font-weight:700; text-decoration:underline;">+ Click here if you want to add new Add-on Boosters</a>`;
+            withListEl.innerHTML = `<span style="font-size:11px; color:#16a34a; font-weight:700;">Use Option 3 below to add extra Staff, Parties or Validity</span>`;
         }
     }
 
@@ -946,8 +1023,61 @@ function populateRenewalModalContent(sub) {
         `;
     }
 
+    // Option 3: Available Add-ons Checklist
+    const checklistEl = document.getElementById('dashboardAddonsChecklist');
+    if (checklistEl) {
+        if (availableAddons.length === 0) {
+            checklistEl.innerHTML = `<div style="font-size:12px; color:#94a3b8; padding:6px;">No add-on packs currently configured by SuperAdmin.</div>`;
+        } else {
+            checklistEl.innerHTML = availableAddons.map(addon => {
+                const isChecked = window.selectedDashboardAddonIds && window.selectedDashboardAddonIds.includes(addon.id);
+                return `
+                    <label style="display:flex; align-items:flex-start; gap:8px; padding:10px 12px; border:1.5px solid ${isChecked ? '#6366f1' : '#e2e8f0'}; background:${isChecked ? '#eef2ff' : '#f8fafc'}; border-radius:10px; cursor:pointer; font-size:12px;">
+                        <input type="checkbox" class="dashboard-addon-cb" value="${escapeHtml(addon.id)}" data-price="${Number(addon.price || 0)}" data-name="${escapeHtml(addon.name)}" ${isChecked ? 'checked' : ''} onchange="onDashboardAddonToggle()" style="margin-top:2px; accent-color:#4f46e5; width:16px; height:16px;">
+                        <div style="flex:1;">
+                            <div style="font-weight:800; color:#0f172a; display:flex; justify-content:space-between; gap:6px;">
+                                <span>${escapeHtml(addon.name)}</span>
+                                <span style="color:#4338ca; font-weight:900;">+₹${Number(addon.price || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div style="font-size:11px; color:#64748b; margin-top:2px;">${escapeHtml(addon.description || '')}</div>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        }
+    }
+
     selectRenewalMode(window.selectedRenewalMode || (sub.hasAddons ? 'with_addons' : 'without_addons'));
 }
+
+window.onDashboardAddonToggle = function() {
+    const cbs = document.querySelectorAll('.dashboard-addon-cb:checked');
+    window.selectedDashboardAddonIds = Array.from(cbs).map(cb => cb.value);
+    let total = 0;
+    const names = [];
+    cbs.forEach(cb => {
+        total += Number(cb.getAttribute('data-price') || 0);
+        names.push(cb.getAttribute('data-name') || cb.value);
+    });
+
+    const totalEl = document.getElementById('renewAddonsOnlyTotal');
+    const breakEl = document.getElementById('renewAddonsOnlyBreakdown');
+    if (totalEl) totalEl.innerText = '₹' + total.toLocaleString('en-IN');
+    if (breakEl) {
+        breakEl.innerText = names.length > 0 ? `${names.length} Add-on(s): ${names.join(', ')}` : 'Select 1 or more add-ons below';
+    }
+
+    // Highlight checked labels
+    document.querySelectorAll('.dashboard-addon-cb').forEach(cb => {
+        const lbl = cb.closest('label');
+        if (lbl) {
+            lbl.style.borderColor = cb.checked ? '#6366f1' : '#e2e8f0';
+            lbl.style.background = cb.checked ? '#eef2ff' : '#f8fafc';
+        }
+    });
+
+    selectRenewalMode('addons_only');
+};
 
 window.toggleTopRightSubPopup = function(e) {
     if (e) e.stopPropagation();
@@ -988,26 +1118,44 @@ window.closeRenewalModal = function() {
 };
 
 window.selectRenewalMode = function(mode) {
-    window.selectedRenewalMode = mode === 'without_addons' ? 'without_addons' : 'with_addons';
+    if (mode === 'without_addons') window.selectedRenewalMode = 'without_addons';
+    else if (mode === 'addons_only') window.selectedRenewalMode = 'addons_only';
+    else window.selectedRenewalMode = 'with_addons';
+
     const cardWith = document.getElementById('renewCardWithAddons');
     const cardWithout = document.getElementById('renewCardWithoutAddons');
+    const cardAddons = document.getElementById('renewCardAddonsOnly');
     const radioWith = document.getElementById('radioRenewWithAddons');
     const radioWithout = document.getElementById('radioRenewWithoutAddons');
+    const radioAddons = document.getElementById('radioRenewAddonsOnly');
     const payBtn = document.getElementById('payRenewalRazorpayBtn');
 
     if (cardWith) cardWith.classList.toggle('selected', window.selectedRenewalMode === 'with_addons');
     if (cardWithout) cardWithout.classList.toggle('selected', window.selectedRenewalMode === 'without_addons');
+    if (cardAddons) cardAddons.classList.toggle('selected', window.selectedRenewalMode === 'addons_only');
     if (radioWith) radioWith.checked = (window.selectedRenewalMode === 'with_addons');
     if (radioWithout) radioWithout.checked = (window.selectedRenewalMode === 'without_addons');
+    if (radioAddons) radioAddons.checked = (window.selectedRenewalMode === 'addons_only');
 
     const sub = window.currentSubscriptionDetails;
     if (payBtn && sub) {
-        const quote = window.selectedRenewalMode === 'without_addons'
-            ? (sub.renewWithoutAddonsQuote || {})
-            : (sub.renewWithAddonsQuote || {});
-        const amt = Number(quote.totalAmount || 0).toLocaleString('en-IN');
-        const label = window.selectedRenewalMode === 'without_addons' ? 'WITHOUT Add-ons' : 'WITH Add-ons';
-        payBtn.innerText = `💳 Pay ₹${amt} & Renew ${label} (1 Year)`;
+        if (window.selectedRenewalMode === 'addons_only') {
+            const cbs = document.querySelectorAll('.dashboard-addon-cb:checked');
+            let addonsAmt = 0;
+            cbs.forEach(cb => { addonsAmt += Number(cb.getAttribute('data-price') || 0); });
+            if (cbs.length === 0) {
+                payBtn.innerText = '🧩 Select Add-on Pack(s) Above to Pay';
+            } else {
+                payBtn.innerText = `💳 Pay ₹${addonsAmt.toLocaleString('en-IN')} & Activate ${cbs.length} Add-on(s)`;
+            }
+        } else {
+            const quote = window.selectedRenewalMode === 'without_addons'
+                ? (sub.renewWithoutAddonsQuote || {})
+                : (sub.renewWithAddonsQuote || {});
+            const amt = Number(quote.totalAmount || 0).toLocaleString('en-IN');
+            const label = window.selectedRenewalMode === 'without_addons' ? 'WITHOUT Add-ons' : 'WITH Add-ons';
+            payBtn.innerText = `💳 Pay ₹${amt} & Renew ${label} (1 Year)`;
+        }
     }
 };
 
@@ -1017,16 +1165,29 @@ window.startDashboardRazorpayRenewal = async function() {
     if (errEl) errEl.style.display = 'none';
 
     const renewalMode = window.selectedRenewalMode || 'with_addons';
+    let addonIds = [];
+    if (renewalMode === 'addons_only') {
+        const cbs = document.querySelectorAll('.dashboard-addon-cb:checked');
+        addonIds = Array.from(cbs).map(cb => cb.value);
+        if (addonIds.length === 0) {
+            if (errEl) {
+                errEl.innerText = '⚠️ Please select at least one Add-on pack from Option 3 before proceeding to payment.';
+                errEl.style.display = 'block';
+            }
+            return;
+        }
+    }
+
     const origText = payBtn ? payBtn.innerText : '💳 Pay & Renew Yearly Subscription';
     if (payBtn) {
         payBtn.disabled = true;
-        payBtn.innerText = '⏳ Creating Razorpay Renewal Order...';
+        payBtn.innerText = '⏳ Creating Razorpay Order...';
     }
 
     try {
         const orderRes = await apiJson('/api/subscriptions/create-renewal-order', {
             method: 'POST',
-            body: JSON.stringify({ renewalMode })
+            body: JSON.stringify({ renewalMode, addonIds })
         });
 
         if (!orderRes || !orderRes.success) {
@@ -1048,12 +1209,16 @@ window.startDashboardRazorpayRenewal = async function() {
         }
 
         const prefillInfo = orderRes.prefill || orderRes.adminInfo || {};
+        const descText = renewalMode === 'addons_only'
+            ? `${orderRes.quote.planName} — Add-on Purchase`
+            : `${orderRes.quote.planName} — Yearly Renewal (${renewalMode === 'without_addons' ? 'Without Add-ons' : 'With Add-ons'})`;
+
         const options = {
             key: orderRes.keyId,
             amount: orderRes.amount,
             currency: orderRes.currency || 'INR',
             name: 'WGS Payment Tracker',
-            description: `${orderRes.quote.planName} — Yearly Renewal (${renewalMode === 'without_addons' ? 'Without Add-ons' : 'With Add-ons'})`,
+            description: descText,
             order_id: orderRes.orderId,
             prefill: {
                 name: prefillInfo.name || prefillInfo.companyName || '',
@@ -1065,7 +1230,7 @@ window.startDashboardRazorpayRenewal = async function() {
                 try {
                     if (payBtn) {
                         payBtn.disabled = true;
-                        payBtn.innerText = '⏳ Verifying Payment & Extending Yearly Plan...';
+                        payBtn.innerText = '⏳ Verifying Payment & Updating Account...';
                     }
                     const verifyRes = await apiJson('/api/subscriptions/verify-renewal', {
                         method: 'POST',
@@ -1073,18 +1238,23 @@ window.startDashboardRazorpayRenewal = async function() {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
-                            renewalMode: renewalMode
+                            renewalMode: renewalMode,
+                            addonIds: addonIds
                         })
                     });
 
                     if (verifyRes && verifyRes.success) {
                         closeRenewalModal();
                         if (typeof showToast === 'function') {
-                            showToast('🎉 ' + (verifyRes.message || 'Yearly Subscription Renewed!'));
+                            showToast('🎉 ' + (verifyRes.message || 'Subscription updated!'));
                         } else {
-                            alert('🎉 ' + (verifyRes.message || 'Yearly Subscription Renewed!'));
+                            alert('🎉 ' + (verifyRes.message || 'Subscription updated!'));
                         }
+                        window._staffQuotaModalShownThisLoad = false;
                         await loadDashboard();
+                        if (verifyRes.staffQuotaStatus && verifyRes.staffQuotaStatus.requiresStaffSelection) {
+                            openStaffQuotaSelectModal();
+                        }
                     } else {
                         if (errEl) {
                             errEl.innerText = '❌ ' + ((verifyRes && (verifyRes.message || verifyRes.error)) || 'Payment verification failed.');
@@ -1122,6 +1292,147 @@ window.startDashboardRazorpayRenewal = async function() {
             errEl.style.display = 'block';
         }
         if (payBtn) { payBtn.disabled = false; payBtn.innerText = origText; }
+    }
+};
+
+// =========================================================================
+// MANDATORY STAFF QUOTA SELECTION MODAL FUNCTIONS
+// =========================================================================
+function populateStaffQuotaModal(sq) {
+    if (!sq) return;
+    const setEl = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = txt;
+    };
+    const maxLimit = Number(sq.maxStaffLimit || 0);
+    const totalStaff = Number(sq.totalStaff || 0);
+    const staffList = Array.isArray(sq.staffList) ? sq.staffList : [];
+
+    setEl('staffModalTotalCount', totalStaff);
+    setEl('staffModalMaxLimit', maxLimit);
+    setEl('staffModalMaxLimitInline', maxLimit);
+    setEl('staffQuotaMaxAllowed', maxLimit);
+
+    const listContainer = document.getElementById('staffQuotaChecklistContainer');
+    if (!listContainer) return;
+
+    // Pre-select currently unlocked staff up to maxLimit
+    let preselectedCount = 0;
+    listContainer.innerHTML = staffList.map(st => {
+        let shouldCheck = !st.isQuotaLocked && preselectedCount < maxLimit;
+        if (shouldCheck) preselectedCount++;
+        return `
+            <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border:1.5px solid ${shouldCheck ? '#2563eb' : '#e2e8f0'}; background:${shouldCheck ? '#eff6ff' : '#f8fafc'}; border-radius:12px; cursor:pointer;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" class="staff-quota-select-cb" value="${escapeHtml(st._id)}" ${shouldCheck ? 'checked' : ''} onchange="onStaffQuotaCheckboxChange(this)" style="width:18px; height:18px; accent-color:#2563eb;">
+                    <div>
+                        <div style="font-size:14px; font-weight:800; color:#0f172a;">👤 ${escapeHtml(st.username)}</div>
+                        <div style="font-size:11px; color:#64748b;">Current Status: ${st.isQuotaLocked ? '🔒 Paused (Quota Limit)' : '✅ Active Access'}</div>
+                    </div>
+                </div>
+                <span class="staff-cb-badge" style="font-size:11px; font-weight:800; padding:3px 9px; border-radius:20px; background:${shouldCheck ? '#dcfce7' : '#f1f5f9'}; color:${shouldCheck ? '#166534' : '#64748b'};">
+                    ${shouldCheck ? '✅ Will Get Access' : '🔒 Paused'}
+                </span>
+            </label>
+        `;
+    }).join('');
+
+    setEl('staffQuotaSelectedCount', preselectedCount);
+}
+
+window.onStaffQuotaCheckboxChange = function(cb) {
+    const sq = window.currentSubscriptionDetails && window.currentSubscriptionDetails.staffQuotaSelection;
+    const maxLimit = sq ? Number(sq.maxStaffLimit || 0) : 0;
+    const errEl = document.getElementById('staffQuotaModalError');
+    if (errEl) errEl.style.display = 'none';
+
+    const checked = document.querySelectorAll('.staff-quota-select-cb:checked');
+    if (checked.length > maxLimit) {
+        cb.checked = false;
+        if (errEl) {
+            errEl.innerText = `⚠️ Your current plan allows a maximum of ${maxLimit} active staff member(s). Uncheck another staff member first, or buy a Staff Add-on.`;
+            errEl.style.display = 'block';
+        }
+    }
+
+    const finalChecked = document.querySelectorAll('.staff-quota-select-cb:checked');
+    const cntEl = document.getElementById('staffQuotaSelectedCount');
+    if (cntEl) cntEl.innerText = finalChecked.length;
+
+    document.querySelectorAll('.staff-quota-select-cb').forEach(box => {
+        const lbl = box.closest('label');
+        const badge = lbl ? lbl.querySelector('.staff-cb-badge') : null;
+        if (lbl) {
+            lbl.style.borderColor = box.checked ? '#2563eb' : '#e2e8f0';
+            lbl.style.background = box.checked ? '#eff6ff' : '#f8fafc';
+        }
+        if (badge) {
+            badge.style.background = box.checked ? '#dcfce7' : '#f1f5f9';
+            badge.style.color = box.checked ? '#166534' : '#64748b';
+            badge.innerText = box.checked ? '✅ Will Get Access' : '🔒 Paused';
+        }
+    });
+};
+
+window.openStaffQuotaSelectModal = function() {
+    closeTopRightSubPopup();
+    const modal = document.getElementById('staffQuotaSelectModal');
+    const errEl = document.getElementById('staffQuotaModalError');
+    if (errEl) errEl.style.display = 'none';
+    if (window.currentSubscriptionDetails && window.currentSubscriptionDetails.staffQuotaSelection) {
+        populateStaffQuotaModal(window.currentSubscriptionDetails.staffQuotaSelection);
+    }
+    if (modal) modal.style.display = 'block';
+};
+
+window.closeStaffQuotaSelectModal = function() {
+    const modal = document.getElementById('staffQuotaSelectModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.submitStaffQuotaSelection = async function() {
+    const btn = document.getElementById('saveStaffQuotaSelectionBtn');
+    const errEl = document.getElementById('staffQuotaModalError');
+    if (errEl) errEl.style.display = 'none';
+
+    const checked = document.querySelectorAll('.staff-quota-select-cb:checked');
+    const activeStaffIds = Array.from(checked).map(cb => cb.value);
+
+    const origText = btn ? btn.innerText : '✅ Save Active Staff Access';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ Saving Staff Access...';
+    }
+
+    try {
+        const res = await apiJson('/api/staff/select-active', {
+            method: 'POST',
+            body: JSON.stringify({ activeStaffIds })
+        });
+        if (res && res.success) {
+            closeStaffQuotaSelectModal();
+            if (typeof showToast === 'function') {
+                showToast('✅ ' + (res.message || 'Active staff access updated!'));
+            } else {
+                alert('✅ ' + (res.message || 'Active staff access updated!'));
+            }
+            await loadDashboard();
+        } else {
+            if (errEl) {
+                errEl.innerText = '❌ ' + ((res && res.message) || 'Failed to save staff selection.');
+                errEl.style.display = 'block';
+            }
+        }
+    } catch (err) {
+        if (errEl) {
+            errEl.innerText = '❌ Error: ' + err.message;
+            errEl.style.display = 'block';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = origText;
+        }
     }
 };
 

@@ -966,7 +966,7 @@
 
             <!-- Renewal Actions inside Top-Right Popup -->
             <div style="border-top:1px solid #e2e8f0; padding-top:14px; display:flex; flex-direction:column; gap:8px;">
-                <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Yearly Renewal Options</div>
+                <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Subscription & Add-on Actions</div>
                 <button type="button" id="subPopupBtnRenewWithAddons" onclick="openRenewalModal('with_addons')" style="width:100%; padding:10px 14px; border-radius:10px; border:none; background:linear-gradient(135deg,#27ae60,#16a34a); color:white; font-weight:800; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
                     <span>🔄 Renew WITH Add-ons</span>
                     <span id="subPopupPriceWithAddons">₹-- / Yr</span>
@@ -975,7 +975,15 @@
                     <span>⭕ Renew WITHOUT Add-ons (Base Plan)</span>
                     <span id="subPopupPriceWithoutAddons">₹-- / Yr</span>
                 </button>
-                <a href="index.html#pricing" style="text-align:center; font-size:12px; color:#2563eb; font-weight:700; text-decoration:none; margin-top:4px;">⚡ Upgrade Plan or Add New Add-ons &rarr;</a>
+                <button type="button" id="subPopupBtnAddonsOnly" onclick="openRenewalModal('addons_only')" style="width:100%; padding:10px 14px; border-radius:10px; border:1.5px solid #c7d2fe; background:#eef2ff; color:#3730a3; font-weight:800; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🧩 Buy Add-on Boosters</span>
+                    <span style="font-size:11px; font-weight:800;">Instant Unlock &rarr;</span>
+                </button>
+                <button type="button" id="subPopupBtnManageStaffAccess" onclick="openStaffQuotaSelectModal()" style="display:none; width:100%; padding:10px 14px; border-radius:10px; border:1.5px solid #fed7aa; background:#fff7ed; color:#9a3412; font-weight:800; font-size:12px; cursor:pointer; justify-content:space-between; align-items:center;">
+                    <span>👥 Select Active Staff Access</span>
+                    <span id="subPopupStaffSelectionBadge" style="font-size:11px; font-weight:800;">Choose Staff &rarr;</span>
+                </button>
+                <a href="index.html#pricing" style="text-align:center; font-size:12px; color:#2563eb; font-weight:700; text-decoration:none; margin-top:4px;">⚡ Switch Plan on Pricing Page &rarr;</a>
             </div>
         </div>
     </div>
@@ -1002,10 +1010,10 @@
                 <a class="nav-item non-customer-only" href="activity.html">📜 Activity Log</a>
                 <div class="admin-only">
                     <a class="nav-item" href="javascript:void(0)"
-                        onclick="document.getElementById('settingsModal').style.display='block'; return false;">⚙️ Profile
+                        onclick="if(window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('edit company profile')) return false; document.getElementById('settingsModal').style.display='block'; return false;">⚙️ Profile
                         Settings</a>
                     <a class="nav-item" href="javascript:void(0)"
-                        onclick="document.getElementById('changePasswordModal').style.display='block'; return false;">🔑 Change Password</a>
+                        onclick="if(window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('change password')) return false; document.getElementById('changePasswordModal').style.display='block'; return false;">🔑 Change Password</a>
                     <a class="nav-item" href="javascript:void(0)"
                         onclick="openRenewalModal(); return false;">💎 Subscription & Renew</a>
                 </div>
@@ -1019,7 +1027,7 @@
 
             <div id="subscriptionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f97316; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; box-shadow:0 4px 12px rgba(249,115,22,0.15);">
                 <div style="display:flex; align-items:center; gap:14px;">
-                    <div style="font-size:26px;">⏰</div>
+                    <div id="subWarningIcon" style="font-size:26px;">⏰</div>
                     <div>
                         <strong id="subWarningTitle" style="color:#c2410c; font-size:15px; display:block;">Subscription Expiry Warning</strong>
                         <span id="subWarningDesc" style="color:#9a3412; font-size:13px; font-weight:600;">
@@ -1028,7 +1036,24 @@
                     </div>
                 </div>
                 <div class="admin-only" style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button type="button" onclick="openRenewalModal('with_addons')" class="btn-primary" style="background:#ea580c; padding:9px 16px; font-size:13px;">🔄 Renew Subscription Now</button>
+                    <button type="button" onclick="openRenewalModal('with_addons')" class="btn-primary" style="background:#ea580c; padding:9px 16px; font-size:13px;">🔄 Renew Plan Now</button>
+                    <button type="button" onclick="openRenewalModal('addons_only')" class="btn-secondary" style="background:#eef2ff; color:#3730a3; border-color:#c7d2fe; padding:9px 14px; font-size:13px; font-weight:800;">🧩 Buy Add-on</button>
+                </div>
+            </div>
+
+            <div id="staffSelectionWarningBox" style="display:none; background:#fff7ed; border:2px solid #f59e0b; border-radius:16px; padding:16px 20px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; box-shadow:0 4px 12px rgba(245,158,11,0.15);">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="font-size:26px;">👥</div>
+                    <div>
+                        <strong id="staffSelectionWarningTitle" style="color:#b45309; font-size:15px; display:block;">Staff Access Selection Required</strong>
+                        <span id="staffSelectionWarningDesc" style="color:#92400e; font-size:13px; font-weight:600;">
+                            Your plan allows <strong id="staffBannerMax">3</strong> active staff, and you have <strong id="staffBannerTotal">5</strong> staff accounts. Select which staff members get login access.
+                        </span>
+                    </div>
+                </div>
+                <div class="admin-only" style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" onclick="openStaffQuotaSelectModal()" class="btn-primary" style="background:#d97706; padding:9px 16px; font-size:13px;">👥 Select Active Staff</button>
+                    <button type="button" onclick="openRenewalModal('addons_only')" class="btn-secondary" style="background:#ffffff; color:#92400e; border-color:#fcd34d; padding:9px 14px; font-size:13px; font-weight:800;">+ Add Staff Add-on</button>
                 </div>
             </div>
 
@@ -1091,12 +1116,12 @@
                                 <strong style="font-size:16px;">Activity Log</strong>
                                 <span style="font-size:12px; color:var(--text-muted);">Audit Trail</span>
                             </a>
-                            <a class="launcher-tile admin-only" onclick="document.getElementById('settingsModal').style.display='block'; return false;">
+                            <a class="launcher-tile admin-only" onclick="if(window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('edit company profile')) return false; document.getElementById('settingsModal').style.display='block'; return false;">
                                 <div class="launcher-icon" style="background: #e2e8f0;">⚙️</div>
                                 <strong style="font-size:16px;">Profile</strong>
                                 <span style="font-size:12px; color:var(--text-muted);">Company Details</span>
                             </a>
-                            <a class="launcher-tile admin-only" onclick="document.getElementById('changePasswordModal').style.display='block'; return false;">
+                            <a class="launcher-tile admin-only" onclick="if(window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('change password')) return false; document.getElementById('changePasswordModal').style.display='block'; return false;">
                                 <div class="launcher-icon" style="background: #fef9c3;">🔑</div>
                                 <strong style="font-size:16px;">Password</strong>
                                 <span style="font-size:12px; color:var(--text-muted);">Change Login</span>
@@ -1262,13 +1287,13 @@
                                                 accept=".csv, .xlsx, .xls" style="display:none;"
                                                 onchange="handleQuickImport(this)">
                                             <button type="button"
-                                                onclick="document.getElementById('quickImport').click()"
+                                                onclick="if(window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('import Excel data')) return; document.getElementById('quickImport').click()"
                                                 class="btn-secondary"
                                                 style="background:#dcfce7; color:#166534; border-color:#bbf7d0;">📤
                                                 Import</button>
                                         </form>
                                     </div>
-                                    <button onclick="document.getElementById('addDupAlert').classList.remove('show'); document.getElementById('addModal').style.display='block'"
+                                    <button onclick="if(window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('add a new party')) return; document.getElementById('addDupAlert').classList.remove('show'); document.getElementById('addModal').style.display='block'"
                                         class="btn-primary non-customer-only">➕ Add Party</button>
                                 </div>
                             </div>
@@ -1590,15 +1615,15 @@
             </div>
         </div>
 
-        <!-- AUTOMATIC RENEWAL REMINDER & CHECKOUT MODAL (With Add-ons vs Without Add-ons) -->
+        <!-- AUTOMATIC RENEWAL REMINDER & CHECKOUT MODAL (With Add-ons, Without Add-ons, or Add-ons Only) -->
         <div id="renewalPopupModal" class="modal" style="z-index: 2000;">
-            <div class="modal-content" style="max-width: 680px; width: 95%; border-radius: 24px; padding: 28px;">
+            <div class="modal-content" style="max-width: 720px; width: 95%; border-radius: 24px; padding: 28px; max-height: 92vh; overflow-y: auto;">
                 <span id="renewalModalCloseBtn" class="close" onclick="closeRenewalModal()">&times;</span>
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
                     <div id="renewalModalIcon" style="width:46px; height:46px; border-radius:14px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:24px;">⏰</div>
                     <div>
-                        <h3 id="renewalModalTitle" style="margin:0; font-size:20px; font-weight:900; color:#0f172a;">Renew Yearly Subscription</h3>
-                        <p id="renewalModalSubtitle" style="margin:3px 0 0; font-size:13px; color:#64748b;">Extend your subscription validity by 1 Full Year (12 Months)</p>
+                        <h3 id="renewalModalTitle" style="margin:0; font-size:20px; font-weight:900; color:#0f172a;">Renew Yearly Subscription & Add-ons</h3>
+                        <p id="renewalModalSubtitle" style="margin:3px 0 0; font-size:13px; color:#64748b;">Extend your subscription validity by 1 Full Year (12 Months) or purchase Add-on Boosters</p>
                     </div>
                 </div>
 
@@ -1608,11 +1633,11 @@
                 </div>
 
                 <div style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">
-                    Choose Your Yearly Renewal Option:
+                    Choose Your Renewal or Add-on Option:
                 </div>
 
                 <!-- Side-by-Side Renewal Mode Cards: WITH Add-ons vs WITHOUT Add-ons -->
-                <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px;">
+                <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;">
                     <!-- Option 1: Renew WITH Add-ons -->
                     <div id="renewCardWithAddons" class="renew-option-card selected" onclick="selectRenewalMode('with_addons')">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -1646,6 +1671,26 @@
                     </div>
                 </div>
 
+                <!-- Option 3: Buy Standalone Add-ons Only (Boost Quotas or Unlock Expired Account) -->
+                <div id="renewCardAddonsOnly" class="renew-option-card" onclick="selectRenewalMode('addons_only')" style="width:100%; margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:20px; background:#eef2ff; color:#3730a3; text-transform:uppercase;">🧩 Add-on Boosters • Instant Quota / Validity Upgrade</span>
+                            <div style="font-size:16px; font-weight:900; color:#0f172a; margin-top:4px;">Buy Add-on Packs (Add Staff, Parties, Messages, Cloud Backup or Extra Year)</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="text-align:right;">
+                                <div style="font-size:20px; font-weight:900; color:#3730a3;" id="renewAddonsOnlyTotal">₹0</div>
+                                <div style="font-size:11px; color:#64748b;" id="renewAddonsOnlyBreakdown">Select 1 or more add-ons below</div>
+                            </div>
+                            <input type="radio" name="dashboardRenewalMode" id="radioRenewAddonsOnly" value="addons_only" style="accent-color:#27ae60; width:18px; height:18px;">
+                        </div>
+                    </div>
+                    <div id="dashboardAddonsChecklist" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px; margin-top:10px;" onclick="event.stopPropagation();">
+                        <div style="font-size:12px; color:#64748b; padding:8px;">Loading available add-ons...</div>
+                    </div>
+                </div>
+
                 <div id="renewalModalError" style="display:none; background:#fee2e2; border:1px solid #fca5a5; color:#b91c1c; padding:10px 14px; border-radius:10px; font-size:13px; font-weight:600; margin-bottom:14px;"></div>
 
                 <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -1657,7 +1702,46 @@
                     </button>
                 </div>
                 <div style="text-align:center; margin-top:12px;">
-                    <a href="index.html#pricing" style="font-size:12px; color:#2563eb; font-weight:700; text-decoration:none;">Want to switch plans or pick different add-ons? View Full Pricing & Add-ons &rarr;</a>
+                    <a href="index.html#pricing" style="font-size:12px; color:#2563eb; font-weight:700; text-decoration:none;">Want to switch to another plan? View Full Pricing Page &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANDATORY STAFF QUOTA SELECTION MODAL (When Staff Count > Plan Limit, e.g., 5 Staff vs 3 Allowed) -->
+        <div id="staffQuotaSelectModal" class="modal" style="z-index: 2100;">
+            <div class="modal-content" style="max-width: 560px; width: 95%; border-radius: 24px; padding: 28px; max-height: 90vh; overflow-y: auto;">
+                <span class="close" onclick="closeStaffQuotaSelectModal()">&times;</span>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                    <div style="width:46px; height:46px; border-radius:14px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:24px;">👥</div>
+                    <div>
+                        <h3 style="margin:0; font-size:19px; font-weight:900; color:#0f172a;">Select Active Staff Access</h3>
+                        <p id="staffQuotaModalSubtitle" style="margin:3px 0 0; font-size:13px; color:#64748b;">Choose which staff accounts get active login access under your current plan</p>
+                    </div>
+                </div>
+
+                <div style="background:#fff7ed; border:1.5px solid #fdba74; border-radius:14px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:#9a3412; line-height:1.5;">
+                    You currently have <strong id="staffModalTotalCount">5</strong> staff accounts, and your subscription plan allows <strong id="staffModalMaxLimit">3</strong> active staff members.<br>
+                    <span style="font-size:12px; color:#7c2d12;">Please select up to <strong id="staffModalMaxLimitInline">3</strong> staff members below to grant active sign-in access. Remaining staff accounts stay safely saved (paused) and can be swapped anytime.</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase;">Staff Accounts</span>
+                    <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:20px; background:#eff6ff; color:#1d4ed8;">
+                        Selected: <span id="staffQuotaSelectedCount">0</span> / <span id="staffQuotaMaxAllowed">3</span>
+                    </span>
+                </div>
+
+                <div id="staffQuotaChecklistContainer" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px; max-height:280px; overflow-y:auto;"></div>
+
+                <div id="staffQuotaModalError" style="display:none; background:#fee2e2; border:1px solid #fca5a5; color:#b91c1c; padding:10px 14px; border-radius:10px; font-size:13px; font-weight:600; margin-bottom:14px;"></div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="button" id="saveStaffQuotaSelectionBtn" onclick="submitStaffQuotaSelection()" class="btn-primary" style="flex:2; min-width:200px; padding:13px 18px; font-size:14px; font-weight:800; background:linear-gradient(135deg,#2563eb,#1d4ed8); border-radius:12px;">
+                        ✅ Save Active Staff Access
+                    </button>
+                    <button type="button" onclick="closeStaffQuotaSelectModal(); openRenewalModal('addons_only');" class="btn-secondary" style="flex:1; min-width:150px; padding:13px 14px; font-size:13px; font-weight:800; background:#eef2ff; color:#3730a3; border-color:#c7d2fe; border-radius:12px;">
+                        🧩 Buy Staff Add-on
+                    </button>
                 </div>
             </div>
         </div>
@@ -1851,6 +1935,7 @@
                 }
 
                 async function confirmBulkDelete() {
+                    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('delete parties')) return;
                     var selected = document.querySelectorAll('.customer-checkbox:checked');
                     if (!selected.length) return;
                     if (confirm("Delete " + selected.length + " parties?")) {
@@ -1911,6 +1996,7 @@
                 // --- COMPANY PROFILE SAVE HANDLER ---
                 window.handleSettingsSubmit = async function(e) {
                     if (e) e.preventDefault();
+                    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('save company profile settings')) return false;
                     var settingsForm = document.getElementById('settingsForm');
                     if (!settingsForm) return false;
                     var fd = new FormData(settingsForm);
@@ -1949,6 +2035,7 @@
 
                 // --- WHATSAPP / SMS / EMAIL LOGIC ---
                 function sendMsg(element, type) {
+                    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('send payment reminders')) return;
                     var ap = window.adminProfile || {};
                     var dailyLimit = (ap.dailyMessageLimit !== undefined && ap.dailyMessageLimit !== null) ? Number(ap.dailyMessageLimit) : 100;
                     var dailyCount = Number(ap.dailyMessageCount) || 0;
@@ -2054,6 +2141,7 @@
 
                 // --- GOOGLE DRIVE INTEGRATION ---
                 function triggerDriveBackup() {
+                    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('run Cloud Backup')) return;
                     if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowGoogleDriveBackup === false) {
                         alert("☁️ Google Drive Cloud Backup is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on.");
                         return;
@@ -2076,6 +2164,7 @@
                 }
 
                 function triggerDriveRestore() {
+                    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('restore from Google Drive')) return;
                     if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowGoogleDriveBackup === false) {
                         alert("☁️ Google Drive Cloud Restore is not enabled on your current subscription plan. Upgrade your plan or purchase the Cloud Backup Add-on.");
                         return;
@@ -2118,6 +2207,7 @@
 
                 // --- PROFESSIONAL TALLY-STYLE PDF EXPORT ---
                 function downloadPDF() {
+                    if (window.checkDashboardActionAllowed && !window.checkDashboardActionAllowed('export PDF reports')) return;
                     if (window.adminProfile && window.adminProfile.featureAccess && window.adminProfile.featureAccess.allowPdfExport === false) {
                         alert("📄 PDF Export is not enabled on your current subscription plan. Please upgrade your plan or contact Super Admin.");
                         return;
@@ -2348,8 +2438,8 @@
             </script>
             
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=8"></script>
-    <script src="js/dashboard.js?v=8"></script>
+    <script src="js/api.js?v=9"></script>
+    <script src="js/dashboard.js?v=9"></script>
     <script>
         // Self-contained fallback & bridge so Subscription & Renew works even if js/dashboard.js is cached
         (function() {
@@ -2398,17 +2488,21 @@
 
             if (typeof window.selectRenewalMode !== 'function') {
                 window.selectRenewalMode = function(mode) {
-                    window.selectedRenewalMode = mode === 'without_addons' ? 'without_addons' : 'with_addons';
+                    window.selectedRenewalMode = mode === 'without_addons' ? 'without_addons' : (mode === 'addons_only' ? 'addons_only' : 'with_addons');
                     var cardWith = document.getElementById('renewCardWithAddons');
                     var cardWithout = document.getElementById('renewCardWithoutAddons');
+                    var cardAddons = document.getElementById('renewCardAddonsOnly');
                     var radioWith = document.getElementById('radioRenewWithAddons');
                     var radioWithout = document.getElementById('radioRenewWithoutAddons');
+                    var radioAddons = document.getElementById('radioRenewAddonsOnly');
                     var payBtn = document.getElementById('payRenewalRazorpayBtn');
 
                     if (cardWith) cardWith.classList.toggle('selected', window.selectedRenewalMode === 'with_addons');
                     if (cardWithout) cardWithout.classList.toggle('selected', window.selectedRenewalMode === 'without_addons');
+                    if (cardAddons) cardAddons.classList.toggle('selected', window.selectedRenewalMode === 'addons_only');
                     if (radioWith) radioWith.checked = (window.selectedRenewalMode === 'with_addons');
                     if (radioWithout) radioWithout.checked = (window.selectedRenewalMode === 'without_addons');
+                    if (radioAddons) radioAddons.checked = (window.selectedRenewalMode === 'addons_only');
 
                     var sub = window.currentSubscriptionDetails;
                     if (payBtn && sub) {

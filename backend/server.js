@@ -315,6 +315,8 @@ async function runAutoBackups() {
     }
 }
 
+const { runExpiryEmailScan } = require('./utils/emailService');
+
 app.get('/api/cron/maintenance', async (req, res) => {
     const expectedToken = process.env.CRON_SECRET;
     const suppliedToken = req.headers.authorization;
@@ -325,6 +327,7 @@ app.get('/api/cron/maintenance', async (req, res) => {
     try {
         await shiftAgingBuckets();
         await runAutoBackups();
+        await runExpiryEmailScan(true);
         res.json({ success: true });
     } catch (err) {
         console.error('Scheduled maintenance error:', err);

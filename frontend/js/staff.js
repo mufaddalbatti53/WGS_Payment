@@ -76,36 +76,120 @@ function escapeHtmlStaff(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+window.staffPageData = null;
+
 async function loadStaff() {
     try {
         const data = typeof apiJson === 'function' 
             ? await apiJson('/api/staff') 
             : await (await fetch('/api/staff', { credentials: 'include' })).json();
 
-        if (data && data.subscriptionAlert) {
+        window.staffPageData = data || {};
+        const isExpired = Boolean(data && data.isExpired);
+
+        if (data && (data.subscriptionAlert || isExpired)) {
             const subBox = document.getElementById('subscriptionWarningBox');
             if (subBox) {
                 subBox.style.display = 'flex';
-                const dLeft = document.getElementById('subDaysLeft');
-                const dExp = document.getElementById('subExpiryDate');
-                if (dLeft) dLeft.innerText = data.subscriptionAlert.daysLeft + ' day(s)';
-                if (dExp) dExp.innerText = data.subscriptionAlert.expiryFormatted || '';
+                const iconEl = document.getElementById('staffSubWarnIcon');
+                const titleEl = document.getElementById('staffSubWarnTitle');
+                const descEl = document.getElementById('staffSubWarnDesc');
+                if (isExpired) {
+                    subBox.style.background = '#fef2f2';
+                    subBox.style.borderColor = '#ef4444';
+                    if (iconEl) iconEl.innerText = '🚨';
+                    if (titleEl) {
+                        titleEl.style.color = '#b91c1c';
+                        titleEl.innerText = '🚨 Subscription Expired — View-Only Mode Active!';
+                    }
+                    if (descEl) {
+                        descEl.style.color = '#7f1d1d';
+                        descEl.innerHTML = 'Your subscription has ended. Staff members <strong>cannot sign in</strong> and staff changes are disabled until you renew your plan or buy an add-on on the Dashboard.';
+                    }
+                } else if (data.subscriptionAlert) {
+                    subBox.style.background = '#fff7ed';
+                    subBox.style.borderColor = '#f97316';
+                    if (iconEl) iconEl.innerText = '⏰';
+                    if (titleEl) {
+                        titleEl.style.color = '#c2410c';
+                        titleEl.innerText = '⏰ Subscription Expiry Reminder';
+                    }
+                    if (descEl) {
+                        descEl.style.color = '#9a3412';
+                        descEl.innerHTML = `Your plan expires in <u style="font-weight:800; font-size:14px;">${data.subscriptionAlert.daysLeft} day(s)</u> (on ${escapeHtmlStaff(data.subscriptionAlert.expiryFormatted || '')}).`;
+                    }
+                }
             }
+        }
+
+        // Disable Create Staff form if expired
+        const createBtn = document.getElementById('createStaffSubmitBtn');
+        if (createBtn) {
+            createBtn.disabled = isExpired;
+            createBtn.style.opacity = isExpired ? '0.5' : '1';
+            createBtn.innerText = isExpired ? '🔒 Locked — Renew Plan or Buy Add-on on Dashboard' : 'Create Account';
         }
         
         const tbody = document.getElementById('staffTableBody');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        const staffMembers = data.staffMembers || data;
+        const staffMembers = Array.isArray(data.staffMembers) ? data.staffMembers : (Array.isArray(data) ? data : []);
+        const maxStaffLimit = Number(data.maxStaffLimit || 0);
+        const totalStaffCount = staffMembers.length;
+
+        // Populate Staff Quota Selection Card if totalStaffCount > maxStaffLimit
+        const quotaCard = document.getElementById('staffQuotaSelectionCard');
+        if (quotaCard) {
+            if (data.hasExcessStaff || data.requiresStaffSelection || (maxStaffLimit > 0 && totalStaffCount > maxStaffLimit)) {
+                quotaCard.style.display = 'block';
+                const maxTxt = document.getElementById('staffQuotaMaxText');
+                const totTxt = document.getElementById('staffQuotaTotalText');
+                const maxAll = document.getElementById('staffPageMaxAllowed');
+                const cardTitle = document.getElementById('staffQuotaCardTitle');
+                if (maxTxt) maxTxt.innerText = maxStaffLimit;
+                if (totTxt) totTxt.innerText = totalStaffCount;
+                if (maxAll) maxAll.innerText = maxStaffLimit;
+                if (cardTitle) {
+                    cardTitle.innerText = data.requiresStaffSelection
+                        ? `🚨 Action Required: Select Which ${maxStaffLimit} of ${totalStaffCount} Staff Get Active Login Access`
+                        : `👥 Active Staff Selection (${data.activeStaffCount || maxStaffLimit} Active / ${data.pausedStaffCount || (totalStaffCount - maxStaffLimit)} Paused)`;
+                }
+
+                const checklist = document.getElementById('staffPageQuotaChecklist');
+                if (checklist) {
+                    let preCount = 0;
+                    checklist.innerHTML = staffMembers.map(st => {
+                        const checked = !st.isQuotaLocked && preCount < maxStaffLimit;
+                        if (checked) preCount++;
+                        return `
+                            <label style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border:1.5px solid ${checked ? '#2563eb' : '#cbd5e1'}; background:${checked ? '#eff6ff' : '#ffffff'}; border-radius:12px; cursor:pointer;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" class="staff-page-quota-cb" value="${escapeHtmlStaff(st._id || st.id)}" ${checked ? 'checked' : ''} onchange="onStaffPageQuotaCbChange(this)" style="width:17px; height:17px; accent-color:#2563eb;">
+                                    <strong style="font-size:14px; color:#0f172a;">👤 ${escapeHtmlStaff(st.username)}</strong>
+                                </div>
+                                <span class="staff-page-cb-badge" style="font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px; background:${checked ? '#dcfce7' : '#f1f5f9'}; color:${checked ? '#166534' : '#64748b'};">
+                                    ${checked ? '✅ Active' : '🔒 Paused'}
+                                </span>
+                            </label>
+                        `;
+                    }).join('');
+                    const selCnt = document.getElementById('staffPageSelectedCount');
+                    if (selCnt) selCnt.innerText = preCount;
+                }
+            } else {
+                quotaCard.style.display = 'none';
+            }
+        }
         
         // Update staff limit badge if returned
         if (data.currentStaffCount !== undefined) {
             const limitBadge = document.getElementById('staffLimitBadge');
             if (limitBadge) {
-                const max = data.maxStaffLimit || '∞';
-                limitBadge.innerText = `Staff Limit: ${data.currentStaffCount} / ${max}`;
-                if (data.maxStaffLimit > 0 && data.currentStaffCount >= data.maxStaffLimit) {
+                const max = data.maxStaffLimit !== undefined ? data.maxStaffLimit : '∞';
+                const activeCnt = data.activeStaffCount !== undefined ? data.activeStaffCount : data.currentStaffCount;
+                limitBadge.innerText = `Active Staff: ${activeCnt} / ${max} (Total Saved: ${data.currentStaffCount})`;
+                if (data.maxStaffLimit >= 0 && data.currentStaffCount >= data.maxStaffLimit) {
                     limitBadge.style.background = '#fee2e2';
                     limitBadge.style.color = '#991b1b';
                 } else {
@@ -115,47 +199,56 @@ async function loadStaff() {
             }
         }
 
-        (Array.isArray(staffMembers) ? staffMembers : []).forEach(staff => {
+        staffMembers.forEach(staff => {
             const tr = document.createElement('tr');
             const safeUsername = escapeHtmlStaff(staff.username);
+            let accessBadgeHtml = '';
+            if (isExpired) {
+                accessBadgeHtml = `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:800; display:inline-block;">🚨 Blocked (Plan Expired)</span>`;
+            } else if (staff.isQuotaLocked) {
+                accessBadgeHtml = `<span style="background:#fff7ed; color:#c2410c; border:1px solid #fdba74; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:800; display:inline-block;">🔒 Paused (Quota Limit)</span>`;
+            } else {
+                accessBadgeHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:800; display:inline-block;">✅ Active Access</span>`;
+            }
+
             tr.innerHTML = `
                 <td class="desktop-only"><strong style="font-size: 15px; color: var(--text-dark);">${safeUsername}</strong></td>
-                <td class="desktop-only"><span class="role-badge">${escapeHtmlStaff((staff.role || 'staff').toUpperCase())}</span></td>
+                <td class="desktop-only">${accessBadgeHtml}</td>
                 <td class="desktop-only">
                     <form class="resetStaffForm desktop-reset-form" style="display:flex; gap:8px; align-items: center;" data-id="${staff._id || staff.id}">
                         <div class="input-group">
-                            <input type="password" class="reset-new-password input-style" placeholder="New Password" required style="margin-bottom: 0; max-width: 150px;">
+                            <input type="password" class="reset-new-password input-style" placeholder="New Password" required ${isExpired ? 'disabled' : ''} style="margin-bottom: 0; max-width: 150px;">
                             <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
                         </div>
                         <div class="input-group">
-                            <input type="password" class="reset-confirm-password input-style" placeholder="Retype Password" required style="margin-bottom: 0; max-width: 150px;">
+                            <input type="password" class="reset-confirm-password input-style" placeholder="Retype Password" required ${isExpired ? 'disabled' : ''} style="margin-bottom: 0; max-width: 150px;">
                             <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
                         </div>
-                        <button type="submit" class="btn-blue">Reset</button>
+                        <button type="submit" class="btn-blue" ${isExpired ? 'disabled style="opacity:0.5;"' : ''}>Reset</button>
                     </form>
                 </td>
                 <td class="desktop-only" style="text-align: right; padding-right: 20px;">
-                    <button class="btn-red delete-staff-btn" data-id="${staff._id || staff.id}">🗑️</button>
+                    <button class="btn-red delete-staff-btn" data-id="${staff._id || staff.id}" ${isExpired ? 'disabled style="opacity:0.5;"' : ''}>🗑️</button>
                 </td>
 
                 <td class="mobile-only">
                     <div class="staff-card-header">
-                        <span>👤 ${staff.username}</span>
-                        <span class="role-badge">${(staff.role || 'staff').toUpperCase()}</span>
+                        <span>👤 ${safeUsername}</span>
+                        ${accessBadgeHtml}
                     </div>
                     <form class="reset-form resetStaffForm mobile-reset-form" data-id="${staff._id || staff.id}">
                         <div class="input-group" style="margin-bottom:8px;">
-                            <input type="password" class="reset-new-password input-style" placeholder="Type new password..." required style="margin-bottom:0; width:100%;">
+                            <input type="password" class="reset-new-password input-style" placeholder="Type new password..." required ${isExpired ? 'disabled' : ''} style="margin-bottom:0; width:100%;">
                             <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
                         </div>
                         <div class="input-group" style="margin-bottom:15px;">
-                            <input type="password" class="reset-confirm-password input-style" placeholder="Retype new password..." required style="margin-bottom:0; width:100%;">
+                            <input type="password" class="reset-confirm-password input-style" placeholder="Retype new password..." required ${isExpired ? 'disabled' : ''} style="margin-bottom:0; width:100%;">
                             <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
                         </div>
-                        <button type="submit" class="btn-blue">Reset</button>
+                        <button type="submit" class="btn-blue" ${isExpired ? 'disabled style="opacity:0.5;"' : ''}>Reset</button>
                     </form>
                     <div class="staff-actions">
-                        <button class="btn-red delete-staff-btn" style="width:100%; padding: 12px 0; border-radius: 10px;" data-id="${staff._id || staff.id}">🗑️ Delete Account</button>
+                        <button class="btn-red delete-staff-btn" style="width:100%; padding: 12px 0; border-radius: 10px; ${isExpired ? 'opacity:0.5;' : ''}" data-id="${staff._id || staff.id}" ${isExpired ? 'disabled' : ''}>🗑️ Delete Account</button>
                     </div>
                 </td>
             `;
@@ -241,6 +334,63 @@ async function loadStaff() {
         console.error('Failed to load staff', err);
     }
 }
+
+window.onStaffPageQuotaCbChange = function(cb) {
+    const maxLimit = window.staffPageData ? Number(window.staffPageData.maxStaffLimit || 0) : 0;
+    const checked = document.querySelectorAll('.staff-page-quota-cb:checked');
+    if (checked.length > maxLimit) {
+        cb.checked = false;
+        showMsg(`Your current plan allows a maximum of ${maxLimit} active staff member(s). Uncheck another staff member first or buy a Staff Add-on on the Dashboard.`, false);
+    }
+    const finalChecked = document.querySelectorAll('.staff-page-quota-cb:checked');
+    const selCnt = document.getElementById('staffPageSelectedCount');
+    if (selCnt) selCnt.innerText = finalChecked.length;
+
+    document.querySelectorAll('.staff-page-quota-cb').forEach(box => {
+        const lbl = box.closest('label');
+        const badge = lbl ? lbl.querySelector('.staff-page-cb-badge') : null;
+        if (lbl) {
+            lbl.style.borderColor = box.checked ? '#2563eb' : '#cbd5e1';
+            lbl.style.background = box.checked ? '#eff6ff' : '#ffffff';
+        }
+        if (badge) {
+            badge.style.background = box.checked ? '#dcfce7' : '#f1f5f9';
+            badge.style.color = box.checked ? '#166534' : '#64748b';
+            badge.innerText = box.checked ? '✅ Active' : '🔒 Paused';
+        }
+    });
+};
+
+window.saveStaffPageQuotaSelection = async function() {
+    const btn = document.getElementById('saveStaffPageQuotaBtn');
+    const checked = document.querySelectorAll('.staff-page-quota-cb:checked');
+    const activeStaffIds = Array.from(checked).map(cb => cb.value);
+
+    const origText = btn ? btn.innerText : '✅ Save Active Staff Access';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ Saving...';
+    }
+    try {
+        const res = await apiJson('/api/staff/select-active', {
+            method: 'POST',
+            body: JSON.stringify({ activeStaffIds })
+        });
+        if (res && res.success) {
+            showMsg(res.message || 'Active staff access saved!', true);
+            await loadStaff();
+        } else {
+            showMsg((res && res.message) || 'Failed to save staff selection.', false);
+        }
+    } catch (err) {
+        showMsg(err.message || 'Error saving staff selection.', false);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = origText;
+        }
+    }
+};
 
 function showMsg(msg, isSuccess = false) {
     const msgContainer = document.getElementById('msgContainer');

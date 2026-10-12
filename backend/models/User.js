@@ -75,6 +75,15 @@ const userSchema = new mongoose.Schema({
     lastOrderId: { type: String, trim: true },
     lastAmountPaid: { type: Number, default: 0 },
 
+    // 👥 Staff Quota Selection & Lock State
+    isQuotaLocked: { type: Boolean, default: false }, // For role === 'staff': paused when Admin's plan staff limit is lower than total staff count
+    requiresStaffSelection: { type: Boolean, default: false }, // For role === 'admin': true when total staff > maxStaffLimit and Admin must select which staff get access
+
+    // 📧 Subscription Expiry Email Notification Tracking
+    lastPreExpiryEmailSentAt: { type: Date, default: null },
+    lastPreExpiryDaysNotified: { type: Number, default: null },
+    lastPostExpiryEmailSentAt: { type: Date, default: null },
+
     // 🔑 Password Reset OTP
     resetOtp: { type: String, select: false },
     resetOtpExpiry: { type: Date, select: false }

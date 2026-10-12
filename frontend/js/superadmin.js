@@ -90,6 +90,7 @@ const DEFAULT_SUPERADMIN_PLAN_CONFIG = {
     razorpayKeyId: '',
     razorpayKeySecret: '',
     whatsappSalesNumber: '917021056404',
+    superadminEmail: '',
     currency: 'INR',
     plans: [
         {
@@ -304,6 +305,7 @@ window.resetDefaultPlansAndAddons = function() {
     merged.razorpayKeyId = document.getElementById('rzpKeyIdInput')?.value || '';
     merged.razorpayKeySecret = document.getElementById('rzpKeySecretInput')?.value || '';
     merged.whatsappSalesNumber = document.getElementById('whatsappSalesInput')?.value || '917021056404';
+    merged.superadminEmail = document.getElementById('superadminEmailInput')?.value || '';
     currentPlanConfigState = merged;
     renderPlansEditor(currentPlanConfigState);
 };
@@ -443,11 +445,14 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
             container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:12px; text-align:center;">No staff members created under this admin yet.</div>';
         } else {
             let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;">';
-            html += '<thead><tr style="background:#f1f5f9; color:var(--text-muted); font-size:11px; text-transform:uppercase;"><th style="padding:8px 12px; text-align:left;">Staff Member</th><th style="padding:8px 12px; text-align:left;">Password</th><th style="padding:8px 12px; text-align:center;">Role</th></tr></thead><tbody>';
+            html += '<thead><tr style="background:#f1f5f9; color:var(--text-muted); font-size:11px; text-transform:uppercase;"><th style="padding:8px 12px; text-align:left;">Staff Member</th><th style="padding:8px 12px; text-align:left;">Access Status</th><th style="padding:8px 12px; text-align:center;">Role</th></tr></thead><tbody>';
             staffList.forEach(s => {
+                const accessBadge = s.isQuotaLocked
+                    ? '<span style="background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">🔒 Paused (Quota)</span>'
+                    : '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">✅ Active</span>';
                 html += '<tr style="border-top:1px solid #f1f5f9;">';
                 html += '<td style="padding:8px 12px; font-weight:700; color:var(--text-dark);">👤 ' + s.username + '</td>';
-                html += '<td style="padding:8px 12px;"><span class="pwd-mask-text">Managed securely</span></td>';
+                html += '<td style="padding:8px 12px;">' + accessBadge + '</td>';
                 html += '<td style="padding:8px 12px; text-align:center;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;">STAFF</span></td>';
                 html += '</tr>';
             });
@@ -510,11 +515,20 @@ function buildPlanBadgeHtml(u) {
     const payLine = u.lastPaymentId
         ? `<div style="font-size:10.5px; color:#059669; font-weight:700; margin-top:2px;">💳 Paid ₹${Number(u.lastAmountPaid || 0).toLocaleString('en-IN')} (${u.lastPaymentId})</div>`
         : (u.lastAmountPaid > 0 ? `<div style="font-size:10.5px; color:#d97706; font-weight:700; margin-top:2px;">🧾 Quoted: ₹${Number(u.lastAmountPaid).toLocaleString('en-IN')}</div>` : '');
+    const isExp = u.planExpiryDate && new Date(u.planExpiryDate) < new Date();
+    const expLine = isExp
+        ? `<div style="font-size:10.5px; color:#dc2626; font-weight:800; margin-top:2px;">🚨 Plan Expired (Read-Only & Staff Blocked)</div>`
+        : '';
+    const staffSelLine = u.requiresStaffSelection
+        ? `<div style="font-size:10.5px; color:#b45309; font-weight:800; margin-top:2px;">⚠️ Awaiting Staff Quota Selection (${u.staffCount || 0}/${u.maxStaffLimit || 5})</div>`
+        : '';
     return `
         <div style="margin-top:4px;">
             <span style="display:inline-block; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px; font-size:10.5px; font-weight:800;">💎 ${planLabel}</span>
             ${addons}
             ${payLine}
+            ${expLine}
+            ${staffSelLine}
         </div>
     `;
 }
@@ -890,11 +904,13 @@ function renderPlansEditor(config) {
     const rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
     const rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
     const waSalesEl = document.getElementById('whatsappSalesInput');
+    const saEmailEl = document.getElementById('superadminEmailInput');
     const rzpBadge = document.getElementById('rzpStatusBadge');
 
     if (rzpKeyIdEl) rzpKeyIdEl.value = config.razorpayKeyId || '';
     if (rzpKeySecretEl) rzpKeySecretEl.value = config.razorpayKeySecret || '';
     if (waSalesEl) waSalesEl.value = config.whatsappSalesNumber || '917021056404';
+    if (saEmailEl) saEmailEl.value = config.superadminEmail || '';
 
     if (rzpBadge) {
         if (config.razorpayKeyId && config.razorpayKeySecret) {
@@ -1120,6 +1136,7 @@ async function saveSubscriptionSettings() {
         const razorpayKeyId = (document.getElementById('rzpKeyIdInput')?.value || '').trim();
         const razorpayKeySecret = (document.getElementById('rzpKeySecretInput')?.value || '').trim();
         const whatsappSalesNumber = (document.getElementById('whatsappSalesInput')?.value || '').trim();
+        const superadminEmail = (document.getElementById('superadminEmailInput')?.value || '').trim();
 
         const planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
         const plans = planCards.map((card, idx) => {
@@ -1171,6 +1188,7 @@ async function saveSubscriptionSettings() {
                 razorpayKeyId,
                 razorpayKeySecret,
                 whatsappSalesNumber,
+                superadminEmail,
                 plans,
                 addons
             })
