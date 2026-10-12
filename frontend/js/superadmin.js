@@ -182,6 +182,24 @@ function getLivePlansList() {
     return (cfg && Array.isArray(cfg.plans) && cfg.plans.length > 0) ? cfg.plans : DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
 }
 
+function findLivePlan(planId, planName) {
+    const plans = getLivePlansList();
+    const cleanId = String(planId || '').trim().toLowerCase();
+    const cleanName = String(planName || '').trim().toLowerCase();
+    if (cleanId) {
+        const byId = plans.find(p => String(p.id || '').trim().toLowerCase() === cleanId);
+        if (byId) return byId;
+    }
+    if (cleanName) {
+        const byName = plans.find(p => String(p.name || '').trim().toLowerCase() === cleanName);
+        if (byName) return byName;
+        if (cleanName.includes('custom')) return plans.find(p => p.id === 'customized' || p.isCustom) || null;
+        if (/\bpro\b/.test(cleanName)) return plans.find(p => p.id === 'pro') || null;
+        if (cleanName.includes('basic')) return plans.find(p => p.id === 'basic') || null;
+    }
+    return null;
+}
+
 // Immediately expose functions so they are available in all execution contexts & event handlers
 window.getLivePlansList = getLivePlansList;
 window.findLivePlan = findLivePlan;
@@ -202,8 +220,8 @@ window.togglePassword = togglePassword;
 window.actionApprove = actionApprove;
 window.actionReject = actionReject;
 window.actionToggleSuspend = actionToggleSuspend;
-window.actionDelete = actionDelete;
-window.logout = logout;
+window.handleLogout = handleLogout;
+window.logout = handleLogout;
 window.toggleStaffQuotaAccess = toggleStaffQuotaAccess;
 
 function initSuperAdminApp() {
@@ -432,7 +450,7 @@ async function loadSubscriptionConfigFallback() {
     renderPlansEditor(currentPlanConfigState);
 }
 
-window.resetDefaultPlansAndAddons = function() {
+function resetDefaultPlansAndAddons() {
     if (!confirm('Reset the form fields below to the default 3 Yearly Plans (Basic, Pro, Customized) and 5 Yearly Add-ons? (Click Save afterwards to apply to the landing page.)')) return;
     const merged = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
     merged.razorpayKeyId = document.getElementById('rzpKeyIdInput')?.value || '';
@@ -595,7 +613,7 @@ function updateModalSelectedPlanSummary(planName, price, durationMonths, maxStaf
     `;
 }
 
-window.recalcModalExpiryFromDuration = function(monthsVal) {
+function recalcModalExpiryFromDuration(monthsVal) {
     const months = Math.max(1, parseInt(monthsVal) || 12);
     const expEl = document.getElementById('modalPlanExpiry');
     if (expEl) {
@@ -610,9 +628,9 @@ window.recalcModalExpiryFromDuration = function(monthsVal) {
         document.getElementById('modalDailyMessages')?.value,
         expEl ? expEl.value : ''
     );
-};
+}
 
-window.setModalExpiryMonths = function(monthsVal) {
+function setModalExpiryMonths(monthsVal) {
     const months = Math.max(1, parseInt(monthsVal) || 12);
     const expEl = document.getElementById('modalPlanExpiry');
     if (expEl) {
@@ -629,9 +647,9 @@ window.setModalExpiryMonths = function(monthsVal) {
         document.getElementById('modalDailyMessages')?.value,
         expEl ? expEl.value : ''
     );
-};
+}
 
-window.toggleStaffQuotaAccess = async function(staffId, adminId, btnEl) {
+async function toggleStaffQuotaAccess(staffId, adminId, btnEl) {
     if (!staffId) return;
     const originalText = btnEl ? btnEl.innerHTML : '';
     if (btnEl) {
@@ -793,7 +811,7 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
 }
 window.openLimitsModalFromData = openLimitsModalFromData;
 
-window.applyPlanPresetToModal = function(planId) {
+function applyPlanPresetToModal(planId) {
     const plans = window.getLivePlansList();
     const plan = plans.find(p => String(p.id || '').toLowerCase() === String(planId || '').toLowerCase()) || plans[0];
     if (!plan) return;
@@ -846,9 +864,9 @@ window.applyPlanPresetToModal = function(planId) {
         plan.dailyMessageLimit ?? 50,
         autoExpiryStr
     );
-};
+}
 
-window.extendModalExpiryOneYear = function() {
+function extendModalExpiryOneYear() {
     const expEl = document.getElementById('modalPlanExpiry');
     if (!expEl) return;
     let base = new Date();
