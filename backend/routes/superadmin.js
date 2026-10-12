@@ -4,8 +4,9 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
+const ActivityLog = require('../models/Activity');
 const PlanConfig = require('../models/PlanConfig');
-const { requireSuperAdmin, logActivity } = require('../middleware/auth');
+const { requireSuperAdmin, logActivity, invalidateAuthCache } = require('../middleware/auth');
 const {
     syncStaffQuotaForAdmin,
     notifySuperAdminAccountChange,
@@ -41,8 +42,8 @@ router.get('/dashboard', requireSuperAdmin, async (req, res) => {
         runExpiryEmailScan().catch(() => {});
 
         const [adminUsers, staffUsers, partyCounts, planConfigDoc] = await Promise.all([
-            User.find({ role: 'admin' }).sort({ _id: -1 }).lean(),
-            User.find({ role: 'staff' }).sort({ _id: -1 }).lean(),
+            User.find({ role: 'admin' }).select('-password -securityAnswer -googleDriveToken').sort({ _id: -1 }).lean(),
+            User.find({ role: 'staff' }).select('_id username role status adminId isQuotaLocked').sort({ _id: -1 }).lean(),
             Customer.aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }]),
             PlanConfig.getOrCreateSingleton()
         ]);
@@ -187,9 +188,10 @@ router.post('/subscription-settings', requireSuperAdmin, async (req, res) => {
         }
 
         // Also sync any unpaid pending admins on standard Basic/Pro plans so their pending defaults reflect the updated plan values
+        const syncPromises = [];
         for (const plan of (config.plans || [])) {
             if (!plan.isCustom && (plan.id === 'basic' || plan.id === 'pro')) {
-                await User.updateMany(
+                syncPromises.push(User.updateMany(
                     {
                         role: 'admin',
                         status: 'pending',
@@ -208,9 +210,11 @@ router.post('/subscription-settings', requireSuperAdmin, async (req, res) => {
                             featureAccess: plan.featureAccess
                         }
                     }
-                );
+                ));
             }
         }
+        if (syncPromises.length > 0) await Promise.all(syncPromises);
+        invalidateAuthCache();
 
         res.json({
             success: true,
@@ -316,14 +320,15 @@ router.post('/update-limits/:id', requireSuperAdmin, async (req, res) => {
         }
 
         const targetUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        invalidateAuthCache(req.params.id);
         if (targetUser) {
             const staffQuotaStatus = await syncStaffQuotaForAdmin(targetUser._id, targetUser.maxStaffLimit);
-            await notifySuperAdminAccountChange(
+            notifySuperAdminAccountChange(
                 targetUser,
                 'Plan, Quotas & Access Updated',
                 `Super Admin updated your subscription plan (${targetUser.planName || 'Standard'}), account quotas, expiry date, or feature permissions.`,
                 staffQuotaStatus
-            );
+            ).catch(() => {});
         }
 
         res.json({ success: true, message: `Updated plan limits, access, and status for ${targetUser ? targetUser.username : 'admin'}.`, user: targetUser });
@@ -343,6 +348,8 @@ router.post('/toggle-staff-quota/:staffId', requireSuperAdmin, async (req, res) 
         }
         staff.isQuotaLocked = !staff.isQuotaLocked;
         await staff.save();
+        invalidateAuthCache(staff._id);
+        if (staff.adminId) invalidateAuthCache(staff.adminId);
         res.json({
             success: true,
             message: `Staff ${staff.username} access is now ${staff.isQuotaLocked ? 'Locked / Paused 🔒' : 'Active ✅'}.`,
@@ -375,6 +382,7 @@ router.post('/reset-user-password/:id', requireSuperAdmin, async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
         targetUser.password = hashedPassword;
         await targetUser.save();
+        invalidateAuthCache(targetUser._id);
 
         if (typeof logActivity === 'function') {
             await logActivity(req, "SuperAdmin Password Reset", `Super Admin reset password for ${targetUser.role || 'user'}: ${targetUser.username}`);
@@ -449,6 +457,7 @@ router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
         const existingUser = await User.findById(req.params.id);
+        if (!existingUser) return res.status(404).json({ success: false, message: 'Admin user not found.' });
         const planConfigDoc = await PlanConfig.getOrCreateSingleton();
         const matchedPlan = findMatchedPlan(planConfigDoc ? planConfigDoc.toObject() : null, existingUser?.planId, existingUser?.planName);
 
@@ -463,7 +472,7 @@ router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
 
         // If this is a manual approval (no Razorpay payment ID and no custom add-ons) and matches a standard plan (Basic/Pro),
         // ensure the latest configured plan values from Super Admin are applied on approval
-        if (existingUser && !existingUser.lastPaymentId && (!existingUser.activeAddons || existingUser.activeAddons.length === 0) && matchedPlan && !matchedPlan.isCustom) {
+        if (!existingUser.lastPaymentId && (!existingUser.activeAddons || existingUser.activeAddons.length === 0) && matchedPlan && !matchedPlan.isCustom) {
             updateObj.planId = matchedPlan.id;
             updateObj.planName = matchedPlan.name;
             updateObj.maxCustomersLimit = matchedPlan.maxCustomersLimit;
@@ -477,7 +486,7 @@ router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
         }
 
         const durationMonths = Number(updateObj.planDurationMonths || existingUser?.planDurationMonths || matchedPlan?.durationMonths || 12);
-        if (!existingUser || !existingUser.planExpiryDate || new Date(existingUser.planExpiryDate) <= now) {
+        if (!existingUser.planExpiryDate || new Date(existingUser.planExpiryDate) <= now) {
             const expiry = new Date(now);
             expiry.setMonth(expiry.getMonth() + durationMonths);
             updateObj.planExpiryDate = expiry;
@@ -485,14 +494,15 @@ router.post('/approve/:id', requireSuperAdmin, async (req, res) => {
 
         const approvedUser = await User.findByIdAndUpdate(req.params.id, updateObj, { new: true });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
+        invalidateAuthCache();
         if (approvedUser) {
             const staffQuotaStatus = await syncStaffQuotaForAdmin(approvedUser._id, approvedUser.maxStaffLimit);
-            await notifySuperAdminAccountChange(
+            notifySuperAdminAccountChange(
                 approvedUser,
                 'Account Approved & Activated',
                 'Congratulations! Your Admin account has been approved and activated by Super Admin. You can now sign in to your dashboard.',
                 staffQuotaStatus
-            );
+            ).catch(() => {});
         }
         res.json({ success: true, message: 'Account approved.' });
     } catch (err) {
@@ -505,12 +515,13 @@ router.post('/suspend/:id', requireSuperAdmin, async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'suspended' }, { new: true });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'suspended' });
+        invalidateAuthCache();
         if (u) {
-            await notifySuperAdminAccountChange(
+            notifySuperAdminAccountChange(
                 u,
                 'Account Suspended',
                 'Your Admin account has been temporarily suspended by Super Admin. All your ledger data remains safely preserved. Please contact Super Admin or renew your subscription to reactivate access.'
-            );
+            ).catch(() => {});
         }
         res.json({ success: true, message: `Account for ${u ? u.username : 'admin'} suspended.` });
     } catch (err) {
@@ -523,14 +534,15 @@ router.post('/resume/:id', requireSuperAdmin, async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'approved' }, { new: true });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'approved' });
+        invalidateAuthCache();
         if (u) {
             const staffQuotaStatus = await syncStaffQuotaForAdmin(u._id, u.maxStaffLimit);
-            await notifySuperAdminAccountChange(
+            notifySuperAdminAccountChange(
                 u,
                 'Account Reactivated',
                 'Your Admin account has been reactivated by Super Admin. Full access to your workspace is restored.',
                 staffQuotaStatus
-            );
+            ).catch(() => {});
         }
         res.json({ success: true, message: `Account for ${u ? u.username : 'admin'} reactivated.` });
     } catch (err) {
@@ -543,12 +555,13 @@ router.post('/reject/:id', requireSuperAdmin, async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
         const u = await User.findByIdAndUpdate(req.params.id, { status: 'rejected' }, { new: true });
         await User.updateMany({ role: 'staff', adminId: req.params.id }, { status: 'rejected' });
+        invalidateAuthCache();
         if (u) {
-            await notifySuperAdminAccountChange(
+            notifySuperAdminAccountChange(
                 u,
                 'Account Access Revoked / Declined',
                 'Your Admin account access has been revoked or declined by Super Admin. Please contact support if you need assistance.'
-            );
+            ).catch(() => {});
         }
         res.json({ success: true, message: 'Account request rejected.' });
     } catch (err) {
@@ -560,15 +573,19 @@ router.delete('/delete-admin/:id', requireSuperAdmin, async (req, res) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
         const targetUser = await User.findById(req.params.id).lean();
-        await User.deleteMany({ role: 'staff', adminId: req.params.id });
-        await Customer.deleteMany({ adminId: req.params.id });
-        await User.findByIdAndDelete(req.params.id);
+        await Promise.all([
+            User.deleteMany({ role: 'staff', adminId: req.params.id }),
+            Customer.deleteMany({ adminId: req.params.id }),
+            ActivityLog.deleteMany({ adminId: String(req.params.id) }),
+            User.findByIdAndDelete(req.params.id)
+        ]);
+        invalidateAuthCache();
         if (targetUser) {
-            await notifySuperAdminAccountChange(
+            notifySuperAdminAccountChange(
                 targetUser,
                 'Account Permanently Deleted',
                 'Your Admin account and associated workspace data have been permanently deleted by Super Admin.'
-            );
+            ).catch(() => {});
         }
         res.json({ success: true, message: 'Admin account and associated data deleted.' });
     } catch (err) {

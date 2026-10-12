@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wgs-payment-v16';
+const CACHE_NAME = 'wgs-payment-v17';
 const ASSETS_TO_CACHE = [
     '/',
     '/login.html',
@@ -34,8 +34,9 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     if (url.origin !== self.location.origin) return;
     if (url.pathname.includes('/api/')) return;
+    const isCodeOrDoc = url.pathname.endsWith('.js') || url.pathname.endsWith('.html') || url.pathname === '/';
     event.respondWith(
-        fetch(event.request)
+        fetch(event.request, isCodeOrDoc ? { cache: 'no-cache' } : undefined)
             .then((response) => {
                 if (response && response.status === 200 && response.type === 'basic') {
                     const responseToCache = response.clone();

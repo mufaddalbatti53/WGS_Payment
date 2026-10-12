@@ -13,14 +13,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            if (typeof window.performFastLogout === 'function') {
+                return window.performFastLogout('login.html');
+            }
             try {
+                localStorage.removeItem('wgs_auth_token');
+                localStorage.removeItem('token');
                 if (typeof apiFetch === 'function') {
                     await apiFetch('/api/logout', { method: 'POST' });
                 } else {
                     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
                 }
             } catch (err) { console.error(err); }
-            localStorage.removeItem('token');
             window.location.href = 'login.html';
         });
     }

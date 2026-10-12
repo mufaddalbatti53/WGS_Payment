@@ -536,10 +536,14 @@ window.deleteCustomer = async function(id) {
 };
 
 window.handleLogout = async function() {
+    if (typeof window.performFastLogout === 'function') {
+        return window.performFastLogout('login.html');
+    }
     try {
+        localStorage.removeItem('wgs_auth_token');
         await apiFetch('/api/logout', { method: 'POST' });
     } catch (e) {}
-    window.location.href = 'index.html';
+    window.location.href = 'login.html';
 };
 
 window.linkGoogleDrive = async function() {

@@ -11,7 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
+            if (typeof window.performFastLogout === 'function') {
+                return window.performFastLogout('login.html');
+            }
             try {
+                localStorage.removeItem('wgs_auth_token');
                 if (typeof apiFetch === 'function') {
                     await apiFetch('/api/logout', { method: 'POST' });
                 } else {

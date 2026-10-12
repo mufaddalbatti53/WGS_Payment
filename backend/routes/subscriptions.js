@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const PlanConfig = require('../models/PlanConfig');
 const User = require('../models/User');
 const ActivityLog = require('../models/Activity');
-const { createAuthToken, saveSessionAsync } = require('../middleware/auth');
+const { createAuthToken, saveSessionAsync, invalidateAuthCache } = require('../middleware/auth');
 const {
     syncStaffQuotaForAdmin,
     notifyPlanPurchased,
@@ -305,7 +305,7 @@ router.post('/verify-payment', async (req, res) => {
         expiryDate.setMonth(expiryDate.getMonth() + quote.finalDurationMonths);
 
         if (!user) {
-            const hashedPassword = await bcrypt.hash(reg.password, 12);
+            const hashedPassword = await bcrypt.hash(reg.password, 10);
             user = await User.create({
                 username: cleanUsername,
                 password: hashedPassword,
@@ -364,6 +364,8 @@ router.post('/verify-payment', async (req, res) => {
             await User.updateMany({ role: 'staff', adminId: user._id }, { status: 'approved' });
         }
 
+        invalidateAuthCache(user._id);
+
         const staffQuotaStatus = await syncStaffQuotaForAdmin(
             user._id,
             quote.finalStaffLimit,
@@ -371,14 +373,14 @@ router.post('/verify-payment', async (req, res) => {
         );
 
         await ActivityLog.create({
-            adminId: user._id,
-            actorName: user.username,
-            actorRole: 'admin',
-            actionType: 'Subscription Activated',
+            adminId: String(user._id),
+            userId: String(user._id),
+            username: user.username,
+            action: 'Subscription Activated',
             details: `Purchased ${quote.planName} (₹${quote.totalAmount}, PayID: ${razorpay_payment_id}) — Limits: ${quote.finalPartiesLimit} Parties, ${quote.finalStaffLimit} Staff, ${quote.finalMessagesLimit} Msgs/day.`
-        });
+        }).catch(() => {});
 
-        await notifyPlanPurchased(user, quote, razorpay_payment_id, staffQuotaStatus);
+        notifyPlanPurchased(user, quote, razorpay_payment_id, staffQuotaStatus).catch(() => {});
 
         // Automatically log the Admin in
         let token = '';
@@ -429,7 +431,7 @@ router.post('/submit-request', async (req, res) => {
 
         const existingUser = await User.findOne({
             username: new RegExp('^\\s*' + escapeRegExp(cleanUsername) + '\\s*$', 'i')
-        });
+        }).lean();
 
         if (existingUser) {
             return res.status(400).json({
@@ -445,7 +447,7 @@ router.post('/submit-request', async (req, res) => {
         const cleanCompany = (registrationData.companyName || '').toString().trim();
         const cleanEmail = (registrationData.email || '').toString().trim().toLowerCase();
         const cleanPhone = (registrationData.contactNo || '').toString().trim();
-        const hashedPassword = await bcrypt.hash(registrationData.password, 12);
+        const hashedPassword = await bcrypt.hash(registrationData.password, 10);
 
         const user = await User.create({
             username: cleanUsername,
@@ -470,14 +472,14 @@ router.post('/submit-request', async (req, res) => {
         });
 
         await ActivityLog.create({
-            adminId: user._id,
-            actorName: user.username,
-            actorRole: 'admin',
-            actionType: 'Plan Request Submitted',
+            adminId: String(user._id),
+            userId: String(user._id),
+            username: user.username,
+            action: 'Plan Request Submitted',
             details: `Requested ${quote.planName} (Quoted: ₹${quote.totalAmount}) — Limits: ${quote.finalPartiesLimit} Parties, ${quote.finalStaffLimit} Staff, ${quote.finalMessagesLimit} Msgs/day.`
-        });
+        }).catch(() => {});
 
-        await notifyRegistrationOrRequest(user, quote);
+        notifyRegistrationOrRequest(user, quote).catch(() => {});
 
         res.json({
             success: true,
@@ -821,6 +823,8 @@ async function handleVerifyRenewal(req, res) {
         user.lastPostExpiryEmailSentAt = null;
         await user.save();
 
+        invalidateAuthCache(user._id);
+
         // Also re-approve any staff accounts under this Admin and sync staff quota locks
         await User.updateMany({ role: 'staff', adminId: user._id }, { status: 'approved' });
         const staffQuotaStatus = await syncStaffQuotaForAdmin(
@@ -834,14 +838,14 @@ async function handleVerifyRenewal(req, res) {
             : (renewalMode === 'with_addons' && quote.selectedAddons.length ? 'Yearly Plan Renewal (WITH Add-ons)' : 'Yearly Plan Renewal (WITHOUT Add-ons)');
 
         await ActivityLog.create({
-            adminId: user._id,
-            actorName: user.username,
-            actorRole: 'admin',
-            actionType: renewalMode === 'addons_only' ? 'Add-on Purchased' : 'Subscription Renewed',
+            adminId: String(user._id),
+            userId: String(user._id),
+            username: user.username,
+            action: renewalMode === 'addons_only' ? 'Add-on Purchased' : 'Subscription Renewed',
             details: `${modeLabel} — ${user.planName} (₹${quote.totalAmount}, PayID: ${razorpay_payment_id}) valid until ${expiryDate.toLocaleDateString('en-IN')}.`
-        });
+        }).catch(() => {});
 
-        await notifyPlanRenewedOrAddon(user, quote, modeLabel, razorpay_payment_id, staffQuotaStatus);
+        notifyPlanRenewedOrAddon(user, quote, modeLabel, razorpay_payment_id, staffQuotaStatus).catch(() => {});
 
         res.json({
             success: true,

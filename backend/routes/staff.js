@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { requireAdmin, logActivity, isPlanExpiredDate } = require('../middleware/auth');
+const { requireAdmin, logActivity, isPlanExpiredDate, invalidateAuthCache } = require('../middleware/auth');
 const { syncStaffQuotaForAdmin } = require('../utils/emailService');
 
 function escapeRegExp(string) {
@@ -92,6 +92,7 @@ router.post('/select-active', requireAdmin, async (req, res) => {
         }
 
         const staffQuotaStatus = await syncStaffQuotaForAdmin(req.session.adminId, maxStaff, rawIds);
+        invalidateAuthCache();
         await logActivity(req, "Selected Active Staff", `Activated ${staffQuotaStatus.activeStaffCount} of ${staffQuotaStatus.totalStaff} staff accounts within plan quota (${maxStaff}).`);
 
         res.json({
@@ -172,6 +173,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
         if (staff) {
             const adminUser = await User.findById(req.session.adminId).select('maxStaffLimit').lean();
             await syncStaffQuotaForAdmin(req.session.adminId, adminUser ? adminUser.maxStaffLimit : 5);
+            invalidateAuthCache();
             await logActivity(req, "Deleted Staff", `Removed: ${staff.username}`);
         }
         res.json({ success: true, message: 'Staff deleted successfully.' });

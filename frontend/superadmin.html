@@ -13,6 +13,43 @@
     <link rel="icon" href="/images/WGS.png" type="image/png">
     <link rel="apple-touch-icon" href="/images/WGS.png">
     <link rel="manifest" href="/manifest.json">
+    <script>
+        window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';
+        // Pre-bind global handlers in <head> so inline onclick/onchange attributes never throw ReferenceError before scripts finish loading
+        (function() {
+            var fnNames = [
+                'applyPlanPresetToModal', 'recalcModalExpiryFromDuration', 'setModalExpiryMonths',
+                'extendModalExpiryOneYear', 'openLimitsModalFromData', 'closeLimitsModal',
+                'saveSubscriptionSettings', 'resetDefaultPlansAndAddons', 'addNewAddonRow',
+                'showTab', 'togglePassword', 'actionApprove', 'actionReject', 'actionToggleSuspend',
+                'toggleStaffQuotaAccess', 'openResetPasswordModal', 'closeResetPasswordModal',
+                'confirmResetPasswordAction', 'submitModalAdminPasswordReset'
+            ];
+            for (var i = 0; i < fnNames.length; i++) {
+                (function(name) {
+                    if (typeof window[name] !== 'function') {
+                        var stub = function() {};
+                        stub.__isStub = true;
+                        window[name] = stub;
+                    }
+                })(fnNames[i]);
+            }
+            if (typeof window.handleLogout !== 'function') {
+                var logoutStub = function() {
+                    try {
+                        localStorage.removeItem('wgs_auth_token');
+                        localStorage.removeItem('token');
+                        sessionStorage.clear();
+                        fetch(window.API_BASE + '/api/logout', { method: 'POST', credentials: 'include', keepalive: true }).catch(function(){});
+                    } catch (e) {}
+                    window.location.replace('login.html');
+                };
+                logoutStub.__isStub = true;
+                window.handleLogout = logoutStub;
+                window.logout = logoutStub;
+            }
+        })();
+    </script>
     <style>
         :root {
             --primary: #1558cc;
@@ -1206,15 +1243,15 @@
                         </div>
                         <span id="rzpStatusBadge" style="padding:6px 12px; border-radius:999px; font-size:12px; font-weight:800; background:#fef3c7; color:#b45309;">Checking...</span>
                     </div>
-                    <div class="rzp-grid">
+                    <form id="rzpSettingsForm" class="rzp-grid" onsubmit="event.preventDefault(); if(window.saveSubscriptionSettings) window.saveSubscriptionSettings();" autocomplete="off">
                         <div class="pm-field">
                             <label>Razorpay Key ID (e.g. rzp_live_xxxxx or rzp_test_xxxxx)</label>
-                            <input type="text" id="rzpKeyIdInput" placeholder="rzp_live_xxxxxxxxxxxxxx" autocomplete="off">
+                            <input type="text" id="rzpKeyIdInput" placeholder="rzp_live_xxxxxxxxxxxxxx" autocomplete="off" data-lpignore="true" data-1p-ignore="true">
                         </div>
                         <div class="pm-field">
                             <label>Razorpay Key Secret</label>
                             <div class="input-group" style="position:relative;">
-                                <input type="password" id="rzpKeySecretInput" placeholder="Enter Razorpay Key Secret" autocomplete="new-password" style="padding-right:38px;">
+                                <input type="password" id="rzpKeySecretInput" placeholder="Enter Razorpay Key Secret" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="padding-right:38px;">
                                 <span class="toggle-password" onclick="togglePassword(this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">👁️</span>
                             </div>
                         </div>
@@ -1226,7 +1263,7 @@
                             <label>📧 SuperAdmin Alert Email (Receives Purchase, Renewal & Expiry Alerts)</label>
                             <input type="email" id="superadminEmailInput" placeholder="admin@yourcompany.com (defaults to SMTP sender email if blank)">
                         </div>
-                    </div>
+                    </form>
                 </div>
 
                 <!-- 2. Three Subscription Plans Editor -->
@@ -1324,9 +1361,9 @@
                         <span style="font-size:11px; font-weight:700; color:#2563eb;">Click any plan to auto-fill live quotas & expiry date</span>
                     </label>
                     <div id="modalPlanPresetBar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:8px; margin-bottom:10px;">
-                        <button type="button" data-plan-id="basic" onclick="applyPlanPresetToModal('basic')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;">🌱 Apply Basic Plan</button>
-                        <button type="button" data-plan-id="pro" onclick="applyPlanPresetToModal('pro')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; cursor:pointer;">🚀 Apply Pro Plan</button>
-                        <button type="button" data-plan-id="customized" onclick="applyPlanPresetToModal('customized')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bbf7d0; background:#f0fdf4; color:#166534; cursor:pointer;">🎛️ Apply Customized Plan</button>
+                        <button type="button" data-plan-id="basic" onclick="if(window.applyPlanPresetToModal)window.applyPlanPresetToModal('basic')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;">🌱 Apply Basic Plan</button>
+                        <button type="button" data-plan-id="pro" onclick="if(window.applyPlanPresetToModal)window.applyPlanPresetToModal('pro')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; cursor:pointer;">🚀 Apply Pro Plan</button>
+                        <button type="button" data-plan-id="customized" onclick="if(window.applyPlanPresetToModal)window.applyPlanPresetToModal('customized')" style="text-align:left; font-size:11px; font-weight:700; padding:8px 10px; border-radius:9px; border:1.5px solid #bbf7d0; background:#f0fdf4; color:#166534; cursor:pointer;">🎛️ Apply Customized Plan</button>
                     </div>
                     <div id="modalSelectedPlanSummary" style="display:none; background:linear-gradient(135deg, #eff6ff, #f0fdf4); border:1px solid #93c5fd; border-radius:10px; padding:10px 12px; margin-bottom:10px; font-size:12px; color:#1e3a8a;"></div>
                     <input type="text" id="modalPlanName" name="planName" placeholder="e.g. Basic Plan, Pro Plan, Customized Plan">
@@ -1338,7 +1375,7 @@
                     </div>
                     <div class="form-group">
                         <label>⏳ Validity (Months)</label>
-                        <input type="number" id="modalPlanDurationMonths" name="planDurationMonths" min="1" max="120" value="12" onchange="recalcModalExpiryFromDuration(this.value)">
+                        <input type="number" id="modalPlanDurationMonths" name="planDurationMonths" min="1" max="120" value="12" onchange="if(window.recalcModalExpiryFromDuration)window.recalcModalExpiryFromDuration(this.value)">
                     </div>
                 </div>
                 <div class="pm-row-2">
@@ -1400,7 +1437,7 @@
                         <span style="font-size:11px; color:#2563eb; font-weight:600;">No old password required</span>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="password" id="modalAdminNewPassword" placeholder="Enter new password (min 6 chars)" style="margin:0; flex:1; font-size:13px; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;" autocomplete="new-password">
+                        <input type="password" id="modalAdminNewPassword" placeholder="Enter new password (min 6 chars)" style="margin:0; flex:1; font-size:13px; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                         <button type="button" onclick="submitModalAdminPasswordReset()" style="padding:9px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;">Set Password 🔑</button>
                     </div>
                     <div id="modalAdminPwdMsg" style="margin-top:6px; font-size:11px;"></div>
@@ -1431,27 +1468,28 @@
                 <span id="resetTargetRole" style="margin-left:6px; background:#e0e7ff; color:#3730a3; padding:1px 7px; border-radius:99px; font-size:10px; font-weight:800; text-transform:uppercase;">ADMIN</span>
             </div>
 
-            <input type="hidden" id="resetTargetUserId">
-            <div id="resetModalMsg" style="margin-bottom:12px;"></div>
+            <form id="resetPasswordForm" onsubmit="event.preventDefault(); if(window.confirmResetPasswordAction) window.confirmResetPasswordAction();" autocomplete="off">
+                <input type="hidden" id="resetTargetUserId">
+                <div id="resetModalMsg" style="margin-bottom:12px;"></div>
 
-            <div class="form-group" style="margin-bottom:16px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">New Password (min 6 characters)</label>
-                <div class="input-group" style="position:relative;">
-                    <input type="password" id="resetNewPasswordInput" placeholder="Enter new password" style="width:100%; padding:10px 38px 10px 12px; border:1.5px solid #cbd5e1; border-radius:9px; font-size:13.5px;" autocomplete="new-password">
-                    <span class="toggle-password" onclick="togglePassword(this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">👁️</span>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">New Password (min 6 characters)</label>
+                    <div class="input-group" style="position:relative;">
+                        <input type="password" id="resetNewPasswordInput" placeholder="Enter new password" style="width:100%; padding:10px 38px 10px 12px; border:1.5px solid #cbd5e1; border-radius:9px; font-size:13.5px;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
+                        <span class="toggle-password" onclick="togglePassword(this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">👁️</span>
+                    </div>
                 </div>
-            </div>
 
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
-                <button type="button" onclick="closeResetPasswordModal()" style="padding:10px 16px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; color:#475569; cursor:pointer;">Cancel</button>
-                <button type="button" id="btnConfirmResetPwd" onclick="confirmResetPasswordAction()" style="padding:10px 20px; background:linear-gradient(135deg, #2563eb, #1d4ed8); border:none; border-radius:10px; font-size:13px; font-weight:800; color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">Set New Password 🔑</button>
-            </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" onclick="closeResetPasswordModal()" style="padding:10px 16px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; color:#475569; cursor:pointer;">Cancel</button>
+                    <button type="submit" id="btnConfirmResetPwd" style="padding:10px 20px; background:linear-gradient(135deg, #2563eb, #1d4ed8); border:none; border-radius:10px; font-size:13px; font-weight:800; color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">Set New Password 🔑</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=16"></script>
-    <script src="js/superadmin.js?v=16"></script>
+    <script src="js/api.js?v=17"></script>
+    <script src="js/superadmin.js?v=17"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1552,7 +1590,7 @@
             };
 
             // Ensure global getLivePlansList is always available and reads live editor inputs or saved config
-            if (typeof window.getLivePlansList !== 'function') {
+            if (typeof window.getLivePlansList !== 'function' || window.getLivePlansList.__isStub) {
                 window.getLivePlansList = function() {
                     var cards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
                     if (cards.length > 0) {
@@ -1582,13 +1620,13 @@
             }
 
             // Modal fallback helpers
-            if (typeof window.closeLimitsModal !== 'function') {
+            if (typeof window.closeLimitsModal !== 'function' || window.closeLimitsModal.__isStub) {
                 window.closeLimitsModal = function() {
                     var m = document.getElementById('limitsModal');
                     if (m) m.style.display = 'none';
                 };
             }
-            if (typeof window.openResetPasswordModal !== 'function') {
+            if (typeof window.openResetPasswordModal !== 'function' || window.openResetPasswordModal.__isStub) {
                 window.openResetPasswordModal = function(userId, username, role) {
                     var m = document.getElementById('resetPasswordModal');
                     if (!m) return;
@@ -1605,13 +1643,13 @@
                     m.style.display = 'flex';
                 };
             }
-            if (typeof window.closeResetPasswordModal !== 'function') {
+            if (typeof window.closeResetPasswordModal !== 'function' || window.closeResetPasswordModal.__isStub) {
                 window.closeResetPasswordModal = function() {
                     var m = document.getElementById('resetPasswordModal');
                     if (m) m.style.display = 'none';
                 };
             }
-            if (typeof window.confirmResetPasswordAction !== 'function') {
+            if (typeof window.confirmResetPasswordAction !== 'function' || window.confirmResetPasswordAction.__isStub) {
                 window.confirmResetPasswordAction = async function() {
                     var userId = document.getElementById('resetTargetUserId') ? document.getElementById('resetTargetUserId').value : '';
                     var pwdInp = document.getElementById('resetNewPasswordInput');
@@ -1652,7 +1690,7 @@
                     }
                 };
             }
-            if (typeof window.submitModalAdminPasswordReset !== 'function') {
+            if (typeof window.submitModalAdminPasswordReset !== 'function' || window.submitModalAdminPasswordReset.__isStub) {
                 window.submitModalAdminPasswordReset = async function() {
                     var adminId = document.getElementById('modalAdminId') ? document.getElementById('modalAdminId').value : '';
                     var pwdInp = document.getElementById('modalAdminNewPassword');
@@ -1689,7 +1727,7 @@
                     }
                 };
             }
-            if (typeof window.setModalExpiryMonths !== 'function') {
+            if (typeof window.setModalExpiryMonths !== 'function' || window.setModalExpiryMonths.__isStub) {
                 window.setModalExpiryMonths = function(monthsVal) {
                     var months = Math.max(1, parseInt(monthsVal) || 12);
                     var d = new Date();
@@ -1700,7 +1738,13 @@
                     if (dur) dur.value = months;
                 };
             }
-            if (typeof window.extendModalExpiryOneYear !== 'function') {
+            if (typeof window.recalcModalExpiryFromDuration !== 'function' || window.recalcModalExpiryFromDuration.__isStub) {
+                window.recalcModalExpiryFromDuration = function(monthsVal) {
+                    var months = Math.max(1, parseInt(monthsVal) || 12);
+                    window.setModalExpiryMonths(months);
+                };
+            }
+            if (typeof window.extendModalExpiryOneYear !== 'function' || window.extendModalExpiryOneYear.__isStub) {
                 window.extendModalExpiryOneYear = function() {
                     var expEl = document.getElementById('modalPlanExpiry');
                     if (!expEl) return;
@@ -1714,7 +1758,7 @@
                 };
             }
 
-            if (typeof window.applyPlanPresetToModal !== 'function') {
+            if (typeof window.applyPlanPresetToModal !== 'function' || window.applyPlanPresetToModal.__isStub) {
                 window.applyPlanPresetToModal = function(planId) {
                     var plans = (typeof window.getLivePlansList === 'function') ? window.getLivePlansList() : FALLBACK_PLAN_CONFIG.plans;
                     var plan = plans.find(function(p){ return String(p.id || '').toLowerCase() === String(planId || '').toLowerCase(); }) || plans[0];
@@ -1771,7 +1815,7 @@
                 };
             }
 
-            if (typeof window.updateModalSelectedPlanSummary !== 'function') {
+            if (typeof window.updateModalSelectedPlanSummary !== 'function' || window.updateModalSelectedPlanSummary.__isStub) {
                 window.updateModalSelectedPlanSummary = function(planName, price, durationMonths, maxStaff, maxParties, dailyMsgs, expiryDateStr) {
                     var box = document.getElementById('modalSelectedPlanSummary');
                     if (!box) return;
@@ -1787,7 +1831,7 @@
                 };
             }
 
-            if (typeof window.addNewAddonRow !== 'function') {
+            if (typeof window.addNewAddonRow !== 'function' || window.addNewAddonRow.__isStub) {
                 window.addNewAddonRow = function() {
                     var container = document.getElementById('addonsEditorList');
                     if (!container) return;
@@ -1811,7 +1855,7 @@
                 };
             }
 
-            if (typeof window.resetDefaultPlansAndAddons !== 'function') {
+            if (typeof window.resetDefaultPlansAndAddons !== 'function' || window.resetDefaultPlansAndAddons.__isStub) {
                 window.resetDefaultPlansAndAddons = function() {
                     if (!confirm('Reset the form fields below to the default 3 Yearly Plans (Basic, Pro, Customized) and 5 Yearly Add-ons? (Click Save afterwards to apply to the landing page.)')) return;
                     var merged = JSON.parse(JSON.stringify(FALLBACK_PLAN_CONFIG));
@@ -1828,7 +1872,7 @@
                 };
             }
 
-            if (typeof window.saveSubscriptionSettings !== 'function') {
+            if (typeof window.saveSubscriptionSettings !== 'function' || window.saveSubscriptionSettings.__isStub) {
                 window.saveSubscriptionSettings = async function() {
                     var btn = document.getElementById('btnSavePlansConfig');
                     var alertBox = document.getElementById('plansSaveAlert');
@@ -1887,21 +1931,30 @@
                             };
                         });
 
-                        var baseUrl = window.API_BASE || '';
-                        var resp = await fetch(baseUrl + '/api/superadmin/subscription-settings', {
-                            method: 'POST',
-                            credentials: 'include',
-                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify({
-                                razorpayKeyId: razorpayKeyId,
-                                razorpayKeySecret: razorpayKeySecret,
-                                whatsappSalesNumber: whatsappSalesNumber,
-                                superadminEmail: superadminEmail,
-                                plans: plans,
-                                addons: addons
-                            })
-                        });
-                        var res = await resp.json();
+                        var payload = {
+                            razorpayKeyId: razorpayKeyId,
+                            razorpayKeySecret: razorpayKeySecret,
+                            whatsappSalesNumber: whatsappSalesNumber,
+                            superadminEmail: superadminEmail,
+                            plans: plans,
+                            addons: addons
+                        };
+                        var res;
+                        if (typeof apiJson === 'function') {
+                            res = await apiJson('/api/superadmin/subscription-settings', {
+                                method: 'POST',
+                                body: JSON.stringify(payload)
+                            });
+                        } else {
+                            var baseUrl = window.API_BASE || '';
+                            var resp = await fetch(baseUrl + '/api/superadmin/subscription-settings', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            res = await resp.json();
+                        }
                         if (res && res.success) {
                             window.currentPlanConfigState = res.planConfig;
                             if (typeof window.renderPlansEditor === 'function') window.renderPlansEditor(res.planConfig);

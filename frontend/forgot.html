@@ -104,17 +104,17 @@
         </div>
 
         <!-- STEP 2: Enter OTP & New Password -->
-        <div id="step2" class="step">
+        <form id="step2" class="step" onsubmit="event.preventDefault(); resetPassword(); return false;" autocomplete="off" data-lpignore="true" data-1p-ignore="true">
             <div class="email-hint" id="emailHint"></div>
 
             <input type="text" id="otpInput" class="otp-input" placeholder="------" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
 
             <div class="input-group">
-                <input type="password" id="newPassword" placeholder="New Password (min 6 chars)" autocomplete="new-password">
+                <input type="password" id="newPassword" placeholder="New Password (min 6 chars)" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                 <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
             </div>
             <div class="input-group">
-                <input type="password" id="confirmPassword" placeholder="Retype New Password" autocomplete="new-password">
+                <input type="password" id="confirmPassword" placeholder="Retype New Password" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                 <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
             </div>
 
@@ -125,7 +125,7 @@
             <span class="resend-link">
                 Didn't receive the code? <a onclick="requestOtp()">Resend OTP</a>
             </span>
-        </div>
+        </form>
 
         <a href="login.html" class="back-link">&larr; Back to Login</a>
     </div>
@@ -133,7 +133,7 @@
     <script>
         window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';
     </script>
-    <script src="js/api.js"></script>
+    <script src="js/api.js?v=17"></script>
     <script>
         let savedUsername = '';
 

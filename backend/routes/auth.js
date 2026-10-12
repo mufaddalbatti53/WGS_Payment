@@ -43,7 +43,7 @@ router.post('/login', loginLimiter, async (req, res) => {
             const phoneTail = phoneRaw.slice(-10);
             const customer = await Customer.findOne({
                 phone: { $regex: new RegExp(escapeRegExp(phoneTail) + '$') }
-            }).sort({ _id: -1 });
+            }).sort({ _id: -1 }).lean();
 
             if (!customer) return res.json({ success: false, error: "No account found with this phone number." });
 
@@ -62,14 +62,11 @@ router.post('/login', loginLimiter, async (req, res) => {
         const { password } = req.body;
         if (!cleanUsername || !password) return res.json({ success: false, error: "Invalid username or password." });
 
-        let user = await User.findOne({ username: rawUsername }).select('+password');
-        if (!user && cleanUsername !== rawUsername) {
-            user = await User.findOne({ username: cleanUsername }).select('+password');
-        }
+        let user = await User.findOne({ username: cleanUsername }).select('+password').lean();
         if (!user) {
             user = await User.findOne({
                 username: new RegExp('^\\s*' + escapeRegExp(cleanUsername) + '\\s*$', 'i')
-            }).select('+password');
+            }).select('+password').lean();
         }
 
         if (!user) return res.json({ success: false, error: "Invalid username or password." });
@@ -142,7 +139,7 @@ router.post('/register', async (req, res) => {
         if (!rawUsername || !req.body.password) {
             return res.json({ success: false, error: "Username and password are required." });
         }
-        const existingUser = await User.findOne({ username: new RegExp('^\\s*' + escapeRegExp(rawUsername) + '\\s*$', 'i') });
+        const existingUser = await User.findOne({ username: new RegExp('^\\s*' + escapeRegExp(rawUsername) + '\\s*$', 'i') }).lean();
         if (existingUser) {
             return res.json({ success: false, error: "Username already taken. Please choose another username." });
         }
@@ -164,7 +161,7 @@ router.post('/register', async (req, res) => {
             securityAnswer: hashedAnswer
         });
 
-        await notifyRegistrationOrRequest(newUser);
+        notifyRegistrationOrRequest(newUser).catch(() => {});
 
         res.json({ success: true, message: "✅ Registration request submitted! Please wait for Super Admin approval before logging in." });
     } catch (e) {
@@ -174,12 +171,13 @@ router.post('/register', async (req, res) => {
 
 const handleLogout = (req, res) => {
     destroySessionSafe(req, res, () => {
-        res.clearCookie('connect.sid');
+        res.clearCookie('connect.sid', { path: '/' });
         res.json({ success: true });
     });
 };
 router.post('/logout', handleLogout);
 router.post('/api/logout', handleLogout);
+router.get('/logout', handleLogout);
 
 router.post('/change-password', requireLogin, async (req, res) => {
     try {

@@ -211,6 +211,7 @@ window.saveSubscriptionSettings = saveSubscriptionSettings;
 window.openLimitsModalFromData = openLimitsModalFromData;
 window.closeLimitsModal = closeLimitsModal;
 window.setModalExpiryMonths = setModalExpiryMonths;
+window.recalcModalExpiryFromDuration = recalcModalExpiryFromDuration;
 window.extendModalExpiryOneYear = extendModalExpiryOneYear;
 window.applyPlanPresetToModal = applyPlanPresetToModal;
 window.renderModalPlanPresetButtons = renderModalPlanPresetButtons;
@@ -535,11 +536,17 @@ async function actionToggleSuspend(id, actionStr, username) {
 }
 
 async function handleLogout() {
+    if (typeof window.performFastLogout === 'function') {
+        return window.performFastLogout('login.html');
+    }
     try {
+        if (typeof clearStoredAuthToken === 'function') clearStoredAuthToken();
         await apiFetch('/api/logout', { method: 'POST' });
     } catch (err) { console.error(err); }
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
 }
+window.handleLogout = handleLogout;
+window.logout = handleLogout;
 
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
@@ -574,6 +581,7 @@ function togglePassword(icon) {
         icon.innerText = '👁️';
     }
 }
+window.togglePassword = togglePassword;
 
 function closeLimitsModal() {
     const modal = document.getElementById('limitsModal');
@@ -604,7 +612,7 @@ function renderModalPlanPresetButtons(selectedPlanId) {
         const dur = Number(plan.durationMonths || 12);
 
         return `
-            <button type="button" data-plan-id="${escapeJsStr(pId)}" onclick="applyPlanPresetToModal('${escapeJsStr(pId)}')"
+            <button type="button" data-plan-id="${escapeJsStr(pId)}" onclick="if(window.applyPlanPresetToModal)window.applyPlanPresetToModal('${escapeJsStr(pId)}')"
                 style="text-align:left; padding:9px 11px; border-radius:10px; border:2px solid ${activeBorder}; background:${activeBg}; box-shadow:${activeShadow}; cursor:pointer; transition:all 0.15s;">
                 <div style="pointer-events:none; display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:12px; font-weight:800; color:#0f172a;">
                     <span>${icon} ${plan.name || 'Plan'}</span>
@@ -643,6 +651,7 @@ function updateModalSelectedPlanSummary(planName, price, durationMonths, maxStaf
         </div>
     `;
 }
+window.updateModalSelectedPlanSummary = updateModalSelectedPlanSummary;
 
 function recalcModalExpiryFromDuration(monthsVal) {
     const months = Math.max(1, parseInt(monthsVal) || 12);
@@ -660,6 +669,7 @@ function recalcModalExpiryFromDuration(monthsVal) {
         expEl ? expEl.value : ''
     );
 }
+window.recalcModalExpiryFromDuration = recalcModalExpiryFromDuration;
 
 function setModalExpiryMonths(monthsVal) {
     const months = Math.max(1, parseInt(monthsVal) || 12);
@@ -856,7 +866,14 @@ function openLimitsModalFromData(id, username, maxStaff, maxParties, dailyMsgs, 
 }
 window.openLimitsModalFromData = openLimitsModalFromData;
 
+let _lastPresetClickTs = 0;
+let _lastPresetClickId = '';
 function applyPlanPresetToModal(planId) {
+    const now = Date.now();
+    if (_lastPresetClickId === String(planId) && now - _lastPresetClickTs < 40) return;
+    _lastPresetClickId = String(planId);
+    _lastPresetClickTs = now;
+
     const plans = window.getLivePlansList();
     const plan = plans.find(p => String(p.id || '').toLowerCase() === String(planId || '').toLowerCase()) || plans[0];
     if (!plan) return;
@@ -910,6 +927,7 @@ function applyPlanPresetToModal(planId) {
         autoExpiryStr
     );
 }
+window.applyPlanPresetToModal = applyPlanPresetToModal;
 
 function extendModalExpiryOneYear() {
     const expEl = document.getElementById('modalPlanExpiry');

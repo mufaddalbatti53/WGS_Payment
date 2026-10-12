@@ -38,24 +38,100 @@ function verifyAuthToken(token) {
     }
 }
 
-function saveSessionAsync(req) {
-    return new Promise((resolve) => {
-        if (!req.session || typeof req.session.save !== 'function') return resolve();
-        req.session.save(() => resolve());
+const _authUserCache = new Map();
+const AUTH_CACHE_TTL_MS = 10000; // 10s cache for burst API calls
+
+function getCachedAuthUser(userId, fields) {
+    if (!userId) return Promise.resolve(null);
+    const key = `${userId}:${fields}`;
+    const now = Date.now();
+    const cached = _authUserCache.get(key);
+    if (cached && cached.exp > now) {
+        return Promise.resolve(cached.doc);
+    }
+    return User.findById(userId).select(fields).lean().then(doc => {
+        if (_authUserCache.size > 500) _authUserCache.clear();
+        _authUserCache.set(key, { doc, exp: now + AUTH_CACHE_TTL_MS });
+        return doc;
     });
 }
 
-function destroySessionSafe(req, res) {
+function invalidateAuthCache(userId) {
+    if (!userId) {
+        _authUserCache.clear();
+        return;
+    }
+    const prefix = `${String(userId)}:`;
+    for (const k of _authUserCache.keys()) {
+        if (k.startsWith(prefix)) _authUserCache.delete(k);
+    }
+}
+
+function saveSessionAsync(req) {
+    return new Promise((resolve) => {
+        if (!req.session) return resolve();
+        const saveFn = req._origSessionSave || req.session.save;
+        if (typeof saveFn !== 'function') return resolve();
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            resolve();
+        };
+        const timer = setTimeout(finish, 300);
+        try {
+            saveFn.call(req.session, () => {
+                clearTimeout(timer);
+                finish();
+            });
+        } catch (e) {
+            clearTimeout(timer);
+            finish();
+        }
+    });
+}
+
+function destroySessionSafe(req, res, cb) {
     if (res && typeof res.setHeader === 'function') {
         res.setHeader('X-Clear-Auth-Token', '1');
     }
-    if (req && req.session && typeof req.session.destroy === 'function') {
-        req.session.destroy(() => {});
+    if (req && req.session) {
+        if (req.session.userId) invalidateAuthCache(req.session.userId);
+        if (req.session.adminId) invalidateAuthCache(req.session.adminId);
+    }
+    let finished = false;
+    const done = () => {
+        if (finished) return;
+        finished = true;
+        if (typeof cb === 'function') {
+            try { cb(); } catch (e) {}
+        }
+    };
+    if (req && req.session && typeof req.session.destroy === 'function' && !req._hydratedFromToken) {
+        const timer = setTimeout(done, 250);
+        try {
+            req.session.destroy(() => {
+                clearTimeout(timer);
+                done();
+            });
+        } catch (e) {
+            clearTimeout(timer);
+            done();
+        }
+    } else {
+        if (req && req.session) {
+            delete req.session.userId;
+            delete req.session.role;
+            delete req.session.username;
+            delete req.session.adminId;
+        }
+        done();
     }
 }
 
 function hydrateSessionFromTokenMiddleware(req, res, next) {
     try {
+        let hydratedTokenPayload = null;
         if (!req.session || !req.session.userId) {
             let rawToken = '';
             const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
@@ -67,7 +143,17 @@ function hydrateSessionFromTokenMiddleware(req, res, next) {
             if (rawToken) {
                 const payload = verifyAuthToken(rawToken);
                 if (payload) {
+                    hydratedTokenPayload = payload;
                     if (!req.session) req.session = {};
+                    req._hydratedFromToken = true;
+                    if (typeof req.session.save === 'function' && !req._origSessionSave) {
+                        req._origSessionSave = req.session.save;
+                        // Prevent express-session from inserting a new orphan session document into MongoDB on every stateless token request
+                        req.session.save = function(fn) {
+                            if (typeof fn === 'function') fn();
+                            return this;
+                        };
+                    }
                     req.session.userId = payload.userId;
                     req.session.role = payload.role;
                     req.session.username = payload.username;
@@ -77,9 +163,13 @@ function hydrateSessionFromTokenMiddleware(req, res, next) {
             }
         }
         if (req.session && req.session.userId) {
-            const freshToken = createAuthToken(req.session);
-            if (freshToken) {
-                res.setHeader('X-Auth-Token', freshToken);
+            // Only issue a refreshed X-Auth-Token if no token was supplied or it has < 6 days remaining
+            const needsRefresh = !hydratedTokenPayload || (hydratedTokenPayload.exp - Date.now() < 6 * 24 * 60 * 60 * 1000);
+            if (needsRefresh) {
+                const freshToken = createAuthToken(req.session);
+                if (freshToken) {
+                    res.setHeader('X-Auth-Token', freshToken);
+                }
             }
         }
     } catch (e) {}
@@ -105,9 +195,9 @@ const requireLogin = async (req, res, next) => {
     try {
         const adminId = req.session.adminId || req.session.userId;
         const [adminUser, staffUser] = await Promise.all([
-            adminId ? User.findById(adminId).select('status planExpiryDate role requiresStaffSelection maxStaffLimit').lean() : Promise.resolve(null),
+            adminId ? getCachedAuthUser(adminId, 'status planExpiryDate role requiresStaffSelection maxStaffLimit') : Promise.resolve(null),
             req.session.role === 'staff'
-                ? User.findById(req.session.userId).select('status isQuotaLocked').lean()
+                ? getCachedAuthUser(req.session.userId, 'status isQuotaLocked')
                 : Promise.resolve(null)
         ]);
 
@@ -243,6 +333,8 @@ module.exports = {
     verifyAuthToken,
     saveSessionAsync,
     destroySessionSafe,
-    hydrateSessionFromTokenMiddleware
+    hydrateSessionFromTokenMiddleware,
+    invalidateAuthCache
 };
+
 

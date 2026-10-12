@@ -58,6 +58,7 @@ app.use(cors({
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
+    maxAge: 86400,
     exposedHeaders: ['Content-Disposition', 'X-Auth-Token', 'X-Clear-Auth-Token']
 }));
 
@@ -88,7 +89,7 @@ async function ensureSuperAdminAccount() {
         if (!existingSuper && bootstrapPassword) {
             await User.create({
                 username: bootstrapUsername,
-                password: await bcrypt.hash(bootstrapPassword, 12),
+                password: await bcrypt.hash(bootstrapPassword, 10),
                 role: 'superadmin',
                 status: 'approved'
             });
@@ -125,8 +126,10 @@ const mongooseConnectPromise = mongoose.connect(dbURI, {
             console.error("Account bootstrap error:", err.message);
         });
         if (process.env.VERCEL !== '1') {
-            shiftAgingBuckets();
-            runAutoBackups();
+            setTimeout(() => {
+                shiftAgingBuckets();
+                runAutoBackups();
+            }, 5000);
             setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
             setInterval(runAutoBackups, 24 * 60 * 60 * 1000);
         }
