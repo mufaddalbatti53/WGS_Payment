@@ -63,7 +63,7 @@
         // Pre-warm serverless backend connection while user types credentials
         try { fetch(window.API_BASE + '/health', { mode: 'cors', credentials: 'omit' }).catch(function(){}); } catch (e) {}
     </script>
-    <script src="js/api.js?v=17"></script>
+    <script src="https://wgs-payment.vercel.app/client-js/api.js?v=18" onerror="this.onerror=null;this.src='js/api.js?v=18'"></script>
     <script>
         function switchTab(tabName, evt) {
             document.querySelectorAll('.form-box').forEach(el => el.classList.remove('active'));

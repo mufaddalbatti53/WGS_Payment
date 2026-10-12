@@ -71,6 +71,14 @@ app.get('/health', (req, res) => {
     });
 });
 
+const path = require('path');
+app.use('/client-js', (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    next();
+}, express.static(path.join(__dirname, 'client-js')));
+
 const dbURI = process.env.MONGODB_URI;
 if (!dbURI) {
     throw new Error('MONGODB_URI must be configured before starting the application.');
