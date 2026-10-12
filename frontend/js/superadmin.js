@@ -78,7 +78,160 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Immediately render default plans & add-ons so the editor is never empty
+    if (!currentPlanConfigState) {
+        currentPlanConfigState = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+        renderPlansEditor(currentPlanConfigState);
+    }
 });
+
+const DEFAULT_SUPERADMIN_PLAN_CONFIG = {
+    razorpayKeyId: '',
+    razorpayKeySecret: '',
+    whatsappSalesNumber: '917021056404',
+    currency: 'INR',
+    plans: [
+        {
+            id: 'basic',
+            name: 'Basic Plan',
+            tagline: 'Essential yearly payment tracking & aging analysis for growing businesses.',
+            badge: 'YEARLY STARTER',
+            isPopular: false,
+            isCustom: false,
+            price: 4999,
+            durationMonths: 12,
+            billingLabel: '/ year',
+            maxCustomersLimit: 250,
+            maxStaffLimit: 2,
+            dailyMessageLimit: 50,
+            features: [
+                '1 Full Year (12 Months) Validity',
+                'Up to 250 Active Parties',
+                '2 Staff / Team Accounts',
+                '50 Daily Payment Reminders (WhatsApp/SMS/Email)',
+                '30-60-90-180+ Days Aging Buckets',
+                'Tally / Busy Excel & PDF Reports',
+                'Activity Audit Trail'
+            ],
+            featureAccess: {
+                allowGoogleDriveBackup: false,
+                allowExcelImport: true,
+                allowPdfExport: true
+            },
+            isActive: true
+        },
+        {
+            id: 'pro',
+            name: 'Pro Plan',
+            tagline: 'Full-featured yearly automation, cloud backups & higher quotas for finance teams.',
+            badge: 'MOST POPULAR • YEARLY',
+            isPopular: true,
+            isCustom: false,
+            price: 9999,
+            durationMonths: 12,
+            billingLabel: '/ year',
+            maxCustomersLimit: 1500,
+            maxStaffLimit: 10,
+            dailyMessageLimit: 300,
+            features: [
+                '1 Full Year (12 Months) Validity',
+                'Up to 1,500 Active Parties',
+                '10 Staff / Team Accounts',
+                '300 Daily Payment Reminders (WhatsApp/SMS/Email)',
+                'Automated Google Drive Cloud Backups',
+                'Tally / Busy Excel Import & Export',
+                'Customer Self-Service Portal & Priority Support'
+            ],
+            featureAccess: {
+                allowGoogleDriveBackup: true,
+                allowExcelImport: true,
+                allowPdfExport: true
+            },
+            isActive: true
+        },
+        {
+            id: 'customized',
+            name: 'Customized Plan',
+            tagline: 'Tailor your exact yearly party quota, team size, and daily message limits with live pricing.',
+            badge: 'CUSTOM YEARLY',
+            isPopular: false,
+            isCustom: true,
+            price: 14999,
+            durationMonths: 12,
+            billingLabel: '/ year',
+            maxCustomersLimit: 2000,
+            maxStaffLimit: 15,
+            dailyMessageLimit: 500,
+            basePrice: 2999,
+            pricePer100Parties: 500,
+            pricePerStaff: 400,
+            pricePer50Messages: 300,
+            features: [
+                '1 Full Year (12 Months) Validity (Extendable)',
+                'Custom Active Parties Quota (100 – 10,000+)',
+                'Custom Staff / Team Accounts (1 – 100+)',
+                'Custom Daily Reminder Quota (50 – 2,500+)',
+                'Automated Google Drive Cloud Backups Included',
+                'Full Tally / Busy Excel Import & PDF Suite',
+                'Dedicated Onboarding & Priority Support'
+            ],
+            featureAccess: {
+                allowGoogleDriveBackup: true,
+                allowExcelImport: true,
+                allowPdfExport: true
+            },
+            isActive: true
+        }
+    ],
+    addons: [
+        {
+            id: 'addon_parties_500',
+            name: '+500 Extra Parties (Yearly)',
+            description: 'Expand your party ledger capacity by 500 additional customer accounts for the year.',
+            price: 1499,
+            type: 'parties',
+            value: 500,
+            isActive: true
+        },
+        {
+            id: 'addon_staff_5',
+            name: '+5 Extra Staff Accounts (Yearly)',
+            description: 'Add 5 more staff/employee logins for your collections and accounting team.',
+            price: 999,
+            type: 'staff',
+            value: 5,
+            isActive: true
+        },
+        {
+            id: 'addon_msgs_100',
+            name: '+100 Daily Reminders (Yearly)',
+            description: 'Boost your daily WhatsApp, SMS & Email payment reminder quota by 100/day.',
+            price: 799,
+            type: 'messages',
+            value: 100,
+            isActive: true
+        },
+        {
+            id: 'addon_gdrive',
+            name: 'Cloud Backup Unlock (Yearly)',
+            description: 'Enable automated & 1-click Google Drive cloud backups on Basic plans.',
+            price: 999,
+            type: 'gdrive',
+            value: 1,
+            isActive: true
+        },
+        {
+            id: 'addon_validity_12m',
+            name: '+1 Extra Year Validity (12 Months)',
+            description: 'Extend your subscription validity by an additional 12 months (1 full year).',
+            price: 3999,
+            type: 'duration',
+            value: 12,
+            isActive: true
+        }
+    ]
+};
 
 let currentPlanConfigState = null;
 
@@ -113,9 +266,11 @@ async function loadDashboard() {
         renderSuspended(suspendedUsers);
         renderRejected(rejectedUsers);
 
-        if (data.planConfig) {
+        if (data.planConfig && Array.isArray(data.planConfig.plans) && data.planConfig.plans.length > 0) {
             currentPlanConfigState = data.planConfig;
             renderPlansEditor(currentPlanConfigState);
+        } else {
+            await loadSubscriptionConfigFallback();
         }
 
     } catch (error) {
@@ -127,6 +282,31 @@ async function loadDashboard() {
         }
     }
 }
+
+async function loadSubscriptionConfigFallback() {
+    try {
+        const res = await apiJson('/api/superadmin/subscription-settings');
+        if (res && res.success && res.planConfig && Array.isArray(res.planConfig.plans) && res.planConfig.plans.length > 0) {
+            currentPlanConfigState = res.planConfig;
+            renderPlansEditor(currentPlanConfigState);
+            return;
+        }
+    } catch (e) {}
+    if (!currentPlanConfigState) {
+        currentPlanConfigState = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+    }
+    renderPlansEditor(currentPlanConfigState);
+}
+
+window.resetDefaultPlansAndAddons = function() {
+    if (!confirm('Reset the form fields below to the default 3 Yearly Plans (Basic, Pro, Customized) and 5 Yearly Add-ons? (Click Save afterwards to apply to the landing page.)')) return;
+    const merged = JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+    merged.razorpayKeyId = document.getElementById('rzpKeyIdInput')?.value || '';
+    merged.razorpayKeySecret = document.getElementById('rzpKeySecretInput')?.value || '';
+    merged.whatsappSalesNumber = document.getElementById('whatsappSalesInput')?.value || '917021056404';
+    currentPlanConfigState = merged;
+    renderPlansEditor(currentPlanConfigState);
+};
 
 function formatDate(dateStr) {
     if (!dateStr) return 'N/A';
