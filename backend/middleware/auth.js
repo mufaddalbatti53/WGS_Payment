@@ -10,7 +10,7 @@ const requireLogin = async (req, res, next) => {
 
     try {
         const adminId = req.session.adminId || req.session.userId;
-        const adminUser = await User.findById(adminId).lean();
+        const adminUser = await User.findById(adminId).select('status planExpiryDate role').lean();
         if (!adminUser) {
             req.session.destroy();
             return res.status(401).json({ success: false, message: "Account not found. Please log in again." });

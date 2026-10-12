@@ -87,7 +87,7 @@ router.get('/subscription-settings', requireSuperAdmin, async (req, res) => {
 
 router.post('/subscription-settings', requireSuperAdmin, async (req, res) => {
     try {
-        const config = await PlanConfig.getOrCreateSingleton();
+        const config = await PlanConfig.getOrCreateSingleton(true);
         const { razorpayKeyId, razorpayKeySecret, whatsappSalesNumber, currency, plans, addons } = req.body;
 
         if (razorpayKeyId !== undefined) config.razorpayKeyId = String(razorpayKeyId).trim();
@@ -139,6 +139,9 @@ router.post('/subscription-settings', requireSuperAdmin, async (req, res) => {
 
         config.updatedAt = new Date();
         await config.save();
+        if (typeof PlanConfig.setCachedSingleton === 'function') {
+            PlanConfig.setCachedSingleton(config);
+        }
 
         res.json({
             success: true,

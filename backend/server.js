@@ -112,8 +112,12 @@ async function ensureSuperAdminAccount() {
     }
 }
 
-mongoose.connect(dbURI)
-    .then(() => {
+const mongooseConnectPromise = mongoose.connect(dbURI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000
+})
+    .then((m) => {
         console.log("✅ DB Connected Successfully");
         databaseReady = true;
         ensureSuperAdminAccount().catch(err => {
@@ -125,10 +129,12 @@ mongoose.connect(dbURI)
             setInterval(shiftAgingBuckets, 24 * 60 * 60 * 1000);
             setInterval(runAutoBackups, 24 * 60 * 60 * 1000);
         }
+        return m.connection.getClient();
     })
     .catch(err => {
         databaseReady = false;
         console.log("❌ DB Connection Error: ", err);
+        throw err;
     });
 
 app.set('trust proxy', 1);
@@ -148,9 +154,10 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        mongoUrl: dbURI,
+        clientPromise: mongooseConnectPromise,
         collectionName: 'sessions',
-        autoRemove: 'native'
+        autoRemove: 'native',
+        touchAfter: 24 * 3600 // Only update session in DB once per 24h unless session data changed
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 24, // 24 hours

@@ -1351,8 +1351,8 @@
     </div>
 
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=7"></script>
-    <script src="js/superadmin.js?v=7"></script>
+    <script src="js/api.js?v=8"></script>
+    <script src="js/superadmin.js?v=8"></script>
     <script>
         // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
         (function() {
@@ -1722,16 +1722,18 @@
                 if (grid && !grid.children.length && typeof window.renderPlansEditor === 'function') {
                     window.renderPlansEditor(FALLBACK_PLAN_CONFIG);
                 }
-                setTimeout(async function() {
-                    try {
-                        if (typeof apiJson === 'function') {
-                            var res = await apiJson('/api/superadmin/subscription-settings');
-                            if (res && res.success && res.planConfig) {
-                                window.renderPlansEditor(res.planConfig);
+                if (typeof window.loadDashboard !== 'function') {
+                    setTimeout(async function() {
+                        try {
+                            if (typeof apiJson === 'function') {
+                                var res = await apiJson('/api/superadmin/subscription-settings');
+                                if (res && res.success && res.planConfig) {
+                                    window.renderPlansEditor(res.planConfig);
+                                }
                             }
-                        }
-                    } catch (e) {}
-                }, 400);
+                        } catch (e) {}
+                    }, 400);
+                }
             });
         })();
     </script>

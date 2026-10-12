@@ -15,8 +15,8 @@
     <link rel="apple-touch-icon" href="/images/WGS.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2c3e50">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
     <style>
         :root {
             --primary: #27ae60;
@@ -2348,8 +2348,8 @@
             </script>
             
     <script>window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';</script>
-    <script src="js/api.js?v=7"></script>
-    <script src="js/dashboard.js?v=7"></script>
+    <script src="js/api.js?v=8"></script>
+    <script src="js/dashboard.js?v=8"></script>
     <script>
         // Self-contained fallback & bridge so Subscription & Renew works even if js/dashboard.js is cached
         (function() {
@@ -2537,16 +2537,20 @@
             }
 
             document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    if (!window.currentSubscriptionDetails) {
-                        ensureSubDetailsLoaded();
-                    } else {
-                        var mBadge = document.getElementById('mobileHeaderSubBadge');
-                        if (mBadge && window.currentSubscriptionDetails.planName) {
-                            mBadge.innerText = window.currentSubscriptionDetails.planName;
+                if (typeof window.loadDashboard !== 'function') {
+                    ensureSubDetailsLoaded();
+                } else {
+                    setTimeout(function() {
+                        if (!window.currentSubscriptionDetails) {
+                            ensureSubDetailsLoaded();
+                        } else {
+                            var mBadge = document.getElementById('mobileHeaderSubBadge');
+                            if (mBadge && window.currentSubscriptionDetails.planName) {
+                                mBadge.innerText = window.currentSubscriptionDetails.planName;
+                            }
                         }
-                    }
-                }, 800);
+                    }, 4500);
+                }
             });
         })();
     </script>

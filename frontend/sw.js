@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wgs-payment-v7';
+const CACHE_NAME = 'wgs-payment-v8';
 const ASSETS_TO_CACHE = [
     '/',
     '/login.html',
@@ -31,7 +31,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
-    if (event.request.url.includes('/api/')) return;
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) return;
+    if (url.pathname.includes('/api/')) return;
     event.respondWith(
         fetch(event.request)
             .then((response) => {

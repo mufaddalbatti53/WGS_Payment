@@ -559,7 +559,7 @@ function renderPending(users) {
                 <td>
                     <div class="admin-user-cell">
                         <div class="avatar-container">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=3b82f6&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=3b82f6&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar" loading="lazy" decoding="async">
                             <span class="online-dot" style="background:#f59e0b;"></span>
                         </div>
                         <div>
@@ -651,7 +651,7 @@ function renderApproved(users) {
                 <td>
                     <div class="admin-user-cell">
                         <div class="avatar-container">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=2563eb&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=2563eb&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar" loading="lazy" decoding="async">
                             <span class="online-dot"></span>
                         </div>
                         <div>
@@ -769,7 +769,7 @@ function renderSuspended(users) {
                 <td>
                     <div class="admin-user-cell">
                         <div class="avatar-container">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=6b21a8&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=6b21a8&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar" loading="lazy" decoding="async">
                             <span class="online-dot" style="background:#9333ea;"></span>
                         </div>
                         <div>
@@ -852,7 +852,7 @@ function renderRejected(users) {
                 <td>
                     <div class="admin-user-cell">
                         <div class="avatar-container">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=ef4444&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.companyName || u.username)}&background=ef4444&color=fff&rounded=true&bold=true" class="user-avatar" alt="Avatar" loading="lazy" decoding="async">
                         </div>
                         <div>
                             <div class="username-title">${u.username}</div>

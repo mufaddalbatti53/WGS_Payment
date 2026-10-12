@@ -193,7 +193,25 @@ const DEFAULT_ADDONS = [
     }
 ];
 
-planConfigSchema.statics.getOrCreateSingleton = async function () {
+let _cachedConfigDoc = null;
+let _cachedConfigTime = 0;
+const PLAN_CONFIG_CACHE_TTL_MS = 45 * 1000;
+
+planConfigSchema.statics.invalidateCache = function () {
+    _cachedConfigDoc = null;
+    _cachedConfigTime = 0;
+};
+
+planConfigSchema.statics.setCachedSingleton = function (doc) {
+    _cachedConfigDoc = doc;
+    _cachedConfigTime = Date.now();
+};
+
+planConfigSchema.statics.getOrCreateSingleton = async function (forceRefresh = false) {
+    if (!forceRefresh && _cachedConfigDoc && (Date.now() - _cachedConfigTime) < PLAN_CONFIG_CACHE_TTL_MS) {
+        return _cachedConfigDoc;
+    }
+
     let config = await this.findOne({ singletonKey: 'global_subscription_config' });
     if (!config) {
         config = await this.create({
@@ -226,6 +244,9 @@ planConfigSchema.statics.getOrCreateSingleton = async function () {
         }
         if (modified) await config.save();
     }
+
+    _cachedConfigDoc = config;
+    _cachedConfigTime = Date.now();
     return config;
 };
 

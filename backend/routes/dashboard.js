@@ -15,21 +15,21 @@ router.get('/', async (req, res) => {
     }
 
     try {
-        let finalCustomers = [];
-
+        let customersPromise;
         if (req.session.role === 'customer') {
             if (req.session.userPhone) {
-                finalCustomers = await Customer.find({
+                customersPromise = Customer.find({
                     phone: { $regex: new RegExp(req.session.userPhone + '$') }
                 }).sort({ _id: -1 }).limit(1).lean();
             } else {
-                finalCustomers = await Customer.find({ _id: req.session.userId }).lean();
+                customersPromise = Customer.find({ _id: req.session.userId }).lean();
             }
         } else {
-            finalCustomers = await Customer.find({ adminId: req.session.adminId }).lean();
+            customersPromise = Customer.find({ adminId: req.session.adminId }).lean();
         }
 
-        const [adminUserRaw, staffCount, planConfig] = await Promise.all([
+        const [finalCustomers, adminUserRaw, staffCount, planConfig] = await Promise.all([
+            customersPromise,
             User.findById(req.session.adminId).select('+googleDriveToken').lean(),
             req.session.adminId ? User.countDocuments({ role: 'staff', adminId: req.session.adminId }) : Promise.resolve(0),
             PlanConfig.getOrCreateSingleton()
