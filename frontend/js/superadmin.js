@@ -153,14 +153,71 @@ const DEFAULT_SUPERADMIN_PLAN_CONFIG = {
 let currentPlanConfigState = null;
 window.DEFAULT_SUPERADMIN_PLAN_CONFIG = DEFAULT_SUPERADMIN_PLAN_CONFIG;
 
+function getLivePlansList() {
+    const planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
+    if (planCards.length > 0) {
+        return planCards.map((card, idx) => {
+            const planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
+            return {
+                id: planId,
+                name: card.querySelector('.plan-name-inp')?.value || 'Plan',
+                badge: card.querySelector('.plan-badge-inp')?.value || '',
+                tagline: card.querySelector('.plan-tagline-inp')?.value || '',
+                price: Number(card.querySelector('.plan-price-inp')?.value || 0),
+                durationMonths: Number(card.querySelector('.plan-duration-inp')?.value || 12),
+                maxCustomersLimit: Number(card.querySelector('.plan-parties-inp')?.value || 0),
+                maxStaffLimit: Number(card.querySelector('.plan-staff-inp')?.value || 0),
+                dailyMessageLimit: Number(card.querySelector('.plan-msgs-inp')?.value || 0),
+                isPopular: Boolean(card.querySelector('.plan-popular-chk')?.checked),
+                isCustom: planId === 'customized',
+                featureAccess: {
+                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive')?.checked),
+                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel')?.checked),
+                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf')?.checked)
+                }
+            };
+        });
+    }
+    const cfg = currentPlanConfigState || window.currentPlanConfigState || DEFAULT_SUPERADMIN_PLAN_CONFIG;
+    return (cfg && Array.isArray(cfg.plans) && cfg.plans.length > 0) ? cfg.plans : DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
+}
+
+// Immediately expose functions so they are available in all execution contexts & event handlers
+window.getLivePlansList = getLivePlansList;
+window.findLivePlan = findLivePlan;
+window.renderPlansEditor = renderPlansEditor;
+window.renderAddonsEditorList = renderAddonsEditorList;
+window.addNewAddonRow = addNewAddonRow;
+window.resetDefaultPlansAndAddons = resetDefaultPlansAndAddons;
+window.saveSubscriptionSettings = saveSubscriptionSettings;
+window.openLimitsModalFromData = openLimitsModalFromData;
+window.closeLimitsModal = closeLimitsModal;
+window.setModalExpiryMonths = setModalExpiryMonths;
+window.extendModalExpiryOneYear = extendModalExpiryOneYear;
+window.applyPlanPresetToModal = applyPlanPresetToModal;
+window.renderModalPlanPresetButtons = renderModalPlanPresetButtons;
+window.updateModalSelectedPlanSummary = updateModalSelectedPlanSummary;
+window.showTab = showTab;
+window.togglePassword = togglePassword;
+window.actionApprove = actionApprove;
+window.actionReject = actionReject;
+window.actionToggleSuspend = actionToggleSuspend;
+window.actionDelete = actionDelete;
+window.logout = logout;
+window.toggleStaffQuotaAccess = toggleStaffQuotaAccess;
+
 function initSuperAdminApp() {
     // 1. Immediately render plans & add-ons with current/default state so editor is NEVER empty or stuck on "Checking..."
-    if (!currentPlanConfigState) {
-        currentPlanConfigState = window.currentPlanConfigState || JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
-        window.currentPlanConfigState = currentPlanConfigState;
-    }
-    if (typeof renderPlansEditor === 'function') {
-        renderPlansEditor(currentPlanConfigState);
+    try {
+        if (!currentPlanConfigState) {
+            currentPlanConfigState = window.currentPlanConfigState || JSON.parse(JSON.stringify(DEFAULT_SUPERADMIN_PLAN_CONFIG));
+            window.currentPlanConfigState = currentPlanConfigState;
+        }
+        if (typeof renderPlansEditor === 'function') {
+            renderPlansEditor(currentPlanConfigState);
+        }
+    } catch (e) {
+        console.warn('Initial renderPlansEditor notice:', e);
     }
 
     // 2. Fetch live dashboard data from API
@@ -301,53 +358,6 @@ if (document.readyState === 'loading') {
     initSuperAdminApp();
 }
 
-window.getLivePlansList = function() {
-    const planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
-    if (planCards.length > 0) {
-        return planCards.map((card, idx) => {
-            const planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
-            return {
-                id: planId,
-                name: card.querySelector('.plan-name-inp')?.value || 'Plan',
-                badge: card.querySelector('.plan-badge-inp')?.value || '',
-                tagline: card.querySelector('.plan-tagline-inp')?.value || '',
-                price: Number(card.querySelector('.plan-price-inp')?.value || 0),
-                durationMonths: Number(card.querySelector('.plan-duration-inp')?.value || 12),
-                maxCustomersLimit: Number(card.querySelector('.plan-parties-inp')?.value || 0),
-                maxStaffLimit: Number(card.querySelector('.plan-staff-inp')?.value || 0),
-                dailyMessageLimit: Number(card.querySelector('.plan-msgs-inp')?.value || 0),
-                isPopular: Boolean(card.querySelector('.plan-popular-chk')?.checked),
-                isCustom: planId === 'customized',
-                featureAccess: {
-                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive')?.checked),
-                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel')?.checked),
-                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf')?.checked)
-                }
-            };
-        });
-    }
-    const cfg = currentPlanConfigState || window.currentPlanConfigState || DEFAULT_SUPERADMIN_PLAN_CONFIG;
-    return (cfg && Array.isArray(cfg.plans) && cfg.plans.length > 0) ? cfg.plans : DEFAULT_SUPERADMIN_PLAN_CONFIG.plans;
-};
-
-function findLivePlan(planId, planName) {
-    const plans = window.getLivePlansList();
-    const cleanId = String(planId || '').trim().toLowerCase();
-    const cleanName = String(planName || '').trim().toLowerCase();
-    if (cleanId) {
-        const byId = plans.find(p => String(p.id || '').trim().toLowerCase() === cleanId);
-        if (byId) return byId;
-    }
-    if (cleanName) {
-        const byName = plans.find(p => String(p.name || '').trim().toLowerCase() === cleanName);
-        if (byName) return byName;
-        if (cleanName.includes('custom')) return plans.find(p => p.id === 'customized' || p.isCustom) || null;
-        if (/\bpro\b/.test(cleanName)) return plans.find(p => p.id === 'pro') || null;
-        if (cleanName.includes('basic')) return plans.find(p => p.id === 'basic') || null;
-    }
-    return null;
-}
-
 async function loadDashboard() {
     try {
         const data = await apiJson('/api/superadmin/dashboard');
@@ -355,7 +365,7 @@ async function loadDashboard() {
             throw new Error(data.message || 'Super Admin access required');
         }
 
-        if (data.planConfig && Array.isArray(data.planConfig.plans) && data.planConfig.plans.length > 0) {
+        if (data && data.planConfig && Array.isArray(data.planConfig.plans) && data.planConfig.plans.length > 0) {
             currentPlanConfigState = data.planConfig;
             window.currentPlanConfigState = currentPlanConfigState;
             renderPlansEditor(currentPlanConfigState);
@@ -363,24 +373,32 @@ async function loadDashboard() {
             await loadSubscriptionConfigFallback();
         }
         
-        const pendingUsers = data.pendingUsers || [];
-        const approvedUsers = data.approvedUsers || [];
-        const suspendedUsers = data.suspendedUsers || [];
-        const rejectedUsers = data.rejectedUsers || [];
+        const pendingUsers = Array.isArray(data?.pendingUsers) ? data.pendingUsers : [];
+        const approvedUsers = Array.isArray(data?.approvedUsers) ? data.approvedUsers : [];
+        const suspendedUsers = Array.isArray(data?.suspendedUsers) ? data.suspendedUsers : [];
+        const rejectedUsers = Array.isArray(data?.rejectedUsers) ? data.rejectedUsers : [];
 
-        document.getElementById('statPendingCount').textContent = pendingUsers.length;
-        document.getElementById('tabPendingCount').textContent = pendingUsers.length;
+        const setTxt = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
 
-        document.getElementById('statApprovedCount').textContent = approvedUsers.length;
-        document.getElementById('tabApprovedCount').textContent = approvedUsers.length;
+        setTxt('statPendingCount', pendingUsers.length);
+        setTxt('tabPendingCount', pendingUsers.length);
 
-        document.getElementById('statSuspendedCount').textContent = suspendedUsers.length;
-        document.getElementById('tabSuspendedCount').textContent = suspendedUsers.length;
+        setTxt('statApprovedCount', approvedUsers.length);
+        setTxt('tabApprovedCount', approvedUsers.length);
 
-        document.getElementById('statRejectedCount').textContent = rejectedUsers.length;
-        document.getElementById('tabRejectedCount').textContent = rejectedUsers.length;
+        setTxt('statSuspendedCount', suspendedUsers.length);
+        setTxt('tabSuspendedCount', suspendedUsers.length);
 
-        document.getElementById('saUsername').value = data.superadminUsername || '';
+        setTxt('statRejectedCount', rejectedUsers.length);
+        setTxt('tabRejectedCount', rejectedUsers.length);
+
+        const saUsernameEl = document.getElementById('saUsername');
+        if (saUsernameEl && data && data.superadminUsername) {
+            saUsernameEl.value = data.superadminUsername;
+        }
 
         renderPending(pendingUsers);
         renderApproved(approvedUsers);
@@ -389,10 +407,10 @@ async function loadDashboard() {
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        if (error.message.includes('Session expired') || error.message.includes('Super Admin access required') || error.message.includes('401') || error.message.includes('403')) {
+        if (error.message && (error.message.includes('Session expired') || error.message.includes('Super Admin access required') || error.message.includes('401') || error.message.includes('403'))) {
             window.location.href = 'login.html';
         } else {
-            alert('Error loading dashboard: ' + error.message);
+            console.warn('Dashboard load warning: ' + error.message);
         }
     }
 }
@@ -954,14 +972,16 @@ function buildPlanBadgeHtml(u) {
 }
 
 function renderPending(users) {
-    const tbody = document.getElementById('pendingTbody');
-    if (!users.length) {
-        document.getElementById('pendingWrapper').innerHTML = '<div class="empty-state">🎉 No pending registration requests. All clear!</div>';
+    const list = Array.isArray(users) ? users : [];
+    const wrapper = document.getElementById('pendingWrapper');
+    if (!wrapper) return;
+    if (!list.length) {
+        wrapper.innerHTML = '<div class="empty-state">🎉 No pending registration requests. All clear!</div>';
         return;
     }
     
-    if (document.getElementById('pendingWrapper').querySelector('.empty-state')) {
-        document.getElementById('pendingWrapper').innerHTML = `
+    if (wrapper.querySelector('.empty-state')) {
+        wrapper.innerHTML = `
         <table>
             <thead>
                 <tr>
@@ -977,7 +997,7 @@ function renderPending(users) {
     }
     
     let html = '';
-    users.forEach(u => {
+    list.forEach(u => {
         const dispEmail = u.companyEmail || u.email;
         const dispPhone = u.contactNo || u.phone;
         const contactHtml = [];
@@ -1034,14 +1054,16 @@ function renderPending(users) {
 }
 
 function renderApproved(users) {
-    const tbody = document.getElementById('approvedTbody');
-    if (!users.length) {
-        document.getElementById('approvedWrapper').innerHTML = '<div class="empty-state">No approved admins found.</div>';
+    const list = Array.isArray(users) ? users : [];
+    const wrapper = document.getElementById('approvedWrapper');
+    if (!wrapper) return;
+    if (!list.length) {
+        wrapper.innerHTML = '<div class="empty-state">No approved admins found.</div>';
         return;
     }
     
-    if (document.getElementById('approvedWrapper').querySelector('.empty-state')) {
-        document.getElementById('approvedWrapper').innerHTML = `
+    if (wrapper.querySelector('.empty-state')) {
+        wrapper.innerHTML = `
         <table>
             <thead>
                 <tr>
@@ -1058,7 +1080,7 @@ function renderApproved(users) {
     }
     
     let html = '';
-    users.forEach(u => {
+    list.forEach(u => {
         const maxS = u.maxStaffLimit === 0 ? 99999 : (u.maxStaffLimit || 5);
         const maxP = u.maxCustomersLimit === 0 ? 99999 : (u.maxCustomersLimit || 500);
         const maxM = u.dailyMessageLimit === 0 ? 99999 : (u.dailyMessageLimit || 100);
@@ -1160,14 +1182,16 @@ function renderApproved(users) {
 }
 
 function renderSuspended(users) {
-    const tbody = document.getElementById('suspendedTbody');
-    if (!users.length) {
-        document.getElementById('suspendedWrapper').innerHTML = '<div class="empty-state">No suspended admin accounts.</div>';
+    const list = Array.isArray(users) ? users : [];
+    const wrapper = document.getElementById('suspendedWrapper');
+    if (!wrapper) return;
+    if (!list.length) {
+        wrapper.innerHTML = '<div class="empty-state">No suspended admin accounts.</div>';
         return;
     }
     
-    if (document.getElementById('suspendedWrapper').querySelector('.empty-state')) {
-        document.getElementById('suspendedWrapper').innerHTML = `
+    if (wrapper.querySelector('.empty-state')) {
+        wrapper.innerHTML = `
         <table>
             <thead>
                 <tr>
@@ -1184,7 +1208,7 @@ function renderSuspended(users) {
     }
     
     let html = '';
-    users.forEach(u => {
+    list.forEach(u => {
         const dispEmail = u.companyEmail || u.email;
         const dispPhone = u.contactNo || u.phone;
         const contactHtml = [];
@@ -1244,18 +1268,21 @@ function renderSuspended(users) {
             </tr>
         `;
     });
-    document.getElementById('suspendedTbody').innerHTML = html;
+    const sTbody = document.getElementById('suspendedTbody');
+    if (sTbody) sTbody.innerHTML = html;
 }
 
 function renderRejected(users) {
-    const tbody = document.getElementById('rejectedTbody');
-    if (!users.length) {
-        document.getElementById('rejectedWrapper').innerHTML = '<div class="empty-state">No rejected requests.</div>';
+    const list = Array.isArray(users) ? users : [];
+    const wrapper = document.getElementById('rejectedWrapper');
+    if (!wrapper) return;
+    if (!list.length) {
+        wrapper.innerHTML = '<div class="empty-state">No rejected requests.</div>';
         return;
     }
     
-    if (document.getElementById('rejectedWrapper').querySelector('.empty-state')) {
-        document.getElementById('rejectedWrapper').innerHTML = `
+    if (wrapper.querySelector('.empty-state')) {
+        wrapper.innerHTML = `
         <table>
             <thead>
                 <tr>
@@ -1271,7 +1298,7 @@ function renderRejected(users) {
     }
     
     let html = '';
-    users.forEach(u => {
+    list.forEach(u => {
         const dispEmail = u.companyEmail || u.email;
         const dispPhone = u.contactNo || u.phone;
         const contactHtml = [];
@@ -1497,7 +1524,7 @@ function renderAddonsEditorList(addons) {
         return;
     }
 
-    container.innerHTML = addons.map((addon, idx) => `
+    container.innerHTML = list.map((addon, idx) => `
         <div class="addon-edit-row" data-addon-id="${escapeJsStr(addon.id || `addon_${idx}`)}">
             <div class="pm-field" style="margin:0;">
                 <label>Add-on Name</label>
