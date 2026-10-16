@@ -1477,7 +1477,7 @@ function renderPlansEditor(config) {
             const isLive = keyIdStr.startsWith('rzp_live_');
             rzpBadge.style.background = '#dcfce7';
             rzpBadge.style.color = '#166534';
-            rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Keys Active' : '🟢 Razorpay TEST Keys Active';
+            rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Gateway Active' : '🟢 Razorpay Gateway Active';
         } else {
             rzpBadge.style.background = '#fef3c7';
             rzpBadge.style.color = '#b45309';
@@ -1839,8 +1839,8 @@ async function confirmResetPasswordAction() {
         if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Target User ID is missing.</div>`;
         return;
     }
-    if (!newPassword || newPassword.trim().length < 6) {
-        if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ New password must be at least 6 characters long.</div>`;
+    if (!newPassword || newPassword.trim().length < 8) {
+        if (msgEl) msgEl.innerHTML = `<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ New password must be at least 8 characters long.</div>`;
         if (pwdInp) pwdInp.focus();
         return;
     }
@@ -1887,8 +1887,8 @@ async function submitModalAdminPasswordReset() {
         if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ Admin ID missing.</span>`;
         return;
     }
-    if (!newPassword || newPassword.trim().length < 6) {
-        if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 6 characters long.</span>`;
+    if (!newPassword || newPassword.trim().length < 8) {
+        if (msgEl) msgEl.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 8 characters long.</span>`;
         if (pwdInp) pwdInp.focus();
         return;
     }

@@ -36,6 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = document.getElementById('staffPassword').value;
             const confirmPassword = document.getElementById('staffConfirmPassword').value;
 
+            if (password.length < 8) {
+                showMsg('Password must be at least 8 characters.', false);
+                return;
+            }
+
             if (password !== confirmPassword) {
                 showMsg('Passwords do not match. Please retype carefully.', false);
                 return;
@@ -221,7 +226,7 @@ async function loadStaff() {
                 <td class="desktop-only">
                     <form class="resetStaffForm desktop-reset-form" style="display:flex; gap:8px; align-items: center;" data-id="${staff._id || staff.id}">
                         <div class="input-group">
-                            <input type="password" class="reset-new-password input-style" placeholder="New Password" required ${isExpired ? 'disabled' : ''} style="margin-bottom: 0; max-width: 150px;">
+                            <input type="password" class="reset-new-password input-style" placeholder="New (min 8)" required ${isExpired ? 'disabled' : ''} style="margin-bottom: 0; max-width: 150px;">
                             <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
                         </div>
                         <div class="input-group">
@@ -242,7 +247,7 @@ async function loadStaff() {
                     </div>
                     <form class="reset-form resetStaffForm mobile-reset-form" data-id="${staff._id || staff.id}">
                         <div class="input-group" style="margin-bottom:8px;">
-                            <input type="password" class="reset-new-password input-style" placeholder="Type new password..." required ${isExpired ? 'disabled' : ''} style="margin-bottom:0; width:100%;">
+                            <input type="password" class="reset-new-password input-style" placeholder="Type new password (min 8 chars)..." required ${isExpired ? 'disabled' : ''} style="margin-bottom:0; width:100%;">
                             <span class="toggle-password" onclick="togglePassword(this)" style="margin-top:0;">👁️</span>
                         </div>
                         <div class="input-group" style="margin-bottom:15px;">
@@ -265,6 +270,10 @@ async function loadStaff() {
                 e.preventDefault();
                 const password = this.querySelector('.reset-new-password').value;
                 const confirmPassword = this.querySelector('.reset-confirm-password').value;
+                if (password.length < 8) {
+                    showMsg('Password must be at least 8 characters.', false);
+                    return;
+                }
                 if (password !== confirmPassword) {
                     showMsg('Passwords do not match. Please retype carefully.', false);
                     return;

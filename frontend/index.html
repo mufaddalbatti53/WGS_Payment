@@ -1263,8 +1263,8 @@
             <input type="text" id="subRegUsername" required minlength="3" placeholder="e.g. rahul_enterprise" autocomplete="username">
           </div>
           <div class="sub-field">
-            <label>Password * (min 6 chars)</label>
-            <input type="password" id="subRegPassword" required minlength="6" placeholder="Enter password" autocomplete="new-password">
+            <label>Password * (min 8 chars)</label>
+            <input type="password" id="subRegPassword" required minlength="8" placeholder="Enter password" autocomplete="new-password">
           </div>
         </div>
         <div class="sub-field">
@@ -1965,8 +1965,8 @@
         showCheckoutAlert('Please enter your Username, Password, and Company Name first.');
         return;
       }
-      if (reg.password.length < 6) {
-        showCheckoutAlert('Password must be at least 6 characters.');
+      if (reg.password.length < 8) {
+        showCheckoutAlert('Password must be at least 8 characters.');
         return;
       }
 

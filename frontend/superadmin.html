@@ -1319,7 +1319,7 @@
                     <div class="form-group">
                         <label>New Password</label>
                         <div class="input-group">
-                            <input type="password" id="saNewPassword" name="newPassword" placeholder="Enter new password (min 6 characters)" required style="margin:0; width:100%;" autocomplete="new-password">
+                            <input type="password" id="saNewPassword" name="newPassword" placeholder="Enter new password (min 8 characters)" required style="margin:0; width:100%;" autocomplete="new-password">
                             <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
                         </div>
                     </div>
@@ -1437,7 +1437,7 @@
                         <span style="font-size:11px; color:#2563eb; font-weight:600;">No old password required</span>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="password" id="modalAdminNewPassword" placeholder="Enter new password (min 6 chars)" style="margin:0; flex:1; font-size:13px; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
+                        <input type="password" id="modalAdminNewPassword" placeholder="Enter new password (min 8 chars)" style="margin:0; flex:1; font-size:13px; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                         <button type="button" onclick="submitModalAdminPasswordReset()" style="padding:9px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;">Set Password 🔑</button>
                     </div>
                     <div id="modalAdminPwdMsg" style="margin-top:6px; font-size:11px;"></div>
@@ -1473,7 +1473,7 @@
                 <div id="resetModalMsg" style="margin-bottom:12px;"></div>
 
                 <div class="form-group" style="margin-bottom:16px;">
-                    <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">New Password (min 6 characters)</label>
+                    <label style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">New Password (min 8 characters)</label>
                     <div class="input-group" style="position:relative;">
                         <input type="password" id="resetNewPasswordInput" placeholder="Enter new password" style="width:100%; padding:10px 38px 10px 12px; border:1.5px solid #cbd5e1; border-radius:9px; font-size:13.5px;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                         <span class="toggle-password" onclick="togglePassword(this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">👁️</span>
@@ -1660,8 +1660,8 @@
                         if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Missing user ID.</div>';
                         return;
                     }
-                    if (!newPassword || newPassword.trim().length < 6) {
-                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Password must be at least 6 characters.</div>';
+                    if (!newPassword || newPassword.trim().length < 8) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Password must be at least 8 characters.</div>';
                         if (pwdInp) pwdInp.focus();
                         return;
                     }
@@ -1700,8 +1700,8 @@
                         if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Admin ID missing.</span>';
                         return;
                     }
-                    if (!newPassword || newPassword.trim().length < 6) {
-                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 6 characters long.</span>';
+                    if (!newPassword || newPassword.trim().length < 8) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 8 characters long.</span>';
                         if (pwdInp) pwdInp.focus();
                         return;
                     }
@@ -2005,7 +2005,7 @@
                         var isLive = keyId.indexOf('rzp_live_') === 0;
                         rzpBadge.style.background = '#dcfce7';
                         rzpBadge.style.color = '#166534';
-                        rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Keys Active' : '🟢 Razorpay TEST Keys Active';
+                        rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Gateway Active' : '🟢 Razorpay Gateway Active';
                     } else {
                         rzpBadge.style.background = '#fef3c7';
                         rzpBadge.style.color = '#b45309';

@@ -5,6 +5,9 @@ const User = require('../models/User');
 const { requireLogin, requireAdmin, logActivity } = require('../middleware/auth');
 
 router.post('/:id/auto-snooze', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') {
+        return res.status(403).json({ success: false, message: 'Forbidden: Customers have view-only access.' });
+    }
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) {
@@ -43,6 +46,9 @@ router.post('/:id/auto-snooze', requireLogin, async (req, res) => {
 });
 
 router.get('/check-duplicate', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
     try {
         const name = (req.query.name || '').trim();
         const phone = (req.query.phone || '').trim().replace(/[^0-9]/g, '');
@@ -203,6 +209,9 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 });
 
 router.put('/:id/transaction', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') {
+        return res.status(403).json({ success: false, message: 'Forbidden: Customers have view-only access.' });
+    }
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.status(404).json({ success: false, message: "Customer not found." });
@@ -254,6 +263,9 @@ router.put('/:id/transaction', requireLogin, async (req, res) => {
 });
 
 router.put('/:id/update-reminder', requireLogin, async (req, res) => {
+    if (req.session.role === 'customer') {
+        return res.status(403).json({ success: false, message: 'Forbidden: Customers have view-only access.' });
+    }
     try {
         const customer = await Customer.findOne({ _id: req.params.id, adminId: req.session.adminId });
         if (!customer) return res.status(404).json({ success: false, message: "Customer not found." });

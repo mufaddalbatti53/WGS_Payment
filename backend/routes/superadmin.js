@@ -370,8 +370,8 @@ router.post('/reset-user-password/:id', requireSuperAdmin, async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: 'Invalid User ID.' });
         }
-        if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 6) {
-            return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+        if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 8) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long.' });
         }
 
         const targetUser = await User.findById(id);
@@ -396,7 +396,8 @@ router.post('/reset-user-password/:id', requireSuperAdmin, async (req, res) => {
             role: targetUser.role
         });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Failed to reset password: ' + err.message });
+        console.error('SuperAdmin reset password error:', err);
+        res.status(500).json({ success: false, message: 'Failed to reset password. Please try again.' });
     }
 });
 
@@ -413,8 +414,8 @@ router.post('/change-credentials', requireSuperAdmin, async (req, res) => {
             return res.status(400).json({ success: false, message: 'New password and confirm password do not match.' });
         }
 
-        if (newPassword.length < 6) {
-            return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+        if (newPassword.length < 8) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long.' });
         }
 
         const user = await User.findById(req.session.userId).select('+password');
@@ -449,7 +450,8 @@ router.post('/change-credentials', requireSuperAdmin, async (req, res) => {
 
         res.json({ success: true, message: 'Credentials updated successfully! Logged in as: ' + cleanUsername });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Failed to update credentials: ' + err.message });
+        console.error('SuperAdmin change credentials error:', err);
+        res.status(500).json({ success: false, message: 'Failed to update credentials. Please try again.' });
     }
 });
 

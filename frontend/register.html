@@ -69,7 +69,7 @@
 
             <label>Secure Password</label>
             <div class="input-group">
-                <input type="password" name="password" id="password" placeholder="Choose Password" required autocomplete="new-password">
+                <input type="password" name="password" id="password" placeholder="Choose Password (min 8 chars)" required autocomplete="new-password">
                 <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
             </div>
 
@@ -120,6 +120,13 @@
             const confirmPassword = document.getElementById('confirmPassword').value;
             const alertBox = document.getElementById('alertBox');
             
+            if (password.length < 8) {
+                alertBox.className = 'alert-error';
+                alertBox.innerText = '⚠️ Password must be at least 8 characters long.';
+                alertBox.style.display = 'block';
+                return;
+            }
+
             if (password !== confirmPassword) {
                 alertBox.className = 'alert-error';
                 alertBox.innerText = '⚠️ Passwords do not match. Please retype carefully.';

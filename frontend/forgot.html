@@ -110,7 +110,7 @@
             <input type="text" id="otpInput" class="otp-input" placeholder="------" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
 
             <div class="input-group">
-                <input type="password" id="newPassword" placeholder="New Password (min 6 chars)" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
+                <input type="password" id="newPassword" placeholder="New Password (min 8 chars)" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
                 <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
             </div>
             <div class="input-group">
@@ -212,8 +212,8 @@
                 showAlert('Please enter a new password.', 'error');
                 return;
             }
-            if (newPassword.length < 6) {
-                showAlert('Password must be at least 6 characters.', 'error');
+            if (newPassword.length < 8) {
+                showAlert('Password must be at least 8 characters.', 'error');
                 return;
             }
             if (newPassword !== confirmPassword) {

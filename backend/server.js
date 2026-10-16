@@ -156,13 +156,21 @@ app.use(express.json({ limit: '2mb' }));
 
 const isProductionOrVercel = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 
+const rawSessionSecret = (process.env.SESSION_SECRET || '').trim();
+if (isProductionOrVercel) {
+    if (!rawSessionSecret || rawSessionSecret.length < 32) {
+        throw new Error('SESSION_SECRET environment variable must be configured with at least 32 characters in production.');
+    }
+} else if (rawSessionSecret && rawSessionSecret.length < 32) {
+    throw new Error('Configured SESSION_SECRET must be at least 32 characters long.');
+}
+
+const sessionSecret = (rawSessionSecret && rawSessionSecret.length >= 32)
+    ? rawSessionSecret
+    : 'wgs-payment-manager-secure-development-session-key-32chars';
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || (() => {
-        if (isProductionOrVercel) {
-            throw new Error('SESSION_SECRET must be configured in production.');
-        }
-        return 'local-development-only-session-secret';
-    })(),
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({

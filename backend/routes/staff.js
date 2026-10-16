@@ -122,6 +122,10 @@ router.post('/', requireAdmin, async (req, res) => {
             }
         }
 
+        if (!req.body.password || req.body.password.toString().length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
+        }
+
         const existingUser = await User.findOne({ username: new RegExp('^' + escapeRegExp(rawUsername) + '$', 'i') });
         if (existingUser) {
             return res.status(409).json({ success: false, message: `Username "${rawUsername}" is already taken.` });
@@ -142,10 +146,16 @@ router.post('/', requireAdmin, async (req, res) => {
         });
 
         await logActivity(req, "Created Staff", `Created: ${rawUsername}`);
-        res.json({ success: true, message: `Staff account "${rawUsername}" created successfully.`, staff: newStaff });
+
+        // Sanitize staff object before returning to client (do not leak password hash)
+        const staffObj = newStaff.toObject();
+        delete staffObj.password;
+        delete staffObj.securityAnswer;
+
+        res.json({ success: true, message: `Staff account "${rawUsername}" created successfully.`, staff: staffObj });
     } catch (e) {
         console.error("Staff Creation Error: ", e);
-        res.status(500).json({ success: false, message: 'Failed to create staff: ' + e.message });
+        res.status(500).json({ success: false, message: 'Failed to create staff account. Please try again.' });
     }
 });
 
@@ -153,7 +163,8 @@ router.post('/reset-password', requireAdmin, async (req, res) => {
     try {
         const { staffId, newPassword } = req.body;
         if (!staffId || !newPassword) return res.status(400).json({ success: false, message: 'Staff member and new password are required.' });
-        
+        if (newPassword.toString().length < 8) return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long.' });
+
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         const staff = await User.findOneAndUpdate(
             { _id: staffId, adminId: req.session.adminId },
@@ -163,7 +174,7 @@ router.post('/reset-password', requireAdmin, async (req, res) => {
         res.json({ success: true, message: 'Staff password reset successfully.' });
     } catch (err) {
         console.error("Staff Reset Error:", err);
-        res.status(500).json({ success: false, message: 'Failed to reset staff password: ' + err.message });
+        res.status(500).json({ success: false, message: 'Failed to reset staff password. Please try again.' });
     }
 });
 

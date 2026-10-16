@@ -23,13 +23,10 @@ router.get('/', async (req, res) => {
     try {
         let customersPromise;
         if (req.session.role === 'customer') {
-            if (req.session.userPhone) {
-                customersPromise = Customer.find({
-                    phone: { $regex: new RegExp(req.session.userPhone + '$') }
-                }).sort({ _id: -1 }).limit(1).lean();
-            } else {
-                customersPromise = Customer.find({ _id: req.session.userId }).lean();
-            }
+            customersPromise = Customer.find({
+                _id: req.session.userId,
+                adminId: req.session.adminId
+            }).lean();
         } else {
             customersPromise = Customer.find({ adminId: req.session.adminId }).lean();
         }
@@ -37,25 +34,43 @@ router.get('/', async (req, res) => {
         const [finalCustomers, adminUserRaw, staffMembersRaw, planConfig] = await Promise.all([
             customersPromise,
             User.findById(req.session.adminId).select('+googleDriveToken').lean(),
-            req.session.adminId
+            (req.session.role !== 'customer' && req.session.adminId)
                 ? User.find({ role: 'staff', adminId: req.session.adminId }).select('_id username status isQuotaLocked').sort({ _id: 1 }).lean()
                 : Promise.resolve([]),
             PlanConfig.getOrCreateSingleton()
         ]);
-        const adminUser = adminUserRaw || {};
-        let staffMembers = Array.isArray(staffMembersRaw) ? staffMembersRaw : [];
+
+        let adminUser = adminUserRaw || {};
+        let staffMembers = (req.session.role === 'customer') ? [] : (Array.isArray(staffMembersRaw) ? staffMembersRaw : []);
         const staffCount = staffMembers.length;
 
-        adminUser.isGoogleDriveLinked = Boolean(adminUser.googleDriveToken || adminUser.googleEmail);
-        delete adminUser.googleDriveToken;
-        delete adminUser.password;
-        adminUser.featureAccess = {
-            allowGoogleDriveBackup: adminUser.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(adminUser.featureAccess.allowGoogleDriveBackup) : true,
-            allowExcelImport: adminUser.featureAccess?.allowExcelImport !== undefined ? Boolean(adminUser.featureAccess.allowExcelImport) : true,
-            allowPdfExport: adminUser.featureAccess?.allowPdfExport !== undefined ? Boolean(adminUser.featureAccess.allowPdfExport) : true
-        };
+        if (req.session.role === 'customer') {
+            adminUser = {
+                _id: adminUser._id,
+                companyName: adminUser.companyName || '',
+                contactNo: adminUser.contactNo || '',
+                companyEmail: adminUser.companyEmail || '',
+                addressLine1: adminUser.addressLine1 || '',
+                addressLine2: adminUser.addressLine2 || '',
+                addressLine3: adminUser.addressLine3 || '',
+                featureAccess: {
+                    allowGoogleDriveBackup: false,
+                    allowExcelImport: false,
+                    allowPdfExport: true
+                }
+            };
+        } else {
+            adminUser.isGoogleDriveLinked = Boolean(adminUser.googleDriveToken || adminUser.googleEmail);
+            delete adminUser.googleDriveToken;
+            delete adminUser.password;
+            adminUser.featureAccess = {
+                allowGoogleDriveBackup: adminUser.featureAccess?.allowGoogleDriveBackup !== undefined ? Boolean(adminUser.featureAccess.allowGoogleDriveBackup) : true,
+                allowExcelImport: adminUser.featureAccess?.allowExcelImport !== undefined ? Boolean(adminUser.featureAccess.allowExcelImport) : true,
+                allowPdfExport: adminUser.featureAccess?.allowPdfExport !== undefined ? Boolean(adminUser.featureAccess.allowPdfExport) : true
+            };
+        }
 
-        if (adminUser && adminUser._id) {
+        if (adminUser && adminUser._id && req.session.role !== 'customer') {
             if (adminUser.status === 'suspended') {
                 destroySessionSafe(req, res);
                 return res.status(403).json({ success: false, message: "⏸️ Your account has been suspended due to unpaid fees. Please contact Super Admin." });

@@ -45,16 +45,30 @@
         </div>
 
         <div id="customer" class="form-box">
-            <form id="customerForm">
+            <!-- Step 1: Enter Phone Number -->
+            <form id="customerPhoneForm">
                 <input type="hidden" name="type" value="customer">
                 <div class="input-group">
-                    <input type="text" name="phone" placeholder="Enter Phone (e.g. 9198...)" required autocomplete="tel">
+                    <input type="tel" id="customerPhone" name="phone" placeholder="Enter Registered Phone (e.g. 9198...)" required autocomplete="tel">
                 </div>
-                <button type="submit" class="btn-customer">Track My Payment</button>
+                <button type="submit" id="customerSendOtpBtn" class="btn-customer">Send Verification Code 📧</button>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; line-height: 1.5;">
+                    *Enter the exact phone number registered with your vendor. A 6-digit verification code will be sent to your registered email.
+                </p>
             </form>
-            <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; line-height: 1.5;">
-                *Please enter the exact phone number registered with your vendor, including the country code.
-            </p>
+
+            <!-- Step 2: Enter Verification Code -->
+            <form id="customerOtpForm" style="display: none;">
+                <div class="email-hint" id="customerEmailHint" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; color:#1e40af; line-height:1.4;"></div>
+                <div class="input-group">
+                    <input type="text" id="customerOtpInput" name="otp" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" style="font-size: 20px; letter-spacing: 6px; text-align: center; font-weight: 700; padding: 12px;" required>
+                </div>
+                <button type="submit" id="customerVerifyOtpBtn" class="btn-customer">Verify & View Ledger 🔒</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px;">
+                    <a href="javascript:void(0)" onclick="resendCustomerOtp()" style="color: var(--primary); text-decoration: none; font-weight: 600;">🔄 Resend Code</a>
+                    <a href="javascript:void(0)" onclick="resetCustomerForm()" style="color: var(--text-muted); text-decoration: none;">Change Phone</a>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -133,43 +147,140 @@
             }
         });
 
-        document.getElementById('customerForm').addEventListener('submit', async (e) => {
+        let activeCustomerPhone = '';
+
+        function resetCustomerForm() {
+            document.getElementById('customerOtpForm').style.display = 'none';
+            document.getElementById('customerPhoneForm').style.display = 'block';
+            document.getElementById('customerOtpInput').value = '';
+            const alertBox = document.getElementById('alertBox');
+            if (alertBox) alertBox.style.display = 'none';
+        }
+
+        async function resendCustomerOtp() {
+            if (!activeCustomerPhone) return resetCustomerForm();
+            const alertBox = document.getElementById('alertBox');
+            if (alertBox) {
+                alertBox.className = 'alert';
+                alertBox.innerText = 'Sending new verification code... ⏳';
+                alertBox.style.display = 'block';
+            }
+            try {
+                const response = await apiJson('/api/customer-login/request-otp', {
+                    method: 'POST',
+                    body: JSON.stringify({ phone: activeCustomerPhone })
+                });
+                if (alertBox) {
+                    alertBox.className = 'alert';
+                    alertBox.innerText = '✅ ' + (response.message || 'Verification code sent!');
+                    alertBox.style.display = 'block';
+                }
+            } catch (e) {
+                if (alertBox) {
+                    alertBox.className = 'alert';
+                    alertBox.innerText = '⚠️ Failed to resend code. Please try again.';
+                    alertBox.style.display = 'block';
+                }
+            }
+        }
+
+        document.getElementById('customerPhoneForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const alertBox = document.getElementById('alertBox');
             alertBox.style.display = 'none';
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const origBtnText = submitBtn ? submitBtn.innerText : 'Track My Payment';
+            const phoneInput = document.getElementById('customerPhone');
+            const phoneVal = (phoneInput ? phoneInput.value : '').trim();
+            if (!phoneVal) return;
+
+            activeCustomerPhone = phoneVal;
+            const submitBtn = document.getElementById('customerSendOtpBtn');
+            const origBtnText = submitBtn ? submitBtn.innerText : 'Send Verification Code 📧';
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.innerText = 'Loading Ledger...';
+                submitBtn.innerText = 'Sending Code... ⏳';
             }
-            
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            
+
             try {
-                const response = await apiJson('/api/login', {
+                const response = await apiJson('/api/customer-login/request-otp', {
                     method: 'POST',
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ phone: phoneVal })
                 });
-                
+
+                if (response.success) {
+                    document.getElementById('customerPhoneForm').style.display = 'none';
+                    document.getElementById('customerOtpForm').style.display = 'block';
+                    const hintEl = document.getElementById('customerEmailHint');
+                    if (hintEl) {
+                        hintEl.innerHTML = `📧 Verification code sent to <strong>${response.maskedEmail || 'your registered email'}</strong>. Check your inbox & spam folder.`;
+                    }
+                    alertBox.innerText = '✅ Code sent! Please enter the 6-digit code below.';
+                    alertBox.style.display = 'block';
+                    const otpInput = document.getElementById('customerOtpInput');
+                    if (otpInput) {
+                        otpInput.value = '';
+                        setTimeout(() => otpInput.focus(), 100);
+                    }
+                } else {
+                    alertBox.innerText = '⚠️ ' + (response.error || 'Failed to send code.');
+                    alertBox.style.display = 'block';
+                }
+            } catch (err) {
+                alertBox.innerText = '⚠️ Network error. Please check your connection.';
+                alertBox.style.display = 'block';
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = origBtnText;
+                }
+            }
+        });
+
+        document.getElementById('customerOtpForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertBox = document.getElementById('alertBox');
+            alertBox.style.display = 'none';
+            const otpInput = document.getElementById('customerOtpInput');
+            const otpVal = (otpInput ? otpInput.value : '').trim();
+            if (!otpVal || otpVal.length !== 6) {
+                alertBox.innerText = '⚠️ Please enter the complete 6-digit code.';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            const submitBtn = document.getElementById('customerVerifyOtpBtn');
+            const origBtnText = submitBtn ? submitBtn.innerText : 'Verify & View Ledger 🔒';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Verifying Code... ⏳';
+            }
+
+            try {
+                const response = await apiJson('/api/customer-login/verify-otp', {
+                    method: 'POST',
+                    body: JSON.stringify({ phone: activeCustomerPhone, otp: otpVal })
+                });
+
                 if (response.success || response.token) {
                     if (response.token) {
                         try { localStorage.setItem('wgs_auth_token', response.token); } catch (err) {}
                     }
+                    alertBox.innerText = '✅ Verified! Opening your ledger...';
+                    alertBox.style.display = 'block';
                     window.location.href = 'dashboard.html?from=login';
                     return;
                 } else {
-                    alertBox.innerText = '⚠️ ' + (response.error || 'Login failed');
+                    alertBox.innerText = '⚠️ ' + (response.error || 'Verification failed.');
                     alertBox.style.display = 'block';
+                    if (otpInput) otpInput.select();
                 }
             } catch (err) {
-                alertBox.innerText = '⚠️ Network error or invalid credentials';
+                alertBox.innerText = '⚠️ Network error or invalid code.';
                 alertBox.style.display = 'block';
-            }
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerText = origBtnText;
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = origBtnText;
+                }
             }
         });
     </script>

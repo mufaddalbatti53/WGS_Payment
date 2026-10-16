@@ -22,6 +22,16 @@ function createTransporter() {
     });
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function isValidEmail(str) {
     if (!str || typeof str !== 'string') return false;
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(str.trim());
@@ -651,6 +661,7 @@ async function runExpiryEmailScan(force = false) {
 }
 
 module.exports = {
+    escapeHtml,
     sendEmailSafe,
     syncStaffQuotaForAdmin,
     notifyPlanPurchased,

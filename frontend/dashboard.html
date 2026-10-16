@@ -1606,7 +1606,7 @@
 
                     <label class="trans-label">New Password</label>
                     <div class="input-group">
-                        <input type="password" name="newPassword" id="adminNewPassword" placeholder="Enter new password (min 6 chars)" required class="input-style" style="width:100%; margin-bottom:15px;" autocomplete="new-password">
+                        <input type="password" name="newPassword" id="adminNewPassword" placeholder="Enter new password (min 8 chars)" required class="input-style" style="width:100%; margin-bottom:15px;" autocomplete="new-password">
                         <span class="toggle-password" onclick="togglePassword(this)">👁️</span>
                     </div>
 
@@ -2505,8 +2505,8 @@
                             return;
                         }
 
-                        if (newPassword.length < 6) {
-                            alert('Password must be at least 6 characters.');
+                        if (newPassword.length < 8) {
+                            alert('Password must be at least 8 characters.');
                             return;
                         }
 

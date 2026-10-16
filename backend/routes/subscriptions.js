@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const PlanConfig = require('../models/PlanConfig');
 const User = require('../models/User');
+const ProcessedPayment = require('../models/ProcessedPayment');
 const ActivityLog = require('../models/Activity');
 const { createAuthToken, saveSessionAsync, invalidateAuthCache } = require('../middleware/auth');
 const {
@@ -153,8 +154,8 @@ router.post('/create-order', async (req, res) => {
         if (cleanUsername.length < 3) {
             return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.' });
         }
-        if (registrationData.password.toString().length < 6) {
-            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+        if (registrationData.password.toString().length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
         }
 
         // Check if username exists; if it exists, verify password (allowing existing admin to upgrade/renew)
@@ -252,7 +253,18 @@ router.post('/verify-payment', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Missing payment verification details.', error: 'Missing payment verification details.' });
         }
 
+        // Prevent duplicate payment reuse
+        const existingProcessed = await ProcessedPayment.findOne({ paymentId: razorpay_payment_id });
+        if (existingProcessed) {
+            return res.status(400).json({
+                success: false,
+                message: 'This payment has already been verified and processed.',
+                error: 'Payment already processed.'
+            });
+        }
+
         const config = await PlanConfig.getOrCreateSingleton();
+        const keyId = (config.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '').trim();
         const keySecret = (config.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
         if (!keySecret) {
             return res.status(400).json({ success: false, message: 'Razorpay secret not configured.', error: 'Razorpay secret not configured.' });
@@ -268,6 +280,51 @@ router.post('/verify-payment', async (req, res) => {
         }
 
         const quote = calculateSubscriptionQuote(config, planId, customConfig, addonIds);
+
+        // Server-side verification directly against Razorpay API
+        let razorpayPaymentRecord = null;
+        if (keyId && keySecret) {
+            try {
+                const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+                const payRes = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(razorpay_payment_id)}`, {
+                    headers: { 'Authorization': `Basic ${authHeader}` }
+                });
+                if (payRes.ok) {
+                    razorpayPaymentRecord = await payRes.json();
+                    const expectedPaise = Math.round(quote.totalAmount * 100);
+                    if (razorpayPaymentRecord.amount !== expectedPaise) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Payment amount mismatch: Expected ₹${quote.totalAmount} but payment was ₹${razorpayPaymentRecord.amount / 100}.`,
+                            error: 'Payment amount mismatch.'
+                        });
+                    }
+                    if (razorpayPaymentRecord.order_id && razorpayPaymentRecord.order_id !== razorpay_order_id) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Payment order ID does not match.',
+                            error: 'Order ID mismatch.'
+                        });
+                    }
+                    if (razorpayPaymentRecord.status !== 'captured' && razorpayPaymentRecord.status !== 'authorized') {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Payment status is ${razorpayPaymentRecord.status}, not completed.`,
+                            error: 'Payment not completed.'
+                        });
+                    }
+                } else if (payRes.status === 404) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Payment ID not found on Razorpay.',
+                        error: 'Payment not found.'
+                    });
+                }
+            } catch (payFetchErr) {
+                console.warn('[Subscriptions] Could not query Razorpay API directly, relying on HMAC signature:', payFetchErr.message);
+            }
+        }
+
         const reg = registrationData || {};
         const cleanUsername = (reg.username || '').toString().trim();
         const cleanCompany = (reg.companyName || '').toString().trim();
@@ -284,15 +341,30 @@ router.post('/verify-payment', async (req, res) => {
                 return res.status(400).json({ success: false, message: 'Cannot apply subscription to a non-admin account.', error: 'Cannot apply subscription to a non-admin account.' });
             }
             const isSameLoggedInSession = req.session && String(req.session.userId) === String(user._id);
-            if (!isSameLoggedInSession && reg.password) {
+            if (!isSameLoggedInSession) {
+                if (!reg.password) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'This account already exists. Please enter your account password to confirm renewal or sign in first.',
+                        error: 'Password required for existing account.'
+                    });
+                }
                 const isMatch = await bcrypt.compare(reg.password, user.password);
                 if (!isMatch) {
                     return res.status(400).json({
                         success: false,
-                        message: 'Existing username password mismatch.',
+                        message: 'Existing account password does not match. Please verify your credentials.',
                         error: 'Existing username password mismatch.'
                     });
                 }
+            }
+        } else {
+            if (!reg.password || reg.password.toString().length < 8) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password must be at least 8 characters long.',
+                    error: 'Password must be at least 8 characters long.'
+                });
             }
         }
 
@@ -394,6 +466,30 @@ router.post('/verify-payment', async (req, res) => {
             res.setHeader('X-Auth-Token', token);
         }
 
+        // Record processed payment to prevent re-use
+        await ProcessedPayment.create({
+            paymentId: razorpay_payment_id,
+            orderId: razorpay_order_id,
+            signature: razorpay_signature,
+            amount: quote.totalAmount,
+            amountPaise: Math.round(quote.totalAmount * 100),
+            currency: 'INR',
+            status: 'captured',
+            userId: user._id,
+            username: user.username,
+            email: user.email || user.companyEmail,
+            phone: user.phone || user.contactNo,
+            companyName: user.companyName,
+            planId: quote.planId,
+            planName: quote.planName,
+            type: 'purchase',
+            durationMonths: quote.finalDurationMonths,
+            addonIds: (quote.selectedAddons || []).map(a => a.id),
+            rawRazorpayResponse: razorpayPaymentRecord || null
+        }).catch(ppErr => {
+            console.error('[Subscriptions] Failed to log ProcessedPayment:', ppErr.message);
+        });
+
         res.json({
             success: true,
             token,
@@ -409,7 +505,7 @@ router.post('/verify-payment', async (req, res) => {
         });
     } catch (err) {
         console.error('Error verifying subscription payment:', err);
-        res.status(500).json({ success: false, message: 'Server error verifying payment: ' + err.message, error: 'Server error verifying payment: ' + err.message });
+        res.status(500).json({ success: false, message: 'Payment verification failed. Please contact support.', error: 'Payment verification failed.' });
     }
 });
 
@@ -425,8 +521,8 @@ router.post('/submit-request', async (req, res) => {
         if (cleanUsername.length < 3) {
             return res.status(400).json({ success: false, message: 'Username must be at least 3 characters.', error: 'Username must be at least 3 characters.' });
         }
-        if (registrationData.password.toString().length < 6) {
-            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.', error: 'Password must be at least 6 characters.' });
+        if (registrationData.password.toString().length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.', error: 'Password must be at least 8 characters.' });
         }
 
         const existingUser = await User.findOne({
@@ -733,6 +829,13 @@ async function handleVerifyRenewal(req, res) {
             return res.status(400).json({ success: false, message: msg, error: msg });
         }
 
+        // Prevent duplicate renewal payment reuse
+        const existingProcessed = await ProcessedPayment.findOne({ paymentId: razorpay_payment_id });
+        if (existingProcessed) {
+            const msg = 'This renewal payment has already been verified and processed.';
+            return res.status(400).json({ success: false, message: msg, error: msg });
+        }
+
         const config = await PlanConfig.getOrCreateSingleton();
         const keyId = (config.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '').trim();
         const keySecret = (config.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '').trim();
@@ -778,6 +881,50 @@ async function handleVerifyRenewal(req, res) {
         const quote = renewalMode === 'addons_only'
             ? calculateAddonsOnlyQuote(user, config, addonIds)
             : calculateSubscriptionQuote(config, planId, customConfig, addonIds, fallbackUserAddons);
+
+        // Server-side verification directly against Razorpay API
+        let razorpayPaymentRecord = null;
+        if (keyId && keySecret) {
+            try {
+                const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+                const payRes = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(razorpay_payment_id)}`, {
+                    headers: { 'Authorization': `Basic ${authHeader}` }
+                });
+                if (payRes.ok) {
+                    razorpayPaymentRecord = await payRes.json();
+                    const expectedPaise = Math.round(quote.totalAmount * 100);
+                    if (razorpayPaymentRecord.amount !== expectedPaise) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Payment amount mismatch: Expected ₹${quote.totalAmount} but payment was ₹${razorpayPaymentRecord.amount / 100}.`,
+                            error: 'Payment amount mismatch.'
+                        });
+                    }
+                    if (razorpayPaymentRecord.order_id && razorpayPaymentRecord.order_id !== razorpay_order_id) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Payment order ID does not match.',
+                            error: 'Order ID mismatch.'
+                        });
+                    }
+                    if (razorpayPaymentRecord.status !== 'captured' && razorpayPaymentRecord.status !== 'authorized') {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Payment status is ${razorpayPaymentRecord.status}, not completed.`,
+                            error: 'Payment not completed.'
+                        });
+                    }
+                } else if (payRes.status === 404) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Payment ID not found on Razorpay.',
+                        error: 'Payment not found.'
+                    });
+                }
+            } catch (payFetchErr) {
+                console.warn('[Subscriptions] Could not query Razorpay API directly for renewal:', payFetchErr.message);
+            }
+        }
 
         const now = new Date();
         let baseDate = now;
@@ -847,6 +994,31 @@ async function handleVerifyRenewal(req, res) {
 
         notifyPlanRenewedOrAddon(user, quote, modeLabel, razorpay_payment_id, staffQuotaStatus).catch(() => {});
 
+        // Record processed payment to prevent re-use
+        await ProcessedPayment.create({
+            paymentId: razorpay_payment_id,
+            orderId: razorpay_order_id,
+            signature: razorpay_signature,
+            amount: quote.totalAmount,
+            amountPaise: Math.round(quote.totalAmount * 100),
+            currency: 'INR',
+            status: 'captured',
+            userId: user._id,
+            username: user.username,
+            email: user.email || user.companyEmail,
+            phone: user.phone || user.contactNo,
+            companyName: user.companyName,
+            planId: quote.planId || user.planId,
+            planName: quote.planName || user.planName,
+            type: renewalMode === 'addons_only' ? 'addon' : 'renewal',
+            renewalMode,
+            durationMonths: quote.finalDurationMonths,
+            addonIds: (quote.selectedAddons || []).map(a => a.id),
+            rawRazorpayResponse: razorpayPaymentRecord || null
+        }).catch(ppErr => {
+            console.error('[Subscriptions] Failed to log ProcessedPayment for renewal:', ppErr.message);
+        });
+
         res.json({
             success: true,
             message: `${modeLabel} completed! Valid until ${expiryDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
@@ -855,7 +1027,7 @@ async function handleVerifyRenewal(req, res) {
         });
     } catch (err) {
         console.error('Error verifying renewal:', err);
-        const msg = 'Server error verifying renewal: ' + err.message;
+        const msg = 'Renewal verification failed. Please contact support.';
         res.status(500).json({ success: false, message: msg, error: msg });
     }
 }

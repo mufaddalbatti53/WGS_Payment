@@ -31,8 +31,14 @@ const customerSchema = new mongoose.Schema({
         days150to180: { type: Number, default: 0 },
         above180: { type: Number, default: 0 },
         onAccount: { type: Number, default: 0 }
-    }
-});
+    },
+
+    // 🔑 Customer Portal 2-Step Login OTP
+    loginOtp: { type: String, select: false },
+    loginOtpExpiry: { type: Date, select: false },
+    loginOtpAttempts: { type: Number, default: 0, select: false },
+    loginOtpRequestedAt: { type: Date, select: false }
+}, { timestamps: true });
 
 // Indexes for high performance
 customerSchema.index({ adminId: 1 });

@@ -86,7 +86,9 @@ const userSchema = new mongoose.Schema({
 
     // 🔑 Password Reset OTP
     resetOtp: { type: String, select: false },
-    resetOtpExpiry: { type: Date, select: false }
+    resetOtpExpiry: { type: Date, select: false },
+    resetOtpAttempts: { type: Number, default: 0, select: false },
+    resetOtpRequestedAt: { type: Date, select: false }
 }, { timestamps: true });
 
 // Dedicated Single & Compound Indexes for ultra-fast query performance

@@ -3,7 +3,12 @@ const User = require('../models/User');
 const ActivityLog = require('../models/Activity');
 
 function getAuthSecret() {
-    return process.env.SESSION_SECRET || 'local-development-only-session-secret';
+    const rawSecret = (process.env.SESSION_SECRET || '').trim();
+    if (rawSecret && rawSecret.length >= 32) return rawSecret;
+    if (process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL)) {
+        throw new Error('SESSION_SECRET environment variable must be configured with at least 32 characters in production.');
+    }
+    return 'wgs-payment-manager-secure-development-session-key-32chars';
 }
 
 function createAuthToken(sessionData) {
