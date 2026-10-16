@@ -13,40 +13,657 @@
     <link rel="icon" href="/images/WGS.png" type="image/png">
     <link rel="apple-touch-icon" href="/images/WGS.png">
     <link rel="manifest" href="/manifest.json">
-    <script>
+        <script>
         window.API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : 'https://wgs-payment.vercel.app';
-        // Pre-bind global handlers in <head> so inline onclick/onchange attributes never throw ReferenceError before scripts finish loading
-        (function() {
-            var fnNames = [
-                'applyPlanPresetToModal', 'recalcModalExpiryFromDuration', 'setModalExpiryMonths',
-                'extendModalExpiryOneYear', 'openLimitsModalFromData', 'closeLimitsModal',
-                'saveSubscriptionSettings', 'resetDefaultPlansAndAddons', 'addNewAddonRow',
-                'showTab', 'togglePassword', 'actionApprove', 'actionReject', 'actionToggleSuspend',
-                'toggleStaffQuotaAccess', 'openResetPasswordModal', 'closeResetPasswordModal',
-                'confirmResetPasswordAction', 'submitModalAdminPasswordReset'
-            ];
-            for (var i = 0; i < fnNames.length; i++) {
-                (function(name) {
-                    if (typeof window[name] !== 'function') {
-                        var stub = function() {};
-                        stub.__isStub = true;
-                        window[name] = stub;
-                    }
-                })(fnNames[i]);
+
+        // Global UI navigation & auth helpers available immediately
+        window.showTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(function(el) { el.style.display = 'none'; });
+            document.querySelectorAll('.tab-btn').forEach(function(el) { el.classList.remove('active'); });
+            var target = document.getElementById(tabId);
+            if (target) target.style.display = 'block';
+            var btn = document.querySelector('.tab-btn[onclick*="' + tabId + '"]');
+            if (btn) btn.classList.add('active');
+        };
+
+        window.togglePassword = function(btn) {
+            var input = btn.previousElementSibling;
+            if (!input && btn.parentElement) input = btn.parentElement.querySelector('input');
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🔒';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁️';
             }
-            if (typeof window.handleLogout !== 'function') {
-                var logoutStub = function() {
-                    try {
-                        localStorage.removeItem('wgs_auth_token');
-                        localStorage.removeItem('token');
-                        sessionStorage.clear();
-                        fetch(window.API_BASE + '/api/logout', { method: 'POST', credentials: 'include', keepalive: true }).catch(function(){});
-                    } catch (e) {}
-                    window.location.replace('login.html');
+        };
+
+        window.handleLogout = function() {
+            try {
+                localStorage.removeItem('wgs_auth_token');
+                localStorage.removeItem('token');
+                sessionStorage.clear();
+                if (typeof window.performFastLogout === 'function') {
+                    return window.performFastLogout('login.html');
+                }
+                fetch(window.API_BASE + '/api/logout', { method: 'POST', credentials: 'include', keepalive: true }).catch(function(){});
+            } catch (e) {}
+            window.location.replace('login.html');
+        };
+        window.logout = window.handleLogout;
+
+        // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
+        (function() {
+            var FALLBACK_PLAN_CONFIG = {
+                razorpayKeyId: '',
+                razorpayKeySecret: '',
+                whatsappSalesNumber: '917021056404',
+                superadminEmail: '',
+                currency: 'INR',
+                plans: [
+                    {
+                        id: 'basic',
+                        name: 'Basic Plan',
+                        tagline: 'Essential yearly payment tracking & aging analysis for growing businesses.',
+                        badge: 'YEARLY STARTER',
+                        isPopular: false,
+                        isCustom: false,
+                        price: 4999,
+                        durationMonths: 12,
+                        billingLabel: '/ year',
+                        maxCustomersLimit: 250,
+                        maxStaffLimit: 2,
+                        dailyMessageLimit: 50,
+                        features: [
+                            '1 Full Year (12 Months) Validity',
+                            'Up to 250 Active Parties',
+                            '2 Staff / Team Accounts',
+                            '50 Daily Payment Reminders (WhatsApp/SMS/Email)',
+                            '30-60-90-180+ Days Aging Buckets',
+                            'Tally / Busy Excel & PDF Reports',
+                            'Activity Audit Trail'
+                        ],
+                        featureAccess: { allowGoogleDriveBackup: false, allowExcelImport: true, allowPdfExport: true },
+                        isActive: true
+                    },
+                    {
+                        id: 'pro',
+                        name: 'Pro Plan',
+                        tagline: 'Full-featured yearly automation, cloud backups & higher quotas for finance teams.',
+                        badge: 'MOST POPULAR • YEARLY',
+                        isPopular: true,
+                        isCustom: false,
+                        price: 9999,
+                        durationMonths: 12,
+                        billingLabel: '/ year',
+                        maxCustomersLimit: 1500,
+                        maxStaffLimit: 10,
+                        dailyMessageLimit: 300,
+                        features: [
+                            '1 Full Year (12 Months) Validity',
+                            'Up to 1,500 Active Parties',
+                            '10 Staff / Team Accounts',
+                            '300 Daily Payment Reminders (WhatsApp/SMS/Email)',
+                            'Automated Google Drive Cloud Backups',
+                            'Tally / Busy Excel Import & Export',
+                            'Customer Self-Service Portal & Priority Support'
+                        ],
+                        featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
+                        isActive: true
+                    },
+                    {
+                        id: 'customized',
+                        name: 'Customized Plan',
+                        tagline: 'Tailor your exact yearly party quota, team size, and daily message limits with live pricing.',
+                        badge: 'CUSTOM YEARLY',
+                        isPopular: false,
+                        isCustom: true,
+                        price: 14999,
+                        durationMonths: 12,
+                        billingLabel: '/ year',
+                        maxCustomersLimit: 2000,
+                        maxStaffLimit: 15,
+                        dailyMessageLimit: 500,
+                        basePrice: 2999,
+                        pricePer100Parties: 500,
+                        pricePerStaff: 400,
+                        pricePer50Messages: 300,
+                        features: [
+                            '1 Full Year (12 Months) Validity (Extendable)',
+                            'Custom Active Parties Quota (100 – 10,000+)',
+                            'Custom Staff / Team Accounts (1 – 100+)',
+                            'Custom Daily Reminder Quota (50 – 2,500+)',
+                            'Automated Google Drive Cloud Backups Included',
+                            'Full Tally / Busy Excel Import & PDF Suite',
+                            'Dedicated Onboarding & Priority Support'
+                        ],
+                        featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
+                        isActive: true
+                    }
+                ],
+                addons: [
+                    { id: 'addon_parties_500', name: '+500 Extra Parties (Yearly)', description: 'Expand your party ledger capacity by 500 additional customer accounts for the year.', price: 1499, type: 'parties', value: 500, isActive: true },
+                    { id: 'addon_staff_5', name: '+5 Extra Staff Accounts (Yearly)', description: 'Add 5 more staff/employee logins for your collections and accounting team.', price: 999, type: 'staff', value: 5, isActive: true },
+                    { id: 'addon_msgs_100', name: '+100 Daily Reminders (Yearly)', description: 'Boost your daily WhatsApp, SMS & Email payment reminder quota by 100/day.', price: 799, type: 'messages', value: 100, isActive: true },
+                    { id: 'addon_gdrive', name: 'Cloud Backup Unlock (Yearly)', description: 'Enable automated & 1-click Google Drive cloud backups on Basic plans.', price: 999, type: 'gdrive', value: 1, isActive: true },
+                    { id: 'addon_validity_12m', name: '+1 Extra Year Validity (12 Months)', description: 'Extend your subscription validity by an additional 12 months (1 full year).', price: 3999, type: 'duration', value: 12, isActive: true }
+                ]
+            };
+
+            // Ensure global getLivePlansList is always available and reads live editor inputs or saved config
+            if (typeof window.getLivePlansList !== 'function' || window.getLivePlansList.__isStub) {
+                window.getLivePlansList = function() {
+                    var cards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
+                    if (cards.length > 0) {
+                        return cards.map(function(card, idx) {
+                            var planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
+                            return {
+                                id: planId,
+                                name: (card.querySelector('.plan-name-inp') && card.querySelector('.plan-name-inp').value) || 'Plan',
+                                price: Number((card.querySelector('.plan-price-inp') && card.querySelector('.plan-price-inp').value) || 0),
+                                durationMonths: Number((card.querySelector('.plan-duration-inp') && card.querySelector('.plan-duration-inp').value) || 12),
+                                maxCustomersLimit: Number((card.querySelector('.plan-parties-inp') && card.querySelector('.plan-parties-inp').value) || 0),
+                                maxStaffLimit: Number((card.querySelector('.plan-staff-inp') && card.querySelector('.plan-staff-inp').value) || 0),
+                                dailyMessageLimit: Number((card.querySelector('.plan-msgs-inp') && card.querySelector('.plan-msgs-inp').value) || 0),
+                                featureAccess: {
+                                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive') && card.querySelector('.plan-fa-gdrive').checked),
+                                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel') && card.querySelector('.plan-fa-excel').checked),
+                                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf') && card.querySelector('.plan-fa-pdf').checked)
+                                }
+                            };
+                        });
+                    }
+                    if (window.currentPlanConfigState && Array.isArray(window.currentPlanConfigState.plans) && window.currentPlanConfigState.plans.length) {
+                        return window.currentPlanConfigState.plans;
+                    }
+                    return FALLBACK_PLAN_CONFIG.plans;
                 };
-                logoutStub.__isStub = true;
-                window.handleLogout = logoutStub;
-                window.logout = logoutStub;
+            }
+
+            // Modal fallback helpers
+            if (typeof window.closeLimitsModal !== 'function' || window.closeLimitsModal.__isStub) {
+                window.closeLimitsModal = function() {
+                    var m = document.getElementById('limitsModal');
+                    if (m) m.style.display = 'none';
+                };
+            }
+            if (typeof window.openResetPasswordModal !== 'function' || window.openResetPasswordModal.__isStub) {
+                window.openResetPasswordModal = function(userId, username, role) {
+                    var m = document.getElementById('resetPasswordModal');
+                    if (!m) return;
+                    var idInp = document.getElementById('resetTargetUserId');
+                    if (idInp) idInp.value = userId || '';
+                    var userEl = document.getElementById('resetTargetUsername');
+                    if (userEl) userEl.innerText = username || 'user';
+                    var roleEl = document.getElementById('resetTargetRole');
+                    if (roleEl) roleEl.innerText = (role || 'ADMIN').toUpperCase();
+                    var pwdInp = document.getElementById('resetNewPasswordInput');
+                    if (pwdInp) pwdInp.value = '';
+                    var msgEl = document.getElementById('resetModalMsg');
+                    if (msgEl) msgEl.innerHTML = '';
+                    m.style.display = 'flex';
+                };
+            }
+            if (typeof window.closeResetPasswordModal !== 'function' || window.closeResetPasswordModal.__isStub) {
+                window.closeResetPasswordModal = function() {
+                    var m = document.getElementById('resetPasswordModal');
+                    if (m) m.style.display = 'none';
+                };
+            }
+            if (typeof window.confirmResetPasswordAction !== 'function' || window.confirmResetPasswordAction.__isStub) {
+                window.confirmResetPasswordAction = async function() {
+                    var userId = document.getElementById('resetTargetUserId') ? document.getElementById('resetTargetUserId').value : '';
+                    var pwdInp = document.getElementById('resetNewPasswordInput');
+                    var newPassword = pwdInp ? pwdInp.value : '';
+                    var msgEl = document.getElementById('resetModalMsg');
+                    var btn = document.getElementById('btnConfirmResetPwd');
+                    if (!userId) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Missing user ID.</div>';
+                        return;
+                    }
+                    if (!newPassword || newPassword.trim().length < 8) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Password must be at least 8 characters.</div>';
+                        if (pwdInp) pwdInp.focus();
+                        return;
+                    }
+                    if (btn) { btn.disabled = true; btn.textContent = 'Updating... ⏳'; }
+                    try {
+                        var res = await (typeof apiJson === 'function' ? apiJson('/api/superadmin/reset-user-password/' + userId, {
+                            method: 'POST',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }) : fetch((window.API_BASE || '') + '/api/superadmin/reset-user-password/' + userId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }).then(function(r){ return r.json(); }));
+                        if (res && res.success) {
+                            if (msgEl) msgEl.innerHTML = '<div class="alert-msg success" style="padding:7px 10px; font-size:12px;">✅ ' + (res.message || 'Password reset successfully!') + '</div>';
+                            if (pwdInp) pwdInp.value = '';
+                            setTimeout(function(){ window.closeResetPasswordModal(); }, 1400);
+                        } else {
+                            if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ' + ((res && res.message) || 'Failed to reset password.') + '</div>';
+                        }
+                    } catch(err) {
+                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ' + err.message + '</div>';
+                    } finally {
+                        if (btn) { btn.disabled = false; btn.textContent = 'Set New Password 🔑'; }
+                    }
+                };
+            }
+            if (typeof window.submitModalAdminPasswordReset !== 'function' || window.submitModalAdminPasswordReset.__isStub) {
+                window.submitModalAdminPasswordReset = async function() {
+                    var adminId = document.getElementById('modalAdminId') ? document.getElementById('modalAdminId').value : '';
+                    var pwdInp = document.getElementById('modalAdminNewPassword');
+                    var msgEl = document.getElementById('modalAdminPwdMsg');
+                    var newPassword = pwdInp ? pwdInp.value : '';
+                    if (!adminId) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Admin ID missing.</span>';
+                        return;
+                    }
+                    if (!newPassword || newPassword.trim().length < 8) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 8 characters long.</span>';
+                        if (pwdInp) pwdInp.focus();
+                        return;
+                    }
+                    if (msgEl) msgEl.innerHTML = '<span style="color:#2563eb; font-weight:700;">Updating password... ⏳</span>';
+                    try {
+                        var res = await (typeof apiJson === 'function' ? apiJson('/api/superadmin/reset-user-password/' + adminId, {
+                            method: 'POST',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }) : fetch((window.API_BASE || '') + '/api/superadmin/reset-user-password/' + adminId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ newPassword: newPassword.trim() })
+                        }).then(function(r){ return r.json(); }));
+                        if (res && res.success) {
+                            if (msgEl) msgEl.innerHTML = '<span style="color:#16a34a; font-weight:700;">✅ ' + (res.message || 'Password reset successfully!') + '</span>';
+                            if (pwdInp) pwdInp.value = '';
+                        } else {
+                            if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ ' + ((res && res.message) || 'Failed to update.') + '</span>';
+                        }
+                    } catch(err) {
+                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ ' + err.message + '</span>';
+                    }
+                };
+            }
+            if (typeof window.setModalExpiryMonths !== 'function' || window.setModalExpiryMonths.__isStub) {
+                window.setModalExpiryMonths = function(monthsVal) {
+                    var months = Math.max(1, parseInt(monthsVal) || 12);
+                    var d = new Date();
+                    d.setMonth(d.getMonth() + months);
+                    var expEl = document.getElementById('modalPlanExpiry');
+                    if (expEl) expEl.value = d.toISOString().split('T')[0];
+                    var dur = document.getElementById('modalPlanDurationMonths');
+                    if (dur) dur.value = months;
+                };
+            }
+            if (typeof window.recalcModalExpiryFromDuration !== 'function' || window.recalcModalExpiryFromDuration.__isStub) {
+                window.recalcModalExpiryFromDuration = function(monthsVal) {
+                    var months = Math.max(1, parseInt(monthsVal) || 12);
+                    window.setModalExpiryMonths(months);
+                };
+            }
+            if (typeof window.extendModalExpiryOneYear !== 'function' || window.extendModalExpiryOneYear.__isStub) {
+                window.extendModalExpiryOneYear = function() {
+                    var expEl = document.getElementById('modalPlanExpiry');
+                    if (!expEl) return;
+                    var base = new Date();
+                    if (expEl.value) {
+                        var parsed = new Date(expEl.value);
+                        if (!isNaN(parsed.getTime()) && parsed > base) base = parsed;
+                    }
+                    base.setMonth(base.getMonth() + 12);
+                    expEl.value = base.toISOString().split('T')[0];
+                };
+            }
+
+            if (typeof window.applyPlanPresetToModal !== 'function' || window.applyPlanPresetToModal.__isStub) {
+                window.applyPlanPresetToModal = function(planId) {
+                    var plans = (typeof window.getLivePlansList === 'function') ? window.getLivePlansList() : FALLBACK_PLAN_CONFIG.plans;
+                    var plan = plans.find(function(p){ return String(p.id || '').toLowerCase() === String(planId || '').toLowerCase(); }) || plans[0];
+                    if (!plan) return;
+
+                    var selectedPlanIdEl = document.getElementById('modalSelectedPlanId');
+                    if (selectedPlanIdEl) selectedPlanIdEl.value = plan.id || planId;
+
+                    var planNameInput = document.getElementById('modalPlanName');
+                    if (planNameInput) planNameInput.value = plan.name || 'Basic Plan';
+
+                    var planPriceInput = document.getElementById('modalPlanPrice');
+                    if (planPriceInput) planPriceInput.value = Number(plan.price != null ? plan.price : 0);
+
+                    var durationMonths = Math.max(1, Number(plan.durationMonths) || 12);
+                    var planDurationInput = document.getElementById('modalPlanDurationMonths');
+                    if (planDurationInput) planDurationInput.value = durationMonths;
+
+                    var maxCustEl = document.getElementById('modalMaxCustomers');
+                    if (maxCustEl) maxCustEl.value = (plan.maxCustomersLimit != null ? plan.maxCustomersLimit : 250);
+
+                    var maxStaffEl = document.getElementById('modalMaxStaff');
+                    if (maxStaffEl) maxStaffEl.value = (plan.maxStaffLimit != null ? plan.maxStaffLimit : 2);
+
+                    var dailyMsgEl = document.getElementById('modalDailyMessages');
+                    if (dailyMsgEl) dailyMsgEl.value = (plan.dailyMessageLimit != null ? plan.dailyMessageLimit : 50);
+
+                    var fa = plan.featureAccess || {};
+                    var gdriveChk = document.getElementById('modalAllowGDrive');
+                    var excelChk = document.getElementById('modalAllowExcel');
+                    var pdfChk = document.getElementById('modalAllowPdf');
+                    if (gdriveChk) gdriveChk.checked = fa.allowGoogleDriveBackup !== false;
+                    if (excelChk) excelChk.checked = fa.allowExcelImport !== false;
+                    if (pdfChk) pdfChk.checked = fa.allowPdfExport !== false;
+
+                    var expEl = document.getElementById('modalPlanExpiry');
+                    if (expEl) {
+                        var d = new Date();
+                        d.setMonth(d.getMonth() + durationMonths);
+                        expEl.value = d.toISOString().split('T')[0];
+                    }
+
+                    var statusEl = document.getElementById('modalStatus');
+                    if (statusEl && (statusEl.value === 'pending' || statusEl.value === 'rejected')) {
+                        statusEl.value = 'approved';
+                    }
+
+                    if (typeof window.renderModalPlanPresetButtons === 'function') {
+                        window.renderModalPlanPresetButtons(plan.id || planId);
+                    }
+                    if (typeof window.updateModalSelectedPlanSummary === 'function') {
+                        window.updateModalSelectedPlanSummary(plan.name, plan.price, durationMonths, plan.maxStaffLimit, plan.maxCustomersLimit, plan.dailyMessageLimit, expEl ? expEl.value : '');
+                    }
+                };
+            }
+
+            if (typeof window.updateModalSelectedPlanSummary !== 'function' || window.updateModalSelectedPlanSummary.__isStub) {
+                window.updateModalSelectedPlanSummary = function(planName, price, durationMonths, maxStaff, maxParties, dailyMsgs, expiryDateStr) {
+                    var box = document.getElementById('modalSelectedPlanSummary');
+                    if (!box) return;
+                    var priceNum = Number(price || 0);
+                    box.style.display = 'block';
+                    box.innerHTML = '<div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px;">' +
+                        '<div><strong style="font-size:12.5px; color:#1e3a8a;">💎 Active Selection: ' + (planName || 'Standard Plan') + '</strong>' +
+                        (priceNum > 0 ? '<span style="margin-left:6px; background:#1d4ed8; color:#fff; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800;">₹' + priceNum.toLocaleString('en-IN') + ' / ' + (durationMonths || 12) + ' Mo</span>' : '') +
+                        '</div>' +
+                        '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800;">📅 Valid Till: ' + (expiryDateStr || 'Auto on Save') + '</span>' +
+                        '</div>' +
+                        '<div style="margin-top:5px; font-size:11px; color:#334155; font-weight:600;">Quotas Applied: 👥 <strong>' + (maxStaff != null ? maxStaff : 0) + '</strong> Staff &nbsp;·&nbsp; 📊 <strong>' + (maxParties != null ? maxParties : 0) + '</strong> Parties &nbsp;·&nbsp; 💬 <strong>' + (dailyMsgs != null ? dailyMsgs : 0) + '</strong> Daily Reminders</div>';
+                };
+            }
+
+            if (typeof window.addNewAddonRow !== 'function' || window.addNewAddonRow.__isStub) {
+                window.addNewAddonRow = function() {
+                    var container = document.getElementById('addonsEditorList');
+                    if (!container) return;
+                    var row = document.createElement('div');
+                    row.className = 'addon-edit-row';
+                    row.setAttribute('data-addon-id', 'addon_' + Date.now());
+                    row.innerHTML =
+                        '<div class="pm-field" style="margin:0;"><label>Add-on Name</label><input type="text" class="addon-name-inp" value="+250 Extra Parties" placeholder="e.g. +500 Extra Parties"></div>' +
+                        '<div class="pm-field" style="margin:0;"><label>Description</label><input type="text" class="addon-desc-inp" value="Expand your customer ledger limit" placeholder="Short benefit description"></div>' +
+                        '<div class="pm-field" style="margin:0;"><label>Boost Type</label><select class="addon-type-sel">' +
+                            '<option value="parties" selected>📊 Extra Parties</option>' +
+                            '<option value="staff">👥 Extra Staff</option>' +
+                            '<option value="messages">💬 Extra Daily Msgs</option>' +
+                            '<option value="gdrive">☁️ Cloud Backup Unlock</option>' +
+                            '<option value="duration">📅 Extra Validity (Months)</option>' +
+                        '</select></div>' +
+                        '<div class="pm-field" style="margin:0;"><label>Boost Value</label><input type="number" class="addon-val-inp" min="0" value="250"></div>' +
+                        '<div class="pm-field" style="margin:0;"><label>Price (₹)</label><input type="number" class="addon-price-inp" min="0" value="299"></div>' +
+                        '<div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;"><button type="button" onclick="this.closest(\'.addon-edit-row\').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button></div>';
+                    container.appendChild(row);
+                };
+            }
+
+            if (typeof window.resetDefaultPlansAndAddons !== 'function' || window.resetDefaultPlansAndAddons.__isStub) {
+                window.resetDefaultPlansAndAddons = function() {
+                    if (!confirm('Reset the form fields below to the default 3 Yearly Plans (Basic, Pro, Customized) and 5 Yearly Add-ons? (Click Save afterwards to apply to the landing page.)')) return;
+                    var merged = JSON.parse(JSON.stringify(FALLBACK_PLAN_CONFIG));
+                    merged.razorpayKeyId = (document.getElementById('rzpKeyIdInput') ? document.getElementById('rzpKeyIdInput').value : '');
+                    merged.razorpayKeySecret = (document.getElementById('rzpKeySecretInput') ? document.getElementById('rzpKeySecretInput').value : '');
+                    merged.whatsappSalesNumber = (document.getElementById('whatsappSalesInput') ? document.getElementById('whatsappSalesInput').value : '917021056404');
+                    merged.superadminEmail = (document.getElementById('superadminEmailInput') ? document.getElementById('superadminEmailInput').value : '');
+                    window.currentPlanConfigState = merged;
+                    if (typeof window.renderPlansEditor === 'function') {
+                        window.renderPlansEditor(merged);
+                    } else {
+                        window.renderStandalonePlansEditor(merged);
+                    }
+                };
+            }
+
+            if (typeof window.saveSubscriptionSettings !== 'function' || window.saveSubscriptionSettings.__isStub) {
+                window.saveSubscriptionSettings = async function() {
+                    var btn = document.getElementById('btnSavePlansConfig');
+                    var alertBox = document.getElementById('plansSaveAlert');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = '⏳ Saving Plans & Razorpay Settings...';
+                    }
+                    try {
+                        var razorpayKeyId = (document.getElementById('rzpKeyIdInput') ? document.getElementById('rzpKeyIdInput').value : '').trim();
+                        var razorpayKeySecret = (document.getElementById('rzpKeySecretInput') ? document.getElementById('rzpKeySecretInput').value : '').trim();
+                        var whatsappSalesNumber = (document.getElementById('whatsappSalesInput') ? document.getElementById('whatsappSalesInput').value : '').trim();
+                        var superadminEmail = (document.getElementById('superadminEmailInput') ? document.getElementById('superadminEmailInput').value : '').trim();
+
+                        var planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
+                        var plans = planCards.map(function(card, idx) {
+                            var planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
+                            var isCustom = planId === 'customized';
+                            var txtEl = card.querySelector('.plan-features-txt');
+                            var features = txtEl ? txtEl.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+                            return {
+                                id: planId,
+                                name: (card.querySelector('.plan-name-inp') ? card.querySelector('.plan-name-inp').value : 'Plan'),
+                                badge: (card.querySelector('.plan-badge-inp') ? card.querySelector('.plan-badge-inp').value : ''),
+                                tagline: (card.querySelector('.plan-tagline-inp') ? card.querySelector('.plan-tagline-inp').value : ''),
+                                price: Number((card.querySelector('.plan-price-inp') ? card.querySelector('.plan-price-inp').value : 0)),
+                                durationMonths: Number((card.querySelector('.plan-duration-inp') ? card.querySelector('.plan-duration-inp').value : 12)),
+                                maxCustomersLimit: Number((card.querySelector('.plan-parties-inp') ? card.querySelector('.plan-parties-inp').value : 0)),
+                                maxStaffLimit: Number((card.querySelector('.plan-staff-inp') ? card.querySelector('.plan-staff-inp').value : 0)),
+                                dailyMessageLimit: Number((card.querySelector('.plan-msgs-inp') ? card.querySelector('.plan-msgs-inp').value : 0)),
+                                isPopular: Boolean(card.querySelector('.plan-popular-chk') && card.querySelector('.plan-popular-chk').checked),
+                                isCustom: isCustom,
+                                basePrice: Number((card.querySelector('.plan-base-price-inp') ? card.querySelector('.plan-base-price-inp').value : 2999)),
+                                pricePer100Parties: Number((card.querySelector('.plan-rate-parties-inp') ? card.querySelector('.plan-rate-parties-inp').value : 500)),
+                                pricePerStaff: Number((card.querySelector('.plan-rate-staff-inp') ? card.querySelector('.plan-rate-staff-inp').value : 400)),
+                                pricePer50Messages: Number((card.querySelector('.plan-rate-msgs-inp') ? card.querySelector('.plan-rate-msgs-inp').value : 300)),
+                                featureAccess: {
+                                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive') && card.querySelector('.plan-fa-gdrive').checked),
+                                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel') && card.querySelector('.plan-fa-excel').checked),
+                                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf') && card.querySelector('.plan-fa-pdf').checked)
+                                },
+                                features: features,
+                                isActive: true
+                            };
+                        });
+
+                        var addonRows = Array.from(document.querySelectorAll('#addonsEditorList .addon-edit-row'));
+                        var addons = addonRows.map(function(row, idx) {
+                            return {
+                                id: row.getAttribute('data-addon-id') || ('addon_' + Date.now() + '_' + idx),
+                                name: (row.querySelector('.addon-name-inp') ? row.querySelector('.addon-name-inp').value : 'Add-on'),
+                                description: (row.querySelector('.addon-desc-inp') ? row.querySelector('.addon-desc-inp').value : ''),
+                                type: (row.querySelector('.addon-type-sel') ? row.querySelector('.addon-type-sel').value : 'parties'),
+                                value: Number((row.querySelector('.addon-val-inp') ? row.querySelector('.addon-val-inp').value : 0)),
+                                price: Number((row.querySelector('.addon-price-inp') ? row.querySelector('.addon-price-inp').value : 0)),
+                                isActive: true
+                            };
+                        });
+
+                        var payload = {
+                            razorpayKeyId: razorpayKeyId,
+                            razorpayKeySecret: razorpayKeySecret,
+                            whatsappSalesNumber: whatsappSalesNumber,
+                            superadminEmail: superadminEmail,
+                            plans: plans,
+                            addons: addons
+                        };
+                        var res;
+                        if (typeof apiJson === 'function') {
+                            res = await apiJson('/api/superadmin/subscription-settings', {
+                                method: 'POST',
+                                body: JSON.stringify(payload)
+                            });
+                        } else {
+                            var baseUrl = window.API_BASE || '';
+                            var resp = await fetch(baseUrl + '/api/superadmin/subscription-settings', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            res = await resp.json();
+                        }
+                        if (res && res.success) {
+                            window.currentPlanConfigState = res.planConfig;
+                            if (typeof window.renderPlansEditor === 'function') window.renderPlansEditor(res.planConfig);
+                            else if (typeof window.renderStandalonePlansEditor === 'function') window.renderStandalonePlansEditor(res.planConfig);
+                            if (alertBox) {
+                                alertBox.innerHTML = '<div class="alert-msg success">✅ ' + (res.message || 'Plans, Add-ons & Razorpay settings saved successfully!') + '</div>';
+                                setTimeout(function() { if (alertBox) alertBox.innerHTML = ''; }, 5000);
+                            } else {
+                                alert(res.message || 'Settings saved successfully!');
+                            }
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        } else {
+                            var msg = (res && res.message) || 'Failed to save settings.';
+                            if (alertBox) alertBox.innerHTML = '<div class="alert-msg error">⚠️ ' + msg + '</div>';
+                            else alert(msg);
+                        }
+                    } catch (err) {
+                        if (alertBox) alertBox.innerHTML = '<div class="alert-msg error">⚠️ ' + err.message + '</div>';
+                        else alert('Error: ' + err.message);
+                    } finally {
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = '💾 Save All Plans, Add-ons & Razorpay Settings';
+                        }
+                    }
+                };
+            }
+
+            // Standalone Fallback Renderer for Plans & Add-ons
+            window.renderStandalonePlansEditor = function(config) {
+                var cfg = config || window.currentPlanConfigState || FALLBACK_PLAN_CONFIG;
+                var rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
+                var rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
+                var waSalesEl = document.getElementById('whatsappSalesInput');
+                var saEmailEl = document.getElementById('superadminEmailInput');
+                var rzpBadge = document.getElementById('rzpStatusBadge');
+
+                var keyId = String(cfg.razorpayKeyId || '').trim();
+                var keySecret = String(cfg.razorpayKeySecret || '').trim();
+
+                if (rzpKeyIdEl && !rzpKeyIdEl.value) rzpKeyIdEl.value = keyId;
+                if (rzpKeySecretEl && !rzpKeySecretEl.value) rzpKeySecretEl.value = keySecret;
+                if (waSalesEl && !waSalesEl.value) waSalesEl.value = cfg.whatsappSalesNumber || '917021056404';
+                if (saEmailEl && !saEmailEl.value) saEmailEl.value = cfg.superadminEmail || '';
+
+                if (rzpBadge) {
+                    if (keyId && keySecret) {
+                        var isLive = keyId.indexOf('rzp_live_') === 0;
+                        rzpBadge.style.background = '#dcfce7';
+                        rzpBadge.style.color = '#166534';
+                        rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Gateway Active' : '🟢 Razorpay Gateway Active';
+                    } else {
+                        rzpBadge.style.background = '#fef3c7';
+                        rzpBadge.style.color = '#b45309';
+                        rzpBadge.textContent = '⚠️ Razorpay Keys Not Set (Request Mode)';
+                    }
+                }
+
+                var plansGrid = document.getElementById('plansEditorGrid');
+                if (plansGrid && (!plansGrid.children.length || plansGrid.innerHTML.trim() === '')) {
+                    var plans = (Array.isArray(cfg.plans) && cfg.plans.length) ? cfg.plans : FALLBACK_PLAN_CONFIG.plans;
+                    plansGrid.innerHTML = plans.map(function(plan, idx) {
+                        var isCustom = Boolean(plan.isCustom || plan.id === 'customized');
+                        var fa = plan.featureAccess || {};
+                        var featuresList = Array.isArray(plan.features) ? plan.features : (typeof plan.features === 'string' ? plan.features.split('\n') : []);
+                        var featuresText = featuresList.map(function(f){ return String(f).trim(); }).filter(Boolean).join('\n');
+                        return '<div class="plan-edit-card ' + (plan.isPopular ? 'popular' : '') + '" data-plan-idx="' + idx + '" data-plan-id="' + (plan.id || '') + '">' +
+                            '<div class="plan-edit-card-header">' +
+                                '<span class="plan-tier-tag">' + (isCustom ? '🎛️ Tier 3: Customized' : (idx === 0 ? '🌱 Tier 1: Basic' : '🚀 Tier 2: Pro')) + '</span>' +
+                                '<label style="font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; cursor:pointer;">' +
+                                    '<input type="checkbox" class="plan-popular-chk" ' + (plan.isPopular ? 'checked' : '') + '> Highlight Popular' +
+                                '</label>' +
+                            '</div>' +
+                            '<div class="pm-row-2">' +
+                                '<div class="pm-field"><label>Plan Title</label><input type="text" class="plan-name-inp" value="' + (plan.name || '') + '" required></div>' +
+                                '<div class="pm-field"><label>Top Badge Text</label><input type="text" class="plan-badge-inp" value="' + (plan.badge || '') + '"></div>' +
+                            '</div>' +
+                            '<div class="pm-field"><label>Subtitle / Tagline</label><input type="text" class="plan-tagline-inp" value="' + (plan.tagline || '') + '"></div>' +
+                            '<div class="pm-row-2">' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Starting Yearly Price (₹ / Yr)' : 'Yearly Plan Price (₹ / Yr)') + '</label><input type="number" class="plan-price-inp" min="0" value="' + (Number(plan.price) || 0) + '"></div>' +
+                                '<div class="pm-field"><label>Default Validity (Months)</label><input type="number" class="plan-duration-inp" min="1" max="60" value="' + (Number(plan.durationMonths) || 12) + '"></div>' +
+                            '</div>' +
+                            '<div class="pm-row-3">' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Default Parties' : 'Max Parties') + '</label><input type="number" class="plan-parties-inp" min="0" value="' + (Number(plan.maxCustomersLimit) || 0) + '"></div>' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Default Staff' : 'Max Staff') + '</label><input type="number" class="plan-staff-inp" min="0" value="' + (Number(plan.maxStaffLimit) || 0) + '"></div>' +
+                                '<div class="pm-field"><label>' + (isCustom ? 'Default Msgs/Day' : 'Msgs / Day') + '</label><input type="number" class="plan-msgs-inp" min="0" value="' + (Number(plan.dailyMessageLimit) || 0) + '"></div>' +
+                            '</div>' +
+                            (isCustom ? '<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
+                                '<span class="access-checks-title" style="color:#1e40af;">🧮 Custom Plan Calculator Unit Rates (₹ / Year)</span>' +
+                                '<div class="pm-row-2">' +
+                                    '<div class="pm-field" style="margin-bottom:8px;"><label>Base Platform Fee (₹/Yr)</label><input type="number" class="plan-base-price-inp" min="0" value="' + (Number(plan.basePrice != null ? plan.basePrice : 2999)) + '"></div>' +
+                                    '<div class="pm-field" style="margin-bottom:8px;"><label>Per 100 Parties (₹/Yr)</label><input type="number" class="plan-rate-parties-inp" min="0" value="' + (Number(plan.pricePer100Parties != null ? plan.pricePer100Parties : 500)) + '"></div>' +
+                                '</div>' +
+                                '<div class="pm-row-2">' +
+                                    '<div class="pm-field" style="margin-bottom:0;"><label>Per Staff Account (₹/Yr)</label><input type="number" class="plan-rate-staff-inp" min="0" value="' + (Number(plan.pricePerStaff != null ? plan.pricePerStaff : 400)) + '"></div>' +
+                                    '<div class="pm-field" style="margin-bottom:0;"><label>Per 50 Daily Msgs (₹/Yr)</label><input type="number" class="plan-rate-msgs-inp" min="0" value="' + (Number(plan.pricePer50Messages != null ? plan.pricePer50Messages : 300)) + '"></div>' +
+                                '</div>' +
+                            '</div>' : '') +
+                            '<div class="access-checks-box">' +
+                                '<span class="access-checks-title">🔐 Included Feature Access</span>' +
+                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-gdrive" ' + (fa.allowGoogleDriveBackup !== false ? 'checked' : '') + '><span>☁️ Google Drive Cloud Backup</span></label>' +
+                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-excel" ' + (fa.allowExcelImport !== false ? 'checked' : '') + '><span>📥 Bulk Excel Party Import</span></label>' +
+                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-pdf" ' + (fa.allowPdfExport !== false ? 'checked' : '') + '><span>📄 Branded PDF Statement Export</span></label>' +
+                            '</div>' +
+                            '<div class="pm-field" style="margin-bottom:0;"><label>Bullet Features Shown on Card (1 per line)</label><textarea class="plan-features-txt">' + featuresText + '</textarea></div>' +
+                        '</div>';
+                    }).join('');
+                }
+
+                var addonsList = document.getElementById('addonsEditorList');
+                if (addonsList && (!addonsList.children.length || addonsList.innerHTML.trim() === '')) {
+                    var addons = (Array.isArray(cfg.addons) && cfg.addons.length) ? cfg.addons : FALLBACK_PLAN_CONFIG.addons;
+                    addonsList.innerHTML = addons.map(function(addon, idx) {
+                        return '<div class="addon-edit-row" data-addon-id="' + (addon.id || ('addon_' + idx)) + '">' +
+                            '<div class="pm-field" style="margin:0;"><label>Add-on Name</label><input type="text" class="addon-name-inp" value="' + (addon.name || '') + '" placeholder="e.g. +500 Extra Parties"></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Description</label><input type="text" class="addon-desc-inp" value="' + (addon.description || '') + '" placeholder="Short benefit description"></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Boost Type</label><select class="addon-type-sel">' +
+                                '<option value="parties" ' + (addon.type === 'parties' ? 'selected' : '') + '>📊 Extra Parties</option>' +
+                                '<option value="staff" ' + (addon.type === 'staff' ? 'selected' : '') + '>👥 Extra Staff</option>' +
+                                '<option value="messages" ' + (addon.type === 'messages' ? 'selected' : '') + '>💬 Extra Daily Msgs</option>' +
+                                '<option value="gdrive" ' + (addon.type === 'gdrive' ? 'selected' : '') + '>☁️ Cloud Backup Unlock</option>' +
+                                '<option value="duration" ' + (addon.type === 'duration' ? 'selected' : '') + '>📅 Extra Validity (Months)</option>' +
+                            '</select></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Boost Value</label><input type="number" class="addon-val-inp" min="0" value="' + (Number(addon.value) || 0) + '"></div>' +
+                            '<div class="pm-field" style="margin:0;"><label>Price (₹)</label><input type="number" class="addon-price-inp" min="0" value="' + (Number(addon.price) || 0) + '"></div>' +
+                            '<div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;"><button type="button" onclick="this.closest(\'.addon-edit-row\').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button></div>' +
+                        '</div>';
+                    }).join('');
+                }
+            };
+
+            // Execute immediately without waiting for DOMContentLoaded so user NEVER sees "Checking..."
+            if (typeof window.renderPlansEditor === 'function') {
+                window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+            } else {
+                window.renderStandalonePlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+            }
+
+            // Also guarantee execution on DOMContentLoaded or tab switch
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (typeof window.renderPlansEditor === 'function') {
+                        window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+                    } else {
+                        window.renderStandalonePlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
+                    }
+                });
             }
         })();
     </script>
@@ -1094,37 +1711,37 @@
             <span class="brand-badge">SUPER ADMIN</span>
         </div>
         <div class="user-actions">
-            <button type="button" class="btn-change-cred" onclick="showTab('plansTab')" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">💳 <span>Plans & Razorpay</span></button>
-            <button type="button" class="btn-change-cred" onclick="showTab('settingsTab')">⚙️ <span>Change Credentials</span></button>
-            <button class="btn-logout-pill" onclick="handleLogout()">🚪 <span>Logout</span></button>
+            <button type="button" class="btn-change-cred" onclick="if(window.showTab)window.showTab('plansTab')" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">💳 <span>Plans & Razorpay</span></button>
+            <button type="button" class="btn-change-cred" onclick="if(window.showTab)window.showTab('settingsTab')">⚙️ <span>Change Credentials</span></button>
+            <button class="btn-logout-pill" onclick="if(window.handleLogout)window.handleLogout(); else if(window.logout)window.logout();">🚪 <span>Logout</span></button>
         </div>
     </header>
 
     <div class="container">
         <!-- STATS OVERVIEW -->
         <div class="stats-grid">
-            <div class="stat-card pending" onclick="showTab('pendingTab')" style="cursor:pointer;">
+            <div class="stat-card pending" onclick="if(window.showTab)window.showTab('pendingTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Pending Approval</div>
                     <div class="stat-val" id="statPendingCount">0</div>
                 </div>
                 <div class="stat-icon-box">⏳</div>
             </div>
-            <div class="stat-card approved" onclick="showTab('approvedTab')" style="cursor:pointer;">
+            <div class="stat-card approved" onclick="if(window.showTab)window.showTab('approvedTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Approved Admins</div>
                     <div class="stat-val" id="statApprovedCount">0</div>
                 </div>
                 <div class="stat-icon-box">☑️</div>
             </div>
-            <div class="stat-card suspended" onclick="showTab('suspendedTab')" style="cursor:pointer;">
+            <div class="stat-card suspended" onclick="if(window.showTab)window.showTab('suspendedTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Suspended (Unpaid Fee)</div>
                     <div class="stat-val" id="statSuspendedCount">0</div>
                 </div>
                 <div class="stat-icon-box">⏸️</div>
             </div>
-            <div class="stat-card rejected" onclick="showTab('rejectedTab')" style="cursor:pointer;">
+            <div class="stat-card rejected" onclick="if(window.showTab)window.showTab('rejectedTab')" style="cursor:pointer;">
                 <div>
                     <div class="stat-label">Rejected Requests</div>
                     <div class="stat-val" id="statRejectedCount">0</div>
@@ -1135,22 +1752,22 @@
 
         <!-- TABS NAV BAR -->
         <div class="tabs-container">
-            <button class="tab-btn active" onclick="showTab('pendingTab')">
+            <button class="tab-btn active" onclick="if(window.showTab)window.showTab('pendingTab')">
                 ⏳ Pending <span class="badge-count" id="tabPendingCount">0</span>
             </button>
-            <button class="tab-btn" onclick="showTab('approvedTab')">
+            <button class="tab-btn" onclick="if(window.showTab)window.showTab('approvedTab')">
                 ✔️ Approved <span class="badge-count" id="tabApprovedCount">0</span>
             </button>
-            <button class="tab-btn" onclick="showTab('suspendedTab')">
+            <button class="tab-btn" onclick="if(window.showTab)window.showTab('suspendedTab')">
                 ❗️ Suspended <span class="badge-count" id="tabSuspendedCount">0</span>
             </button>
-            <button class="tab-btn" onclick="showTab('rejectedTab')">
+            <button class="tab-btn" onclick="if(window.showTab)window.showTab('rejectedTab')">
                 ❌ Rejected <span class="badge-count" id="tabRejectedCount">0</span>
             </button>
-            <button class="tab-btn" onclick="showTab('plansTab')">
+            <button class="tab-btn" onclick="if(window.showTab)window.showTab('plansTab')">
                 💳 Plans, Add-ons & Razorpay
             </button>
-            <button class="tab-btn" onclick="showTab('settingsTab')">
+            <button class="tab-btn" onclick="if(window.showTab)window.showTab('settingsTab')">
                 ⚙️ Credentials Settings
             </button>
         </div>
@@ -1273,7 +1890,7 @@
                             <h3>💎 Landing Page Subscription Plans (Basic, Pro & Customized)</h3>
                             <p>Edit pricing, party/staff/message quotas, validity months, feature permissions, and custom calculator rates shown on the landing page.</p>
                         </div>
-                        <button type="button" onclick="resetDefaultPlansAndAddons()" style="padding:9px 15px; background:#f8fafc; color:#334155; border:1px solid #cbd5e1; border-radius:10px; font-weight:700; font-size:12.5px; cursor:pointer;">🔄 Reset Default Yearly Plans & Add-ons</button>
+                        <button type="button" onclick="if(window.resetDefaultPlansAndAddons)window.resetDefaultPlansAndAddons()" style="padding:9px 15px; background:#f8fafc; color:#334155; border:1px solid #cbd5e1; border-radius:10px; font-weight:700; font-size:12.5px; cursor:pointer;">🔄 Reset Default Yearly Plans & Add-ons</button>
                     </div>
                     <div id="plansEditorGrid" class="plans-editor-grid"></div>
                 </div>
@@ -1285,13 +1902,13 @@
                             <h3>🧩 Subscription Add-ons Manager</h3>
                             <p>Create or edit optional add-on packs (Extra Parties, Extra Staff, Extra Daily Reminders, Cloud Backup, Extra Validity) that clients can bundle at checkout.</p>
                         </div>
-                        <button type="button" onclick="addNewAddonRow()" style="padding:9px 15px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer;">+ Add New Add-on</button>
+                        <button type="button" onclick="if(window.addNewAddonRow)window.addNewAddonRow()" style="padding:9px 15px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer;">+ Add New Add-on</button>
                     </div>
                     <div id="addonsEditorList"></div>
                 </div>
 
                 <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom:24px;">
-                    <button type="button" onclick="saveSubscriptionSettings()" id="btnSavePlansConfig" class="btn-save-settings" style="max-width:360px; margin:0; font-size:15px; padding:14px 24px;">
+                    <button type="button" onclick="if(window.saveSubscriptionSettings)window.saveSubscriptionSettings()" id="btnSavePlansConfig" class="btn-save-settings" style="max-width:360px; margin:0; font-size:15px; padding:14px 24px;">
                         💾 Save All Plans, Add-ons & Razorpay Settings
                     </button>
                 </div>
@@ -1397,10 +2014,10 @@
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
                             <label for="modalPlanExpiry" style="margin-bottom:0; font-size:13px; font-weight:700; color:var(--text-dark);">📅 Plan Expiry Date</label>
                             <div style="display:flex; gap:4px; align-items:center;">
-                                <button type="button" onclick="event.stopPropagation(); setModalExpiryMonths(6);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 6 months from today">6 Mo</button>
-                                <button type="button" onclick="event.stopPropagation(); setModalExpiryMonths(12);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 12 months from today">12 Mo</button>
-                                <button type="button" onclick="event.stopPropagation(); setModalExpiryMonths(24);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 24 months from today">24 Mo</button>
-                                <button type="button" onclick="event.stopPropagation(); extendModalExpiryOneYear();" style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; border:1px solid #fde68a; background:#fffbeb; color:#b45309; cursor:pointer;" title="Add 1 Year from current expiry">+1 Yr</button>
+                                <button type="button" onclick="event.stopPropagation(); if(window.setModalExpiryMonths)window.setModalExpiryMonths(6);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 6 months from today">6 Mo</button>
+                                <button type="button" onclick="event.stopPropagation(); if(window.setModalExpiryMonths)window.setModalExpiryMonths(12);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 12 months from today">12 Mo</button>
+                                <button type="button" onclick="event.stopPropagation(); if(window.setModalExpiryMonths)window.setModalExpiryMonths(24);" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; cursor:pointer;" title="Set expiry to 24 months from today">24 Mo</button>
+                                <button type="button" onclick="event.stopPropagation(); if(window.extendModalExpiryOneYear)window.extendModalExpiryOneYear();" style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; border:1px solid #fde68a; background:#fffbeb; color:#b45309; cursor:pointer;" title="Add 1 Year from current expiry">+1 Yr</button>
                             </div>
                         </div>
                         <input type="date" id="modalPlanExpiry" name="planExpiryDate" required onclick="try{this.showPicker && this.showPicker();}catch(e){}" style="cursor:pointer;">
@@ -1438,13 +2055,13 @@
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
                         <input type="password" id="modalAdminNewPassword" placeholder="Enter new password (min 8 chars)" style="margin:0; flex:1; font-size:13px; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px;" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
-                        <button type="button" onclick="submitModalAdminPasswordReset()" style="padding:9px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;">Set Password 🔑</button>
+                        <button type="button" onclick="if(window.submitModalAdminPasswordReset)window.submitModalAdminPasswordReset()" style="padding:9px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;">Set Password 🔑</button>
                     </div>
                     <div id="modalAdminPwdMsg" style="margin-top:6px; font-size:11px;"></div>
                 </div>
 
                 <div style="display:flex; gap:12px; margin-top:20px;">
-                    <button type="button" onclick="closeLimitsModal()" style="flex:1; padding:12px; background:#f1f5f9; color:var(--text-dark); border:1px solid var(--border); border-radius:10px; font-weight:700; cursor:pointer;">Cancel</button>
+                    <button type="button" onclick="if(window.closeLimitsModal)window.closeLimitsModal()" style="flex:1; padding:12px; background:#f1f5f9; color:var(--text-dark); border:1px solid var(--border); border-radius:10px; font-weight:700; cursor:pointer;">Cancel</button>
                     <button type="submit" style="flex:1; padding:12px; background:linear-gradient(135deg, #1558cc, #0f2d52); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; box-shadow:0 4px 12px rgba(15,45,82,0.2);">Save Changes 💾</button>
                 </div>
             </form>
@@ -1454,7 +2071,7 @@
     <!-- INSTANT PASSWORD RESET MODAL (SUPER ADMIN OVERRIDE - NO OLD PASSWORD NEEDED) -->
     <div id="resetPasswordModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center; padding:16px;">
         <div class="modal-card" style="background:#fff; border-radius:18px; max-width:440px; width:100%; padding:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); position:relative; border:1px solid #e2e8f0;">
-            <button type="button" class="modal-close" onclick="closeResetPasswordModal()" style="position:absolute; top:16px; right:16px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:14px; font-weight:700;">✕</button>
+            <button type="button" class="modal-close" onclick="if(window.closeResetPasswordModal)window.closeResetPasswordModal()" style="position:absolute; top:16px; right:16px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:14px; font-weight:700;">✕</button>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
                 <div style="width:42px; height:42px; border-radius:12px; background:#dbeafe; display:flex; align-items:center; justify-content:center; font-size:20px;">🔑</div>
                 <div>
@@ -1481,629 +2098,15 @@
                 </div>
 
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button type="button" onclick="closeResetPasswordModal()" style="padding:10px 16px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; color:#475569; cursor:pointer;">Cancel</button>
+                    <button type="button" onclick="if(window.closeResetPasswordModal)window.closeResetPasswordModal()" style="padding:10px 16px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:700; color:#475569; cursor:pointer;">Cancel</button>
                     <button type="submit" id="btnConfirmResetPwd" style="padding:10px 20px; background:linear-gradient(135deg, #2563eb, #1d4ed8); border:none; border-radius:10px; font-size:13px; font-weight:800; color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.3);">Set New Password 🔑</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="https://wgs-payment.vercel.app/client-js/api.js?v=18" onerror="this.onerror=null;this.src='js/api.js?v=18'"></script>
-    <script src="https://wgs-payment.vercel.app/client-js/superadmin.js?v=18" onerror="this.onerror=null;this.src='js/superadmin.js?v=18'"></script>
-    <script>
-        // Self-contained fallback so Plans, Add-ons & Razorpay Editor works even if js/superadmin.js is cached
-        (function() {
-            var FALLBACK_PLAN_CONFIG = {
-                razorpayKeyId: '',
-                razorpayKeySecret: '',
-                whatsappSalesNumber: '917021056404',
-                superadminEmail: '',
-                currency: 'INR',
-                plans: [
-                    {
-                        id: 'basic',
-                        name: 'Basic Plan',
-                        tagline: 'Essential yearly payment tracking & aging analysis for growing businesses.',
-                        badge: 'YEARLY STARTER',
-                        isPopular: false,
-                        isCustom: false,
-                        price: 4999,
-                        durationMonths: 12,
-                        billingLabel: '/ year',
-                        maxCustomersLimit: 250,
-                        maxStaffLimit: 2,
-                        dailyMessageLimit: 50,
-                        features: [
-                            '1 Full Year (12 Months) Validity',
-                            'Up to 250 Active Parties',
-                            '2 Staff / Team Accounts',
-                            '50 Daily Payment Reminders (WhatsApp/SMS/Email)',
-                            '30-60-90-180+ Days Aging Buckets',
-                            'Tally / Busy Excel & PDF Reports',
-                            'Activity Audit Trail'
-                        ],
-                        featureAccess: { allowGoogleDriveBackup: false, allowExcelImport: true, allowPdfExport: true },
-                        isActive: true
-                    },
-                    {
-                        id: 'pro',
-                        name: 'Pro Plan',
-                        tagline: 'Full-featured yearly automation, cloud backups & higher quotas for finance teams.',
-                        badge: 'MOST POPULAR • YEARLY',
-                        isPopular: true,
-                        isCustom: false,
-                        price: 9999,
-                        durationMonths: 12,
-                        billingLabel: '/ year',
-                        maxCustomersLimit: 1500,
-                        maxStaffLimit: 10,
-                        dailyMessageLimit: 300,
-                        features: [
-                            '1 Full Year (12 Months) Validity',
-                            'Up to 1,500 Active Parties',
-                            '10 Staff / Team Accounts',
-                            '300 Daily Payment Reminders (WhatsApp/SMS/Email)',
-                            'Automated Google Drive Cloud Backups',
-                            'Tally / Busy Excel Import & Export',
-                            'Customer Self-Service Portal & Priority Support'
-                        ],
-                        featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
-                        isActive: true
-                    },
-                    {
-                        id: 'customized',
-                        name: 'Customized Plan',
-                        tagline: 'Tailor your exact yearly party quota, team size, and daily message limits with live pricing.',
-                        badge: 'CUSTOM YEARLY',
-                        isPopular: false,
-                        isCustom: true,
-                        price: 14999,
-                        durationMonths: 12,
-                        billingLabel: '/ year',
-                        maxCustomersLimit: 2000,
-                        maxStaffLimit: 15,
-                        dailyMessageLimit: 500,
-                        basePrice: 2999,
-                        pricePer100Parties: 500,
-                        pricePerStaff: 400,
-                        pricePer50Messages: 300,
-                        features: [
-                            '1 Full Year (12 Months) Validity (Extendable)',
-                            'Custom Active Parties Quota (100 – 10,000+)',
-                            'Custom Staff / Team Accounts (1 – 100+)',
-                            'Custom Daily Reminder Quota (50 – 2,500+)',
-                            'Automated Google Drive Cloud Backups Included',
-                            'Full Tally / Busy Excel Import & PDF Suite',
-                            'Dedicated Onboarding & Priority Support'
-                        ],
-                        featureAccess: { allowGoogleDriveBackup: true, allowExcelImport: true, allowPdfExport: true },
-                        isActive: true
-                    }
-                ],
-                addons: [
-                    { id: 'addon_parties_500', name: '+500 Extra Parties (Yearly)', description: 'Expand your party ledger capacity by 500 additional customer accounts for the year.', price: 1499, type: 'parties', value: 500, isActive: true },
-                    { id: 'addon_staff_5', name: '+5 Extra Staff Accounts (Yearly)', description: 'Add 5 more staff/employee logins for your collections and accounting team.', price: 999, type: 'staff', value: 5, isActive: true },
-                    { id: 'addon_msgs_100', name: '+100 Daily Reminders (Yearly)', description: 'Boost your daily WhatsApp, SMS & Email payment reminder quota by 100/day.', price: 799, type: 'messages', value: 100, isActive: true },
-                    { id: 'addon_gdrive', name: 'Cloud Backup Unlock (Yearly)', description: 'Enable automated & 1-click Google Drive cloud backups on Basic plans.', price: 999, type: 'gdrive', value: 1, isActive: true },
-                    { id: 'addon_validity_12m', name: '+1 Extra Year Validity (12 Months)', description: 'Extend your subscription validity by an additional 12 months (1 full year).', price: 3999, type: 'duration', value: 12, isActive: true }
-                ]
-            };
-
-            // Ensure global getLivePlansList is always available and reads live editor inputs or saved config
-            if (typeof window.getLivePlansList !== 'function' || window.getLivePlansList.__isStub) {
-                window.getLivePlansList = function() {
-                    var cards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
-                    if (cards.length > 0) {
-                        return cards.map(function(card, idx) {
-                            var planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
-                            return {
-                                id: planId,
-                                name: (card.querySelector('.plan-name-inp') && card.querySelector('.plan-name-inp').value) || 'Plan',
-                                price: Number((card.querySelector('.plan-price-inp') && card.querySelector('.plan-price-inp').value) || 0),
-                                durationMonths: Number((card.querySelector('.plan-duration-inp') && card.querySelector('.plan-duration-inp').value) || 12),
-                                maxCustomersLimit: Number((card.querySelector('.plan-parties-inp') && card.querySelector('.plan-parties-inp').value) || 0),
-                                maxStaffLimit: Number((card.querySelector('.plan-staff-inp') && card.querySelector('.plan-staff-inp').value) || 0),
-                                dailyMessageLimit: Number((card.querySelector('.plan-msgs-inp') && card.querySelector('.plan-msgs-inp').value) || 0),
-                                featureAccess: {
-                                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive') && card.querySelector('.plan-fa-gdrive').checked),
-                                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel') && card.querySelector('.plan-fa-excel').checked),
-                                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf') && card.querySelector('.plan-fa-pdf').checked)
-                                }
-                            };
-                        });
-                    }
-                    if (window.currentPlanConfigState && Array.isArray(window.currentPlanConfigState.plans) && window.currentPlanConfigState.plans.length) {
-                        return window.currentPlanConfigState.plans;
-                    }
-                    return FALLBACK_PLAN_CONFIG.plans;
-                };
-            }
-
-            // Modal fallback helpers
-            if (typeof window.closeLimitsModal !== 'function' || window.closeLimitsModal.__isStub) {
-                window.closeLimitsModal = function() {
-                    var m = document.getElementById('limitsModal');
-                    if (m) m.style.display = 'none';
-                };
-            }
-            if (typeof window.openResetPasswordModal !== 'function' || window.openResetPasswordModal.__isStub) {
-                window.openResetPasswordModal = function(userId, username, role) {
-                    var m = document.getElementById('resetPasswordModal');
-                    if (!m) return;
-                    var idInp = document.getElementById('resetTargetUserId');
-                    if (idInp) idInp.value = userId || '';
-                    var userEl = document.getElementById('resetTargetUsername');
-                    if (userEl) userEl.innerText = username || 'user';
-                    var roleEl = document.getElementById('resetTargetRole');
-                    if (roleEl) roleEl.innerText = (role || 'ADMIN').toUpperCase();
-                    var pwdInp = document.getElementById('resetNewPasswordInput');
-                    if (pwdInp) pwdInp.value = '';
-                    var msgEl = document.getElementById('resetModalMsg');
-                    if (msgEl) msgEl.innerHTML = '';
-                    m.style.display = 'flex';
-                };
-            }
-            if (typeof window.closeResetPasswordModal !== 'function' || window.closeResetPasswordModal.__isStub) {
-                window.closeResetPasswordModal = function() {
-                    var m = document.getElementById('resetPasswordModal');
-                    if (m) m.style.display = 'none';
-                };
-            }
-            if (typeof window.confirmResetPasswordAction !== 'function' || window.confirmResetPasswordAction.__isStub) {
-                window.confirmResetPasswordAction = async function() {
-                    var userId = document.getElementById('resetTargetUserId') ? document.getElementById('resetTargetUserId').value : '';
-                    var pwdInp = document.getElementById('resetNewPasswordInput');
-                    var newPassword = pwdInp ? pwdInp.value : '';
-                    var msgEl = document.getElementById('resetModalMsg');
-                    var btn = document.getElementById('btnConfirmResetPwd');
-                    if (!userId) {
-                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Missing user ID.</div>';
-                        return;
-                    }
-                    if (!newPassword || newPassword.trim().length < 8) {
-                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ Password must be at least 8 characters.</div>';
-                        if (pwdInp) pwdInp.focus();
-                        return;
-                    }
-                    if (btn) { btn.disabled = true; btn.textContent = 'Updating... ⏳'; }
-                    try {
-                        var res = await (typeof apiJson === 'function' ? apiJson('/api/superadmin/reset-user-password/' + userId, {
-                            method: 'POST',
-                            body: JSON.stringify({ newPassword: newPassword.trim() })
-                        }) : fetch((window.API_BASE || '') + '/api/superadmin/reset-user-password/' + userId, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ newPassword: newPassword.trim() })
-                        }).then(function(r){ return r.json(); }));
-                        if (res && res.success) {
-                            if (msgEl) msgEl.innerHTML = '<div class="alert-msg success" style="padding:7px 10px; font-size:12px;">✅ ' + (res.message || 'Password reset successfully!') + '</div>';
-                            if (pwdInp) pwdInp.value = '';
-                            setTimeout(function(){ window.closeResetPasswordModal(); }, 1400);
-                        } else {
-                            if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ' + ((res && res.message) || 'Failed to reset password.') + '</div>';
-                        }
-                    } catch(err) {
-                        if (msgEl) msgEl.innerHTML = '<div class="alert-msg error" style="padding:7px 10px; font-size:12px;">⚠️ ' + err.message + '</div>';
-                    } finally {
-                        if (btn) { btn.disabled = false; btn.textContent = 'Set New Password 🔑'; }
-                    }
-                };
-            }
-            if (typeof window.submitModalAdminPasswordReset !== 'function' || window.submitModalAdminPasswordReset.__isStub) {
-                window.submitModalAdminPasswordReset = async function() {
-                    var adminId = document.getElementById('modalAdminId') ? document.getElementById('modalAdminId').value : '';
-                    var pwdInp = document.getElementById('modalAdminNewPassword');
-                    var msgEl = document.getElementById('modalAdminPwdMsg');
-                    var newPassword = pwdInp ? pwdInp.value : '';
-                    if (!adminId) {
-                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Admin ID missing.</span>';
-                        return;
-                    }
-                    if (!newPassword || newPassword.trim().length < 8) {
-                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ Password must be at least 8 characters long.</span>';
-                        if (pwdInp) pwdInp.focus();
-                        return;
-                    }
-                    if (msgEl) msgEl.innerHTML = '<span style="color:#2563eb; font-weight:700;">Updating password... ⏳</span>';
-                    try {
-                        var res = await (typeof apiJson === 'function' ? apiJson('/api/superadmin/reset-user-password/' + adminId, {
-                            method: 'POST',
-                            body: JSON.stringify({ newPassword: newPassword.trim() })
-                        }) : fetch((window.API_BASE || '') + '/api/superadmin/reset-user-password/' + adminId, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ newPassword: newPassword.trim() })
-                        }).then(function(r){ return r.json(); }));
-                        if (res && res.success) {
-                            if (msgEl) msgEl.innerHTML = '<span style="color:#16a34a; font-weight:700;">✅ ' + (res.message || 'Password reset successfully!') + '</span>';
-                            if (pwdInp) pwdInp.value = '';
-                        } else {
-                            if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ ' + ((res && res.message) || 'Failed to update.') + '</span>';
-                        }
-                    } catch(err) {
-                        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626; font-weight:700;">⚠️ ' + err.message + '</span>';
-                    }
-                };
-            }
-            if (typeof window.setModalExpiryMonths !== 'function' || window.setModalExpiryMonths.__isStub) {
-                window.setModalExpiryMonths = function(monthsVal) {
-                    var months = Math.max(1, parseInt(monthsVal) || 12);
-                    var d = new Date();
-                    d.setMonth(d.getMonth() + months);
-                    var expEl = document.getElementById('modalPlanExpiry');
-                    if (expEl) expEl.value = d.toISOString().split('T')[0];
-                    var dur = document.getElementById('modalPlanDurationMonths');
-                    if (dur) dur.value = months;
-                };
-            }
-            if (typeof window.recalcModalExpiryFromDuration !== 'function' || window.recalcModalExpiryFromDuration.__isStub) {
-                window.recalcModalExpiryFromDuration = function(monthsVal) {
-                    var months = Math.max(1, parseInt(monthsVal) || 12);
-                    window.setModalExpiryMonths(months);
-                };
-            }
-            if (typeof window.extendModalExpiryOneYear !== 'function' || window.extendModalExpiryOneYear.__isStub) {
-                window.extendModalExpiryOneYear = function() {
-                    var expEl = document.getElementById('modalPlanExpiry');
-                    if (!expEl) return;
-                    var base = new Date();
-                    if (expEl.value) {
-                        var parsed = new Date(expEl.value);
-                        if (!isNaN(parsed.getTime()) && parsed > base) base = parsed;
-                    }
-                    base.setMonth(base.getMonth() + 12);
-                    expEl.value = base.toISOString().split('T')[0];
-                };
-            }
-
-            if (typeof window.applyPlanPresetToModal !== 'function' || window.applyPlanPresetToModal.__isStub) {
-                window.applyPlanPresetToModal = function(planId) {
-                    var plans = (typeof window.getLivePlansList === 'function') ? window.getLivePlansList() : FALLBACK_PLAN_CONFIG.plans;
-                    var plan = plans.find(function(p){ return String(p.id || '').toLowerCase() === String(planId || '').toLowerCase(); }) || plans[0];
-                    if (!plan) return;
-
-                    var selectedPlanIdEl = document.getElementById('modalSelectedPlanId');
-                    if (selectedPlanIdEl) selectedPlanIdEl.value = plan.id || planId;
-
-                    var planNameInput = document.getElementById('modalPlanName');
-                    if (planNameInput) planNameInput.value = plan.name || 'Basic Plan';
-
-                    var planPriceInput = document.getElementById('modalPlanPrice');
-                    if (planPriceInput) planPriceInput.value = Number(plan.price != null ? plan.price : 0);
-
-                    var durationMonths = Math.max(1, Number(plan.durationMonths) || 12);
-                    var planDurationInput = document.getElementById('modalPlanDurationMonths');
-                    if (planDurationInput) planDurationInput.value = durationMonths;
-
-                    var maxCustEl = document.getElementById('modalMaxCustomers');
-                    if (maxCustEl) maxCustEl.value = (plan.maxCustomersLimit != null ? plan.maxCustomersLimit : 250);
-
-                    var maxStaffEl = document.getElementById('modalMaxStaff');
-                    if (maxStaffEl) maxStaffEl.value = (plan.maxStaffLimit != null ? plan.maxStaffLimit : 2);
-
-                    var dailyMsgEl = document.getElementById('modalDailyMessages');
-                    if (dailyMsgEl) dailyMsgEl.value = (plan.dailyMessageLimit != null ? plan.dailyMessageLimit : 50);
-
-                    var fa = plan.featureAccess || {};
-                    var gdriveChk = document.getElementById('modalAllowGDrive');
-                    var excelChk = document.getElementById('modalAllowExcel');
-                    var pdfChk = document.getElementById('modalAllowPdf');
-                    if (gdriveChk) gdriveChk.checked = fa.allowGoogleDriveBackup !== false;
-                    if (excelChk) excelChk.checked = fa.allowExcelImport !== false;
-                    if (pdfChk) pdfChk.checked = fa.allowPdfExport !== false;
-
-                    var expEl = document.getElementById('modalPlanExpiry');
-                    if (expEl) {
-                        var d = new Date();
-                        d.setMonth(d.getMonth() + durationMonths);
-                        expEl.value = d.toISOString().split('T')[0];
-                    }
-
-                    var statusEl = document.getElementById('modalStatus');
-                    if (statusEl && (statusEl.value === 'pending' || statusEl.value === 'rejected')) {
-                        statusEl.value = 'approved';
-                    }
-
-                    if (typeof window.renderModalPlanPresetButtons === 'function') {
-                        window.renderModalPlanPresetButtons(plan.id || planId);
-                    }
-                    if (typeof window.updateModalSelectedPlanSummary === 'function') {
-                        window.updateModalSelectedPlanSummary(plan.name, plan.price, durationMonths, plan.maxStaffLimit, plan.maxCustomersLimit, plan.dailyMessageLimit, expEl ? expEl.value : '');
-                    }
-                };
-            }
-
-            if (typeof window.updateModalSelectedPlanSummary !== 'function' || window.updateModalSelectedPlanSummary.__isStub) {
-                window.updateModalSelectedPlanSummary = function(planName, price, durationMonths, maxStaff, maxParties, dailyMsgs, expiryDateStr) {
-                    var box = document.getElementById('modalSelectedPlanSummary');
-                    if (!box) return;
-                    var priceNum = Number(price || 0);
-                    box.style.display = 'block';
-                    box.innerHTML = '<div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px;">' +
-                        '<div><strong style="font-size:12.5px; color:#1e3a8a;">💎 Active Selection: ' + (planName || 'Standard Plan') + '</strong>' +
-                        (priceNum > 0 ? '<span style="margin-left:6px; background:#1d4ed8; color:#fff; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800;">₹' + priceNum.toLocaleString('en-IN') + ' / ' + (durationMonths || 12) + ' Mo</span>' : '') +
-                        '</div>' +
-                        '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:800;">📅 Valid Till: ' + (expiryDateStr || 'Auto on Save') + '</span>' +
-                        '</div>' +
-                        '<div style="margin-top:5px; font-size:11px; color:#334155; font-weight:600;">Quotas Applied: 👥 <strong>' + (maxStaff != null ? maxStaff : 0) + '</strong> Staff &nbsp;·&nbsp; 📊 <strong>' + (maxParties != null ? maxParties : 0) + '</strong> Parties &nbsp;·&nbsp; 💬 <strong>' + (dailyMsgs != null ? dailyMsgs : 0) + '</strong> Daily Reminders</div>';
-                };
-            }
-
-            if (typeof window.addNewAddonRow !== 'function' || window.addNewAddonRow.__isStub) {
-                window.addNewAddonRow = function() {
-                    var container = document.getElementById('addonsEditorList');
-                    if (!container) return;
-                    var row = document.createElement('div');
-                    row.className = 'addon-edit-row';
-                    row.setAttribute('data-addon-id', 'addon_' + Date.now());
-                    row.innerHTML =
-                        '<div class="pm-field" style="margin:0;"><label>Add-on Name</label><input type="text" class="addon-name-inp" value="+250 Extra Parties" placeholder="e.g. +500 Extra Parties"></div>' +
-                        '<div class="pm-field" style="margin:0;"><label>Description</label><input type="text" class="addon-desc-inp" value="Expand your customer ledger limit" placeholder="Short benefit description"></div>' +
-                        '<div class="pm-field" style="margin:0;"><label>Boost Type</label><select class="addon-type-sel">' +
-                            '<option value="parties" selected>📊 Extra Parties</option>' +
-                            '<option value="staff">👥 Extra Staff</option>' +
-                            '<option value="messages">💬 Extra Daily Msgs</option>' +
-                            '<option value="gdrive">☁️ Cloud Backup Unlock</option>' +
-                            '<option value="duration">📅 Extra Validity (Months)</option>' +
-                        '</select></div>' +
-                        '<div class="pm-field" style="margin:0;"><label>Boost Value</label><input type="number" class="addon-val-inp" min="0" value="250"></div>' +
-                        '<div class="pm-field" style="margin:0;"><label>Price (₹)</label><input type="number" class="addon-price-inp" min="0" value="299"></div>' +
-                        '<div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;"><button type="button" onclick="this.closest(\'.addon-edit-row\').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button></div>';
-                    container.appendChild(row);
-                };
-            }
-
-            if (typeof window.resetDefaultPlansAndAddons !== 'function' || window.resetDefaultPlansAndAddons.__isStub) {
-                window.resetDefaultPlansAndAddons = function() {
-                    if (!confirm('Reset the form fields below to the default 3 Yearly Plans (Basic, Pro, Customized) and 5 Yearly Add-ons? (Click Save afterwards to apply to the landing page.)')) return;
-                    var merged = JSON.parse(JSON.stringify(FALLBACK_PLAN_CONFIG));
-                    merged.razorpayKeyId = (document.getElementById('rzpKeyIdInput') ? document.getElementById('rzpKeyIdInput').value : '');
-                    merged.razorpayKeySecret = (document.getElementById('rzpKeySecretInput') ? document.getElementById('rzpKeySecretInput').value : '');
-                    merged.whatsappSalesNumber = (document.getElementById('whatsappSalesInput') ? document.getElementById('whatsappSalesInput').value : '917021056404');
-                    merged.superadminEmail = (document.getElementById('superadminEmailInput') ? document.getElementById('superadminEmailInput').value : '');
-                    window.currentPlanConfigState = merged;
-                    if (typeof window.renderPlansEditor === 'function') {
-                        window.renderPlansEditor(merged);
-                    } else {
-                        window.renderStandalonePlansEditor(merged);
-                    }
-                };
-            }
-
-            if (typeof window.saveSubscriptionSettings !== 'function' || window.saveSubscriptionSettings.__isStub) {
-                window.saveSubscriptionSettings = async function() {
-                    var btn = document.getElementById('btnSavePlansConfig');
-                    var alertBox = document.getElementById('plansSaveAlert');
-                    if (btn) {
-                        btn.disabled = true;
-                        btn.textContent = '⏳ Saving Plans & Razorpay Settings...';
-                    }
-                    try {
-                        var razorpayKeyId = (document.getElementById('rzpKeyIdInput') ? document.getElementById('rzpKeyIdInput').value : '').trim();
-                        var razorpayKeySecret = (document.getElementById('rzpKeySecretInput') ? document.getElementById('rzpKeySecretInput').value : '').trim();
-                        var whatsappSalesNumber = (document.getElementById('whatsappSalesInput') ? document.getElementById('whatsappSalesInput').value : '').trim();
-                        var superadminEmail = (document.getElementById('superadminEmailInput') ? document.getElementById('superadminEmailInput').value : '').trim();
-
-                        var planCards = Array.from(document.querySelectorAll('#plansEditorGrid .plan-edit-card'));
-                        var plans = planCards.map(function(card, idx) {
-                            var planId = card.getAttribute('data-plan-id') || (idx === 0 ? 'basic' : idx === 1 ? 'pro' : 'customized');
-                            var isCustom = planId === 'customized';
-                            var txtEl = card.querySelector('.plan-features-txt');
-                            var features = txtEl ? txtEl.value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean) : [];
-                            return {
-                                id: planId,
-                                name: (card.querySelector('.plan-name-inp') ? card.querySelector('.plan-name-inp').value : 'Plan'),
-                                badge: (card.querySelector('.plan-badge-inp') ? card.querySelector('.plan-badge-inp').value : ''),
-                                tagline: (card.querySelector('.plan-tagline-inp') ? card.querySelector('.plan-tagline-inp').value : ''),
-                                price: Number((card.querySelector('.plan-price-inp') ? card.querySelector('.plan-price-inp').value : 0)),
-                                durationMonths: Number((card.querySelector('.plan-duration-inp') ? card.querySelector('.plan-duration-inp').value : 12)),
-                                maxCustomersLimit: Number((card.querySelector('.plan-parties-inp') ? card.querySelector('.plan-parties-inp').value : 0)),
-                                maxStaffLimit: Number((card.querySelector('.plan-staff-inp') ? card.querySelector('.plan-staff-inp').value : 0)),
-                                dailyMessageLimit: Number((card.querySelector('.plan-msgs-inp') ? card.querySelector('.plan-msgs-inp').value : 0)),
-                                isPopular: Boolean(card.querySelector('.plan-popular-chk') && card.querySelector('.plan-popular-chk').checked),
-                                isCustom: isCustom,
-                                basePrice: Number((card.querySelector('.plan-base-price-inp') ? card.querySelector('.plan-base-price-inp').value : 2999)),
-                                pricePer100Parties: Number((card.querySelector('.plan-rate-parties-inp') ? card.querySelector('.plan-rate-parties-inp').value : 500)),
-                                pricePerStaff: Number((card.querySelector('.plan-rate-staff-inp') ? card.querySelector('.plan-rate-staff-inp').value : 400)),
-                                pricePer50Messages: Number((card.querySelector('.plan-rate-msgs-inp') ? card.querySelector('.plan-rate-msgs-inp').value : 300)),
-                                featureAccess: {
-                                    allowGoogleDriveBackup: Boolean(card.querySelector('.plan-fa-gdrive') && card.querySelector('.plan-fa-gdrive').checked),
-                                    allowExcelImport: Boolean(card.querySelector('.plan-fa-excel') && card.querySelector('.plan-fa-excel').checked),
-                                    allowPdfExport: Boolean(card.querySelector('.plan-fa-pdf') && card.querySelector('.plan-fa-pdf').checked)
-                                },
-                                features: features,
-                                isActive: true
-                            };
-                        });
-
-                        var addonRows = Array.from(document.querySelectorAll('#addonsEditorList .addon-edit-row'));
-                        var addons = addonRows.map(function(row, idx) {
-                            return {
-                                id: row.getAttribute('data-addon-id') || ('addon_' + Date.now() + '_' + idx),
-                                name: (row.querySelector('.addon-name-inp') ? row.querySelector('.addon-name-inp').value : 'Add-on'),
-                                description: (row.querySelector('.addon-desc-inp') ? row.querySelector('.addon-desc-inp').value : ''),
-                                type: (row.querySelector('.addon-type-sel') ? row.querySelector('.addon-type-sel').value : 'parties'),
-                                value: Number((row.querySelector('.addon-val-inp') ? row.querySelector('.addon-val-inp').value : 0)),
-                                price: Number((row.querySelector('.addon-price-inp') ? row.querySelector('.addon-price-inp').value : 0)),
-                                isActive: true
-                            };
-                        });
-
-                        var payload = {
-                            razorpayKeyId: razorpayKeyId,
-                            razorpayKeySecret: razorpayKeySecret,
-                            whatsappSalesNumber: whatsappSalesNumber,
-                            superadminEmail: superadminEmail,
-                            plans: plans,
-                            addons: addons
-                        };
-                        var res;
-                        if (typeof apiJson === 'function') {
-                            res = await apiJson('/api/superadmin/subscription-settings', {
-                                method: 'POST',
-                                body: JSON.stringify(payload)
-                            });
-                        } else {
-                            var baseUrl = window.API_BASE || '';
-                            var resp = await fetch(baseUrl + '/api/superadmin/subscription-settings', {
-                                method: 'POST',
-                                credentials: 'include',
-                                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-                            res = await resp.json();
-                        }
-                        if (res && res.success) {
-                            window.currentPlanConfigState = res.planConfig;
-                            if (typeof window.renderPlansEditor === 'function') window.renderPlansEditor(res.planConfig);
-                            else if (typeof window.renderStandalonePlansEditor === 'function') window.renderStandalonePlansEditor(res.planConfig);
-                            if (alertBox) {
-                                alertBox.innerHTML = '<div class="alert-msg success">✅ ' + (res.message || 'Plans, Add-ons & Razorpay settings saved successfully!') + '</div>';
-                                setTimeout(function() { if (alertBox) alertBox.innerHTML = ''; }, 5000);
-                            } else {
-                                alert(res.message || 'Settings saved successfully!');
-                            }
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        } else {
-                            var msg = (res && res.message) || 'Failed to save settings.';
-                            if (alertBox) alertBox.innerHTML = '<div class="alert-msg error">⚠️ ' + msg + '</div>';
-                            else alert(msg);
-                        }
-                    } catch (err) {
-                        if (alertBox) alertBox.innerHTML = '<div class="alert-msg error">⚠️ ' + err.message + '</div>';
-                        else alert('Error: ' + err.message);
-                    } finally {
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.textContent = '💾 Save All Plans, Add-ons & Razorpay Settings';
-                        }
-                    }
-                };
-            }
-
-            // Standalone Fallback Renderer for Plans & Add-ons
-            window.renderStandalonePlansEditor = function(config) {
-                var cfg = config || window.currentPlanConfigState || FALLBACK_PLAN_CONFIG;
-                var rzpKeyIdEl = document.getElementById('rzpKeyIdInput');
-                var rzpKeySecretEl = document.getElementById('rzpKeySecretInput');
-                var waSalesEl = document.getElementById('whatsappSalesInput');
-                var saEmailEl = document.getElementById('superadminEmailInput');
-                var rzpBadge = document.getElementById('rzpStatusBadge');
-
-                var keyId = String(cfg.razorpayKeyId || '').trim();
-                var keySecret = String(cfg.razorpayKeySecret || '').trim();
-
-                if (rzpKeyIdEl && !rzpKeyIdEl.value) rzpKeyIdEl.value = keyId;
-                if (rzpKeySecretEl && !rzpKeySecretEl.value) rzpKeySecretEl.value = keySecret;
-                if (waSalesEl && !waSalesEl.value) waSalesEl.value = cfg.whatsappSalesNumber || '917021056404';
-                if (saEmailEl && !saEmailEl.value) saEmailEl.value = cfg.superadminEmail || '';
-
-                if (rzpBadge) {
-                    if (keyId && keySecret) {
-                        var isLive = keyId.indexOf('rzp_live_') === 0;
-                        rzpBadge.style.background = '#dcfce7';
-                        rzpBadge.style.color = '#166534';
-                        rzpBadge.textContent = isLive ? '🟢 Razorpay LIVE Gateway Active' : '🟢 Razorpay Gateway Active';
-                    } else {
-                        rzpBadge.style.background = '#fef3c7';
-                        rzpBadge.style.color = '#b45309';
-                        rzpBadge.textContent = '⚠️ Razorpay Keys Not Set (Request Mode)';
-                    }
-                }
-
-                var plansGrid = document.getElementById('plansEditorGrid');
-                if (plansGrid && (!plansGrid.children.length || plansGrid.innerHTML.trim() === '')) {
-                    var plans = (Array.isArray(cfg.plans) && cfg.plans.length) ? cfg.plans : FALLBACK_PLAN_CONFIG.plans;
-                    plansGrid.innerHTML = plans.map(function(plan, idx) {
-                        var isCustom = Boolean(plan.isCustom || plan.id === 'customized');
-                        var fa = plan.featureAccess || {};
-                        var featuresList = Array.isArray(plan.features) ? plan.features : (typeof plan.features === 'string' ? plan.features.split('\n') : []);
-                        var featuresText = featuresList.map(function(f){ return String(f).trim(); }).filter(Boolean).join('\n');
-                        return '<div class="plan-edit-card ' + (plan.isPopular ? 'popular' : '') + '" data-plan-idx="' + idx + '" data-plan-id="' + (plan.id || '') + '">' +
-                            '<div class="plan-edit-card-header">' +
-                                '<span class="plan-tier-tag">' + (isCustom ? '🎛️ Tier 3: Customized' : (idx === 0 ? '🌱 Tier 1: Basic' : '🚀 Tier 2: Pro')) + '</span>' +
-                                '<label style="font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; cursor:pointer;">' +
-                                    '<input type="checkbox" class="plan-popular-chk" ' + (plan.isPopular ? 'checked' : '') + '> Highlight Popular' +
-                                '</label>' +
-                            '</div>' +
-                            '<div class="pm-row-2">' +
-                                '<div class="pm-field"><label>Plan Title</label><input type="text" class="plan-name-inp" value="' + (plan.name || '') + '" required></div>' +
-                                '<div class="pm-field"><label>Top Badge Text</label><input type="text" class="plan-badge-inp" value="' + (plan.badge || '') + '"></div>' +
-                            '</div>' +
-                            '<div class="pm-field"><label>Subtitle / Tagline</label><input type="text" class="plan-tagline-inp" value="' + (plan.tagline || '') + '"></div>' +
-                            '<div class="pm-row-2">' +
-                                '<div class="pm-field"><label>' + (isCustom ? 'Starting Yearly Price (₹ / Yr)' : 'Yearly Plan Price (₹ / Yr)') + '</label><input type="number" class="plan-price-inp" min="0" value="' + (Number(plan.price) || 0) + '"></div>' +
-                                '<div class="pm-field"><label>Default Validity (Months)</label><input type="number" class="plan-duration-inp" min="1" max="60" value="' + (Number(plan.durationMonths) || 12) + '"></div>' +
-                            '</div>' +
-                            '<div class="pm-row-3">' +
-                                '<div class="pm-field"><label>' + (isCustom ? 'Default Parties' : 'Max Parties') + '</label><input type="number" class="plan-parties-inp" min="0" value="' + (Number(plan.maxCustomersLimit) || 0) + '"></div>' +
-                                '<div class="pm-field"><label>' + (isCustom ? 'Default Staff' : 'Max Staff') + '</label><input type="number" class="plan-staff-inp" min="0" value="' + (Number(plan.maxStaffLimit) || 0) + '"></div>' +
-                                '<div class="pm-field"><label>' + (isCustom ? 'Default Msgs/Day' : 'Msgs / Day') + '</label><input type="number" class="plan-msgs-inp" min="0" value="' + (Number(plan.dailyMessageLimit) || 0) + '"></div>' +
-                            '</div>' +
-                            (isCustom ? '<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:12px;">' +
-                                '<span class="access-checks-title" style="color:#1e40af;">🧮 Custom Plan Calculator Unit Rates (₹ / Year)</span>' +
-                                '<div class="pm-row-2">' +
-                                    '<div class="pm-field" style="margin-bottom:8px;"><label>Base Platform Fee (₹/Yr)</label><input type="number" class="plan-base-price-inp" min="0" value="' + (Number(plan.basePrice != null ? plan.basePrice : 2999)) + '"></div>' +
-                                    '<div class="pm-field" style="margin-bottom:8px;"><label>Per 100 Parties (₹/Yr)</label><input type="number" class="plan-rate-parties-inp" min="0" value="' + (Number(plan.pricePer100Parties != null ? plan.pricePer100Parties : 500)) + '"></div>' +
-                                '</div>' +
-                                '<div class="pm-row-2">' +
-                                    '<div class="pm-field" style="margin-bottom:0;"><label>Per Staff Account (₹/Yr)</label><input type="number" class="plan-rate-staff-inp" min="0" value="' + (Number(plan.pricePerStaff != null ? plan.pricePerStaff : 400)) + '"></div>' +
-                                    '<div class="pm-field" style="margin-bottom:0;"><label>Per 50 Daily Msgs (₹/Yr)</label><input type="number" class="plan-rate-msgs-inp" min="0" value="' + (Number(plan.pricePer50Messages != null ? plan.pricePer50Messages : 300)) + '"></div>' +
-                                '</div>' +
-                            '</div>' : '') +
-                            '<div class="access-checks-box">' +
-                                '<span class="access-checks-title">🔐 Included Feature Access</span>' +
-                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-gdrive" ' + (fa.allowGoogleDriveBackup !== false ? 'checked' : '') + '><span>☁️ Google Drive Cloud Backup</span></label>' +
-                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-excel" ' + (fa.allowExcelImport !== false ? 'checked' : '') + '><span>📥 Bulk Excel Party Import</span></label>' +
-                                '<label class="access-check-row"><input type="checkbox" class="plan-fa-pdf" ' + (fa.allowPdfExport !== false ? 'checked' : '') + '><span>📄 Branded PDF Statement Export</span></label>' +
-                            '</div>' +
-                            '<div class="pm-field" style="margin-bottom:0;"><label>Bullet Features Shown on Card (1 per line)</label><textarea class="plan-features-txt">' + featuresText + '</textarea></div>' +
-                        '</div>';
-                    }).join('');
-                }
-
-                var addonsList = document.getElementById('addonsEditorList');
-                if (addonsList && (!addonsList.children.length || addonsList.innerHTML.trim() === '')) {
-                    var addons = (Array.isArray(cfg.addons) && cfg.addons.length) ? cfg.addons : FALLBACK_PLAN_CONFIG.addons;
-                    addonsList.innerHTML = addons.map(function(addon, idx) {
-                        return '<div class="addon-edit-row" data-addon-id="' + (addon.id || ('addon_' + idx)) + '">' +
-                            '<div class="pm-field" style="margin:0;"><label>Add-on Name</label><input type="text" class="addon-name-inp" value="' + (addon.name || '') + '" placeholder="e.g. +500 Extra Parties"></div>' +
-                            '<div class="pm-field" style="margin:0;"><label>Description</label><input type="text" class="addon-desc-inp" value="' + (addon.description || '') + '" placeholder="Short benefit description"></div>' +
-                            '<div class="pm-field" style="margin:0;"><label>Boost Type</label><select class="addon-type-sel">' +
-                                '<option value="parties" ' + (addon.type === 'parties' ? 'selected' : '') + '>📊 Extra Parties</option>' +
-                                '<option value="staff" ' + (addon.type === 'staff' ? 'selected' : '') + '>👥 Extra Staff</option>' +
-                                '<option value="messages" ' + (addon.type === 'messages' ? 'selected' : '') + '>💬 Extra Daily Msgs</option>' +
-                                '<option value="gdrive" ' + (addon.type === 'gdrive' ? 'selected' : '') + '>☁️ Cloud Backup Unlock</option>' +
-                                '<option value="duration" ' + (addon.type === 'duration' ? 'selected' : '') + '>📅 Extra Validity (Months)</option>' +
-                            '</select></div>' +
-                            '<div class="pm-field" style="margin:0;"><label>Boost Value</label><input type="number" class="addon-val-inp" min="0" value="' + (Number(addon.value) || 0) + '"></div>' +
-                            '<div class="pm-field" style="margin:0;"><label>Price (₹)</label><input type="number" class="addon-price-inp" min="0" value="' + (Number(addon.price) || 0) + '"></div>' +
-                            '<div style="display:flex; align-items:center; gap:8px; padding-bottom:2px;"><button type="button" onclick="this.closest(\'.addon-edit-row\').remove()" style="padding:9px 12px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:9px; font-weight:700; cursor:pointer;" title="Remove Add-on">🗑️</button></div>' +
-                        '</div>';
-                    }).join('');
-                }
-            };
-
-            // Execute immediately without waiting for DOMContentLoaded so user NEVER sees "Checking..."
-            if (typeof window.renderPlansEditor === 'function') {
-                window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
-            } else {
-                window.renderStandalonePlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
-            }
-
-            // Also guarantee execution on DOMContentLoaded or tab switch
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() {
-                    if (typeof window.renderPlansEditor === 'function') {
-                        window.renderPlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
-                    } else {
-                        window.renderStandalonePlansEditor(window.currentPlanConfigState || FALLBACK_PLAN_CONFIG);
-                    }
-                });
-            }
-        })();
-    </script>
+    <script src="https://wgs-payment.vercel.app/client-js/api.js?v=20" onerror="this.onerror=null;this.src='js/api.js?v=20'"></script>
+    <script src="https://wgs-payment.vercel.app/client-js/superadmin.js?v=20" onerror="this.onerror=null;this.src='js/superadmin.js?v=20'"></script>
+    
 </body>
 </html>
